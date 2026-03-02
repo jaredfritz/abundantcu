@@ -51,7 +51,8 @@ export default function BuildFilter({ activeBuild, onChange }: BuildFilterProps)
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors bg-white"
         >
-          Where Can I Build A…
+          <span className="sm:hidden">Build…</span>
+          <span className="hidden sm:inline">Where Can I Build A…</span>
           <ChevronDown
             className="w-3.5 h-3.5 text-gray-400 transition-transform"
             style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}

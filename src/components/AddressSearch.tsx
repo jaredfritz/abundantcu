@@ -57,7 +57,7 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
             }}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="Search address…"
-            className="text-sm bg-transparent outline-none w-48 text-gray-800 placeholder:text-gray-400"
+            className="text-sm bg-transparent outline-none w-28 sm:w-48 text-gray-800 placeholder:text-gray-400"
           />
           {(query || resolved) && (
             <button

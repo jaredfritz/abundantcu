@@ -42,20 +42,30 @@ export default function ZoningClient({ data }: ZoningClientProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-[100dvh] bg-gray-50">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-5 py-3 bg-white border-b border-gray-100 shadow-sm z-20">
-        <div className="flex-shrink-0">
-          <h1 className="text-base font-semibold text-gray-900 leading-tight">
-            Champaign Zoning
-          </h1>
-          <p className="text-xs text-gray-400">{data.features.length.toLocaleString()} zones</p>
+      <header className="bg-white border-b border-gray-100 shadow-sm z-20">
+        {/* Primary row */}
+        <div className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3">
+          <div className="flex-shrink-0">
+            <h1 className="text-base font-semibold text-gray-900 leading-tight">
+              Champaign Zoning
+            </h1>
+            <p className="text-xs text-gray-400">{data.features.length.toLocaleString()} zones</p>
+          </div>
+          <div className="hidden md:block h-5 w-px bg-gray-200 flex-shrink-0" />
+          {/* FilterBar inline on desktop */}
+          <div className="hidden md:flex flex-1 min-w-0">
+            <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
+          </div>
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            <BuildFilter activeBuild={activeBuild} onChange={setActiveBuild} />
+            <AddressSearch onResult={handleSearchResult} onClear={handleSearchClear} />
+          </div>
         </div>
-        <div className="h-5 w-px bg-gray-200 flex-shrink-0" />
-        <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
-        <BuildFilter activeBuild={activeBuild} onChange={setActiveBuild} />
-        <div className="ml-auto flex-shrink-0">
-          <AddressSearch onResult={handleSearchResult} onClear={handleSearchClear} />
+        {/* FilterBar on second row for mobile */}
+        <div className="md:hidden px-4 pb-2">
+          <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
         </div>
       </header>
 
