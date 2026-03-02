@@ -13,15 +13,6 @@ interface ZonePanelProps {
   onClose: () => void;
 }
 
-function formatDate(ts: number): string {
-  if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
   if (!feature) {
     return (
@@ -79,16 +70,11 @@ export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
       )}
 
       {/* Stats */}
-      <div className="px-5 py-3 grid grid-cols-2 gap-3">
+      <div className="px-5 py-3">
         <div className="bg-gray-50 rounded-xl p-3">
           <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Area</div>
           <div className="text-lg font-semibold text-gray-900">{areaToAcres(area)}</div>
           <div className="text-xs text-gray-400">acres</div>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3">
-          <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Object ID</div>
-          <div className="text-lg font-semibold text-gray-900">{props.OBJECTID}</div>
-          <div className="text-xs text-gray-400">feature</div>
         </div>
       </div>
 
@@ -96,20 +82,36 @@ export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
       <div className="px-5 py-3 space-y-1">
         <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Details</div>
         <Row label="Zone Code" value={props.zoning_code} />
-        {props.county_code && <Row label="County Code" value={props.county_code} />}
-        {props.savoy_code && <Row label="Savoy Code" value={props.savoy_code} />}
-        {props.urbana_code && <Row label="Urbana Code" value={props.urbana_code} />}
-        <Row label="Created" value={formatDate(props.created_date)} />
-        <Row label="Last Updated" value={formatDate(props.last_edited_date)} />
+        <div className="py-1.5 border-b border-gray-50">
+          <span className="text-sm text-gray-500">Description</span>
+          <div className="text-sm font-medium text-gray-800 mt-0.5">
+            {district?.description || "—"}
+          </div>
+        </div>
       </div>
 
-      {/* Permitted uses placeholder */}
+      {/* Data Sources */}
       <div className="px-5 py-4 mt-auto border-t border-gray-100">
         <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-          Permitted Uses
+          Data Sources
         </div>
-        <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-700">
-          Permitted use data coming soon — sourced from Champaign&apos;s zoning ordinance.
+        <div className="flex flex-col gap-1.5 text-sm text-blue-600">
+          <a
+            href="https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore?location=40.113600%2C-88.308850%2C13"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            Map data available here.
+          </a>
+          <a
+            href="https://library.municode.com/il/champaign/codes/code_of_ordinances?nodeId=MUCO_CH37ZO"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            City of Champaign zoning ordinances available here.
+          </a>
         </div>
       </div>
     </div>

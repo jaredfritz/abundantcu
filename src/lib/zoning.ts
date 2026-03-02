@@ -17,6 +17,7 @@ export interface ZoneDistrict {
   label: string;       // e.g. "Residential Districts"
   shortLabel: string;  // e.g. "Residential"
   color: string;
+  description?: string;
   subgroups: ZoneSubgroup[];
 }
 
@@ -45,6 +46,7 @@ export const DISTRICTS: ZoneDistrict[] = [
     label: "Residential Districts",
     shortLabel: "Residential",
     color: "#93c5fd",
+    description: "",
     subgroups: [
       {
         id: "sf",
@@ -74,6 +76,7 @@ export const DISTRICTS: ZoneDistrict[] = [
     label: "In-Town (IT) Districts",
     shortLabel: "In-Town",
     color: "#c4b5fd",
+    description: "",
     subgroups: [
       {
         id: "it-sf",
@@ -116,6 +119,7 @@ export const DISTRICTS: ZoneDistrict[] = [
     label: "Commercial Districts",
     shortLabel: "Commercial",
     color: "#fcd34d",
+    description: "",
     subgroups: [
       {
         id: "cb",
@@ -158,6 +162,7 @@ export const DISTRICTS: ZoneDistrict[] = [
     label: "Industrial & Interstate Districts",
     shortLabel: "Industrial",
     color: "#fb923c",
+    description: "",
     subgroups: [
       {
         id: "i",
