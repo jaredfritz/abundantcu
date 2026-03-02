@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data files (only GeoJSON needed for build)
+src/data/*.csv
+src/data/*.kml
+src/data/*.zip
