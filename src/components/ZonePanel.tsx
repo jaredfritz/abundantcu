@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { BuildType } from "@/lib/buildTypes";
+import { SelectedPermit } from "@/lib/permits";
 import {
   ZoneFeatureProperties,
   ZONE_DETAILS,
@@ -12,6 +13,7 @@ import {
 
 interface ZonePanelProps {
   feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null;
+  permit: SelectedPermit | null;
   activeBuild: BuildType | null;
   onClose: () => void;
 }
@@ -92,8 +94,8 @@ const FOURPLEX_RESTRICTION_NOTES: Record<string, FourplexRestrictionNote> = {
   },
 };
 
-export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelProps) {
-  if (!feature) {
+export default function ZonePanel({ feature, permit, activeBuild, onClose }: ZonePanelProps) {
+  if (!feature && !permit) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-400">
         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
@@ -107,7 +109,71 @@ export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelPr
     );
   }
 
-  const props = feature.properties;
+  if (permit) {
+    return (
+      <div className="flex flex-col h-full overflow-y-auto">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex-shrink-0 mt-0.5"
+              style={{ backgroundColor: permit.buildingType === "MF" ? "#E69F00" : "#0072B2" }}
+            />
+            <div>
+              <div className="text-xl font-bold text-gray-900">{permit.permitNo}</div>
+              <div className="text-sm text-gray-500">Residential Permit</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3 space-y-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Permit Details</div>
+          <Row label="Permit_No" value={permit.permitNo} />
+          <Row label="Year" value={permit.year ?? "—"} />
+          <Row label="Address" value={permit.address} />
+          <Row label="Building_Type" value={permit.buildingType} />
+          <Row label="Units" value={permit.units ?? "—"} />
+          <Row label="Zone code" value={permit.zoneCodeLabel} />
+          <div className="py-1.5 border-b border-gray-50">
+            <span className="text-sm text-gray-500">Description</span>
+            <div className="text-sm text-gray-800 mt-0.5 leading-relaxed">{permit.zoneDescription}</div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 mt-auto border-t border-gray-100">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+            Data Sources
+          </div>
+          <div className="flex flex-col gap-1.5 text-sm text-blue-600">
+            <a
+              href="https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore?location=40.113600%2C-88.308850%2C13"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              Map data available here.
+            </a>
+            <a
+              href="https://library.municode.com/il/champaign/codes/code_of_ordinances?nodeId=MUCO_CH37ZO"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              City of Champaign zoning ordinances available here.
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const zoneFeature = feature!;
+  const props = zoneFeature.properties;
   const district = getZoneDistrict(props.zoning_code);
   const description = getZoneDescription(props.zoning_code);
   const color = district?.color ?? "#d1d5db";

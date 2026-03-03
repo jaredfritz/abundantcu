@@ -1,5 +1,6 @@
 import { fetchZoningGeoJSON } from "@/lib/api";
 import ZoningClient from "@/components/ZoningClient";
+import permitsData from "@/data/residential-permits.json";
 
 export default async function Home() {
   let data: GeoJSON.FeatureCollection;
@@ -12,5 +13,5 @@ export default async function Home() {
     data = await res.json();
   }
 
-  return <ZoningClient data={data} />;
+  return <ZoningClient data={data} permitsData={permitsData as GeoJSON.FeatureCollection} />;
 }

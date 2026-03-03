@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ALL_ZONE_CODES, ZoneFeatureProperties } from "@/lib/zoning";
 import { GeocodedAddress, findZoneAtPoint } from "@/lib/geo";
 import { BuildType } from "@/lib/buildTypes";
+import { SelectedPermit } from "@/lib/permits";
 import FilterBar from "./FilterBar";
 import ZonePanel from "./ZonePanel";
 import AddressSearch from "./AddressSearch";
@@ -14,9 +15,10 @@ const ZoningMap = dynamic(() => import("./ZoningMap"), { ssr: false });
 
 interface ZoningClientProps {
   data: GeoJSON.FeatureCollection;
+  permitsData: GeoJSON.FeatureCollection;
 }
 
-export default function ZoningClient({ data }: ZoningClientProps) {
+export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
   const [activeCodes, setActiveCodes] = useState<Set<string>>(
     new Set(ALL_ZONE_CODES)
   );
@@ -26,11 +28,14 @@ export default function ZoningClient({ data }: ZoningClientProps) {
   > | null>(null);
   const [searchPin, setSearchPin] = useState<{ lat: number; lng: number } | null>(null);
   const [activeBuild, setActiveBuild] = useState<BuildType | null>(null);
+  const [showPermits, setShowPermits] = useState(false);
+  const [selectedPermit, setSelectedPermit] = useState<SelectedPermit | null>(null);
 
   function handleSearchResult(result: GeocodedAddress) {
     setSearchPin({ lat: result.lat, lng: result.lng });
     // Find which zone the address falls in and select it
     const zone = findZoneAtPoint(data, result.lng, result.lat);
+    setSelectedPermit(null);
     setSelectedFeature(
       zone as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null
     );
@@ -39,6 +44,7 @@ export default function ZoningClient({ data }: ZoningClientProps) {
   function handleSearchClear() {
     setSearchPin(null);
     setSelectedFeature(null);
+    setSelectedPermit(null);
   }
 
   return (
@@ -59,6 +65,29 @@ export default function ZoningClient({ data }: ZoningClientProps) {
             <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
           </div>
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                setShowPermits((v) => {
+                  const next = !v;
+                  if (next) {
+                    // Default zoning layers off when permit layer is turned on.
+                    setActiveBuild(null);
+                    setActiveCodes(new Set());
+                    setSelectedFeature(null);
+                  } else {
+                    setSelectedPermit(null);
+                  }
+                  return next;
+                });
+              }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                showPermits
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-800"
+              }`}
+            >
+              Residential Permits
+            </button>
             <BuildFilter activeBuild={activeBuild} onChange={setActiveBuild} />
             <AddressSearch onResult={handleSearchResult} onClear={handleSearchClear} />
           </div>
@@ -76,20 +105,33 @@ export default function ZoningClient({ data }: ZoningClientProps) {
             data={data}
             activeCodes={activeCodes}
             activeBuild={activeBuild}
+            permitsData={permitsData}
+            showPermits={showPermits}
             selectedId={selectedFeature?.properties?.OBJECTID ?? null}
-            onSelectFeature={setSelectedFeature}
+            onSelectFeature={(f) => {
+              setSelectedPermit(null);
+              setSelectedFeature(f);
+            }}
+            onSelectPermit={(p) => {
+              setSelectedFeature(null);
+              setSelectedPermit(p);
+            }}
             searchPin={searchPin}
           />
         </div>
 
         <aside
           className="bg-white border-l border-gray-100 shadow-sm flex-shrink-0 overflow-hidden transition-all duration-200"
-          style={{ width: selectedFeature ? "20rem" : 0 }}
+          style={{ width: selectedFeature || selectedPermit ? "20rem" : 0 }}
         >
           <ZonePanel
             feature={selectedFeature}
+            permit={selectedPermit}
             activeBuild={activeBuild}
-            onClose={() => setSelectedFeature(null)}
+            onClose={() => {
+              setSelectedFeature(null);
+              setSelectedPermit(null);
+            }}
           />
         </aside>
       </div>

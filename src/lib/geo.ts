@@ -11,6 +11,47 @@ function pointInRing(x: number, y: number, ring: number[][]): boolean {
   return inside;
 }
 
+function metersPerDegreeLon(lat: number): number {
+  return 111_320 * Math.cos((lat * Math.PI) / 180);
+}
+
+function pointToSegmentDistanceMeters(
+  lng: number,
+  lat: number,
+  lng1: number,
+  lat1: number,
+  lng2: number,
+  lat2: number
+): number {
+  const mx = metersPerDegreeLon(lat);
+  const my = 110_540;
+  const px = lng * mx;
+  const py = lat * my;
+  const x1 = lng1 * mx;
+  const y1 = lat1 * my;
+  const x2 = lng2 * mx;
+  const y2 = lat2 * my;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) return Math.hypot(px - x1, py - y1);
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  const cx = x1 + t * dx;
+  const cy = y1 + t * dy;
+  return Math.hypot(px - cx, py - cy);
+}
+
+function distanceToRingMeters(lng: number, lat: number, ring: number[][]): number {
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < ring.length; i++) {
+    const a = ring[i - 1];
+    const b = ring[i];
+    const d = pointToSegmentDistanceMeters(lng, lat, a[0], a[1], b[0], b[1]);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
 /** Returns true if [lng, lat] is inside the polygon (respecting holes). */
 function pointInPolygon(lng: number, lat: number, coords: number[][][]): boolean {
   const [exterior, ...holes] = coords;
@@ -42,6 +83,44 @@ export function findZoneAtPoint(
     }
   }
   return null;
+}
+
+/**
+ * Finds containing zoning feature; if none is found, falls back to nearest polygon
+ * edge within max distance (useful when points are geocoded to street centerlines).
+ */
+export function findZoneAtPointOrNearest(
+  data: GeoJSON.FeatureCollection,
+  lng: number,
+  lat: number,
+  maxDistanceMeters = 30
+): GeoJSON.Feature | null {
+  const containing = findZoneAtPoint(data, lng, lat);
+  if (containing) return containing;
+
+  let best: GeoJSON.Feature | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const feature of data.features) {
+    const geom = feature.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon;
+    if (!geom) continue;
+    if (geom.type === "Polygon") {
+      const d = distanceToRingMeters(lng, lat, geom.coordinates[0]);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = feature;
+      }
+    } else if (geom.type === "MultiPolygon") {
+      for (const poly of geom.coordinates) {
+        const d = distanceToRingMeters(lng, lat, poly[0]);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = feature;
+        }
+      }
+    }
+  }
+
+  return bestDistance <= maxDistanceMeters ? best : null;
 }
 
 export interface GeocodedAddress {

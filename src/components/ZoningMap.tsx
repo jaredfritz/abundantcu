@@ -7,13 +7,20 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   ZONE_COLOR_MAP,
   ZoneFeatureProperties,
+  ZONE_DETAILS,
   getZoneDescription,
   getZoneDistrict,
 } from "@/lib/zoning";
 import { BuildType, BUILD_COLORS } from "@/lib/buildTypes";
+import { findZoneAtPointOrNearest } from "@/lib/geo";
+import { PermitFeatureProperties, SelectedPermit } from "@/lib/permits";
 
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const CHAMPAIGN_CENTER = { lng: -88.2434, lat: 40.1164 };
+const SF_PERMIT_COLOR = "#0072B2";
+const MF_PERMIT_COLOR = "#E69F00";
+const LEGEND_RADIUS_1_UNIT_PX = 3;
+const LEGEND_RADIUS_100_UNITS_PX = 17;
 
 function applyThoroughfareLabelDraft(map: MapLibreMap) {
   const style = map.getStyle();
@@ -124,8 +131,11 @@ interface ZoningMapProps {
   data: GeoJSON.FeatureCollection;
   activeCodes: Set<string>;
   activeBuild: BuildType | null;
+  permitsData: GeoJSON.FeatureCollection;
+  showPermits: boolean;
   selectedId: number | null;
   onSelectFeature: (feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null) => void;
+  onSelectPermit: (permit: SelectedPermit | null) => void;
   searchPin: { lat: number; lng: number } | null;
 }
 
@@ -133,12 +143,16 @@ export default function ZoningMap({
   data,
   activeCodes,
   activeBuild,
+  permitsData,
+  showPermits,
   selectedId,
   onSelectFeature,
+  onSelectPermit,
   searchPin,
 }: ZoningMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [hoveredPermitId, setHoveredPermitId] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -180,6 +194,17 @@ export default function ZoningMap({
     (e: MapMouseEvent) => {
       const map = mapRef.current?.getMap();
       if (!map) return;
+      if (showPermits) {
+        const permitFeatures = map.queryRenderedFeatures(e.point, { layers: ["residential-permits-circles"] });
+        if (permitFeatures.length > 0) {
+          map.getCanvas().style.cursor = "pointer";
+          const pid = typeof permitFeatures[0].id === "number" ? permitFeatures[0].id : null;
+          if (pid !== hoveredPermitId) setHoveredPermitId(pid);
+          setTooltip(null);
+          return;
+        }
+      }
+      if (hoveredPermitId !== null) setHoveredPermitId(null);
       const features = map.queryRenderedFeatures(e.point, { layers: ["zoning-fill"] });
       if (features.length > 0) {
         const f = features[0];
@@ -209,13 +234,14 @@ export default function ZoningMap({
         setTooltip(null);
       }
     },
-    [hoveredId, activeBuild]
+    [hoveredId, hoveredPermitId, activeBuild, showPermits]
   );
 
   const handleMouseLeave = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (map) map.getCanvas().style.cursor = "";
     setHoveredId(null);
+    setHoveredPermitId(null);
     setTooltip(null);
   }, []);
 
@@ -223,14 +249,49 @@ export default function ZoningMap({
     (e: MapMouseEvent) => {
       const map = mapRef.current?.getMap();
       if (!map) return;
+      if (showPermits) {
+        const permitFeatures = map.queryRenderedFeatures(e.point, { layers: ["residential-permits-circles"] });
+        if (permitFeatures.length > 0) {
+          const p = permitFeatures[0].properties as unknown as PermitFeatureProperties;
+          const lngLat = (permitFeatures[0].geometry as GeoJSON.Point | undefined)?.coordinates;
+          let zoneCode: string | null = null;
+          let zoneCodeLabel = "—";
+          let zoneDescription = "—";
+          if (lngLat && lngLat.length >= 2) {
+            const containingZone = findZoneAtPointOrNearest(data, lngLat[0], lngLat[1]) as GeoJSON.Feature<
+              GeoJSON.Geometry,
+              ZoneFeatureProperties
+            > | null;
+            zoneCode = containingZone?.properties?.zoning_code ?? null;
+            if (zoneCode) {
+              const fullName = getZoneDescription(zoneCode);
+              zoneCodeLabel = `${zoneCode} — ${fullName}`;
+              zoneDescription = ZONE_DETAILS[zoneCode] ?? fullName;
+            }
+          }
+          onSelectPermit({
+            permitNo: p.permit_no ?? "—",
+            year: typeof p.year === "number" ? p.year : null,
+            address: p.address ?? "—",
+            buildingType: p.building_type ?? "—",
+            units: typeof p.units === "number" ? p.units : null,
+            zoneCode,
+            zoneCodeLabel,
+            zoneDescription,
+          });
+          return;
+        }
+      }
       const features = map.queryRenderedFeatures(e.point, { layers: ["zoning-fill"] });
       if (features.length > 0) {
+        onSelectPermit(null);
         onSelectFeature(features[0] as unknown as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties>);
       } else {
+        onSelectPermit(null);
         onSelectFeature(null);
       }
     },
-    [onSelectFeature]
+    [data, onSelectFeature, onSelectPermit, showPermits]
   );
 
   const inBuildMode = activeBuild !== null;
@@ -335,6 +396,79 @@ export default function ZoningMap({
             }}
           />
         </Source>
+        {showPermits && (
+          <Source id="residential-permits" type="geojson" data={permitsData} generateId>
+            <Layer
+              id="residential-permits-circles"
+              type="circle"
+              paint={{
+                "circle-color": [
+                  "match",
+                  ["get", "building_type"],
+                  "SF",
+                  SF_PERMIT_COLOR,
+                  "MF",
+                  MF_PERMIT_COLOR,
+                  "#6b7280",
+                ],
+                "circle-radius": [
+                  "case",
+                  ["==", ["id"], hoveredPermitId ?? -1],
+                  [
+                    "interpolate",
+                    ["linear"],
+                    ["to-number", ["get", "units"], 1],
+                    1,
+                    4.5,
+                    2,
+                    5.5,
+                    4,
+                    7.5,
+                    8,
+                    10,
+                    20,
+                    13.5,
+                    50,
+                    16.5,
+                    150,
+                    20.5,
+                    322,
+                    23.5,
+                  ],
+                  [
+                    "interpolate",
+                    ["linear"],
+                    ["to-number", ["get", "units"], 1],
+                    1,
+                    3,
+                    2,
+                    4,
+                    4,
+                    6,
+                    8,
+                    8.5,
+                    20,
+                    12,
+                    50,
+                    15,
+                    150,
+                    19,
+                    322,
+                    22,
+                  ],
+                ],
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": [
+                  "case",
+                  ["==", ["id"], hoveredPermitId ?? -1],
+                  2,
+                  1,
+                ],
+                "circle-opacity": 0.78,
+              }}
+            />
+          </Source>
+        )}
 
         {/* Address search pin */}
         {searchPin && (
@@ -383,6 +517,46 @@ export default function ZoningMap({
                 />
               </div>
               <span>Not allowed</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPermits && (
+        <div className="absolute bottom-4 md:bottom-8 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+          <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
+              <span>Single-family (SF)</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
+              <span>Multifamily (MF)</span>
+            </div>
+            <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
+              <div className="mb-1">Circle size scales by units per permit</div>
+              <div className="flex items-end gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="rounded-full bg-gray-500/70 border border-white"
+                    style={{
+                      width: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                      height: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                    }}
+                  />
+                  <span>1 unit</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="rounded-full bg-gray-500/70 border border-white"
+                    style={{
+                      width: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                      height: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                    }}
+                  />
+                  <span>100 units</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
