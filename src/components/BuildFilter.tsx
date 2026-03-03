@@ -67,7 +67,10 @@ export default function BuildFilter({ activeBuild, onChange }: BuildFilterProps)
             Use Type
           </div>
           {BUILD_TYPES.map((bt) => {
-            const ready = bt.allowedCodes.length > 0 || bt.notAllowedCodes.length > 0;
+            const ready =
+              bt.allowedCodes.length > 0 ||
+              (bt.provisionalCodes?.length ?? 0) > 0 ||
+              bt.notAllowedCodes.length > 0;
             const active = activeBuild?.id === bt.id;
             return (
               <button

@@ -3,6 +3,8 @@ export interface BuildType {
   label: string;
   /** Zones where this use is permitted by right. */
   allowedCodes: string[];
+  /** Zones where this use is provisional and subject to additional standards. */
+  provisionalCodes?: string[];
   /** Zones where this use is explicitly not permitted. */
   notAllowedCodes: string[];
 }
@@ -50,13 +52,17 @@ export const BUILD_TYPES: BuildType[] = [
       "IT-MR1", "IT-MR2", "IT-MX",
       "CO",
     ],
+    provisionalCodes: [
+      "CN",
+      "CG",
+      "CB1", "CB2", "CB3",
+      "IBP",
+    ],
     notAllowedCodes: [
       "SF1", "SF2",
       "IT-SF1", "IT-SF2",
-      "CN",
-      "CB1", "CB2", "CB3",
-      "CG", "CI",
-      "I1", "I2", "IBP",
+      "CI",
+      "I1", "I2",
       "MHC",
     ],
   },
@@ -96,5 +102,6 @@ export const BUILD_TYPES: BuildType[] = [
 
 export const BUILD_COLORS = {
   allowed: "#0072B2",
+  provisional: "#E6B800",
   notAllowed: "#D55E00",
 } as const;

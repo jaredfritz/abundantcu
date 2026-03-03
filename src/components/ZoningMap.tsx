@@ -54,10 +54,11 @@ function buildVisibilityFilter(activeCodes: Set<string>): FilterSpecification {
   return ["in", ["get", "zoning_code"], ["literal", codes]] as unknown as FilterSpecification;
 }
 
-// Build mode: blue for allowed, orange for not-allowed, gray for others
+// Build mode: blue for by-right, yellow for provisional, orange for not-allowed, gray for others
 function buildModeFillColor(bt: BuildType): DataDrivenPropertyValueSpecification<string> {
   const arms: unknown[] = [];
   if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, BUILD_COLORS.allowed);
+  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, BUILD_COLORS.provisional);
   if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, BUILD_COLORS.notAllowed);
   return ["match", ["get", "zoning_code"], ...arms, "#d1d5db"] as unknown as DataDrivenPropertyValueSpecification<string>;
 }
@@ -65,6 +66,7 @@ function buildModeFillColor(bt: BuildType): DataDrivenPropertyValueSpecification
 function buildModeHoverColor(bt: BuildType): DataDrivenPropertyValueSpecification<string> {
   const arms: unknown[] = [];
   if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, darken(BUILD_COLORS.allowed));
+  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, darken(BUILD_COLORS.provisional));
   if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, darken(BUILD_COLORS.notAllowed));
   return ["match", ["get", "zoning_code"], ...arms, "#9ca3af"] as unknown as DataDrivenPropertyValueSpecification<string>;
 }
@@ -94,7 +96,7 @@ export default function ZoningMap({
     code: string;
     description: string;
     districtLabel: string;
-    buildStatus: "allowed" | "notAllowed" | null;
+    buildStatus: "allowed" | "provisional" | "notAllowed" | null;
   } | null>(null);
 
   // Register hachure sprite on map load
@@ -134,9 +136,10 @@ export default function ZoningMap({
         map.getCanvas().style.cursor = "pointer";
         if (id !== hoveredId) setHoveredId(id);
 
-        let buildStatus: "allowed" | "notAllowed" | null = null;
+        let buildStatus: "allowed" | "provisional" | "notAllowed" | null = null;
         if (activeBuild) {
           if (activeBuild.allowedCodes.includes(code)) buildStatus = "allowed";
+          else if (activeBuild.provisionalCodes?.includes(code)) buildStatus = "provisional";
           else if (activeBuild.notAllowedCodes.includes(code)) buildStatus = "notAllowed";
         }
 
@@ -299,6 +302,13 @@ export default function ZoningMap({
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <div
+                className="w-4 h-4 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: BUILD_COLORS.provisional }}
+              />
+              <span>Provisional; ground-floor restrictions</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div
                 className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
                 style={{ backgroundColor: BUILD_COLORS.notAllowed }}
               >
@@ -328,6 +338,9 @@ export default function ZoningMap({
             )}
             {tooltip.buildStatus === "allowed" && (
               <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Allowed</span>
+            )}
+            {tooltip.buildStatus === "provisional" && (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Provisional</span>
             )}
             {tooltip.buildStatus === "notAllowed" && (
               <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Not Allowed</span>
