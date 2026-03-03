@@ -104,14 +104,6 @@ export const DISTRICTS: ZoneDistrict[] = [
           { code: "IT-MX", description: "In-Town Mixed Use District" },
         ],
       },
-      {
-        id: "it-nc",
-        label: "IT-NC",
-        description: "In-Town Neighborhood Conservation District",
-        codes: [
-          { code: "IT-NC", description: "In-Town Neighborhood Conservation District" },
-        ],
-      },
     ],
   },
   {
@@ -172,12 +164,6 @@ export const DISTRICTS: ZoneDistrict[] = [
           { code: "I1", description: "Light Industrial District" },
           { code: "I2", description: "Heavy Industrial District" },
         ],
-      },
-      {
-        id: "iop",
-        label: "IOP",
-        description: "Interstate Office Park District",
-        codes: [{ code: "IOP", description: "Interstate Office Park District" }],
       },
       {
         id: "ibp",
