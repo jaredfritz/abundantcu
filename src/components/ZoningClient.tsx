@@ -88,6 +88,7 @@ export default function ZoningClient({ data }: ZoningClientProps) {
         >
           <ZonePanel
             feature={selectedFeature}
+            activeBuild={activeBuild}
             onClose={() => setSelectedFeature(null)}
           />
         </aside>

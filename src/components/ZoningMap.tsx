@@ -192,9 +192,16 @@ export default function ZoningMap({
   const buildFillColor = inBuildMode ? buildModeFillColor(activeBuild!) : null;
   const buildHoverColor = inBuildMode ? buildModeHoverColor(activeBuild!) : null;
   const showAllFilter = ["has", "zoning_code"] as unknown as FilterSpecification;
-  const hachureFilter = inBuildMode && activeBuild!.notAllowedCodes.length > 0
-    ? (["in", ["get", "zoning_code"], ["literal", activeBuild!.notAllowedCodes]] as unknown as FilterSpecification)
+  const hachureCodes = inBuildMode
+    ? Array.from(new Set([...(activeBuild!.notAllowedCodes ?? []), ...(activeBuild!.hatchedCodes ?? [])]))
+    : [];
+  const hachureFilter = inBuildMode && hachureCodes.length > 0
+    ? (["in", ["get", "zoning_code"], ["literal", hachureCodes]] as unknown as FilterSpecification)
     : (["==", ["get", "OBJECTID"], -1] as unknown as FilterSpecification);
+  const provisionalLegendLabel =
+    inBuildMode && activeBuild!.id === "fourplex"
+      ? "Provisional; ground-floor restrictions"
+      : "Provisional; restrictions apply";
 
   // Active fill color (normal vs build)
   const activeFillBase = inBuildMode ? buildFillColor! : fillColor;
@@ -305,7 +312,7 @@ export default function ZoningMap({
                 className="w-4 h-4 rounded-sm flex-shrink-0"
                 style={{ backgroundColor: BUILD_COLORS.provisional }}
               />
-              <span>Provisional; ground-floor restrictions</span>
+              <span>{provisionalLegendLabel}</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <div

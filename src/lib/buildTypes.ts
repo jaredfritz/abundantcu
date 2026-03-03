@@ -5,6 +5,8 @@ export interface BuildType {
   allowedCodes: string[];
   /** Zones where this use is provisional and subject to additional standards. */
   provisionalCodes?: string[];
+  /** Codes that should render with hachure while this build type is active. */
+  hatchedCodes?: string[];
   /** Zones where this use is explicitly not permitted. */
   notAllowedCodes: string[];
 }
@@ -88,13 +90,13 @@ export const BUILD_TYPES: BuildType[] = [
     id: "cafe",
     label: "Café",
     allowedCodes: ["CN", "CG", "CB1", "CB2", "CB3"],
+    provisionalCodes: ["MF3", "CO", "CI", "IBP", "I1", "I2"],
+    hatchedCodes: ["I1", "I2"],
     notAllowedCodes: [
-      "CO", "CI",
       "SF1", "SF2",
       "IT-SF1", "IT-SF2",
       "IT-MR1", "IT-MR2", "IT-MX",
-      "MF1", "MF2", "MF3", "MFUniv",
-      "I1", "I2", "IBP",
+      "MF1", "MF2", "MFUniv",
       "MHC",
     ],
   },

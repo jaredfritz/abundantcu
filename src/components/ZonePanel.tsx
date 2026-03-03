@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { BuildType } from "@/lib/buildTypes";
 import {
   ZoneFeatureProperties,
   ZONE_DETAILS,
@@ -11,10 +12,49 @@ import {
 
 interface ZonePanelProps {
   feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null;
+  activeBuild: BuildType | null;
   onClose: () => void;
 }
 
-export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
+type CafeRestrictionNote = {
+  section: string;
+  summary: string;
+};
+
+const CAFE_RESTRICTION_NOTES: Record<string, CafeRestrictionNote> = {
+  MF3: {
+    section: "Sec. 37-249",
+    summary:
+      "Accessory-only restaurant use with floor-area, placement, display, and loading/separation limits.",
+  },
+  CO: {
+    section: "Sec. 37-250",
+    summary:
+      "Restaurant limits on size, operating hours, liquor license class, spacing, and outdoor sound.",
+  },
+  CI: {
+    section: "Sec. 37-250",
+    summary:
+      "Restaurant limits on size, operating hours, liquor license class, spacing, and outdoor sound.",
+  },
+  IBP: {
+    section: "Sec. 37-250",
+    summary:
+      "Restaurant limits on size, operating hours, liquor license class, spacing, and outdoor sound.",
+  },
+  I1: {
+    section: "Sec. 37-261",
+    summary:
+      "Only within a 200+ acre contiguous I1/I2 district, with one restaurant allowed per large district.",
+  },
+  I2: {
+    section: "Sec. 37-261",
+    summary:
+      "Only within a 200+ acre contiguous I1/I2 district, with one restaurant allowed per large district.",
+  },
+};
+
+export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelProps) {
   if (!feature) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-400">
@@ -34,6 +74,8 @@ export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
   const description = getZoneDescription(props.zoning_code);
   const color = district?.color ?? "#d1d5db";
   const area = props["SHAPE.STArea()"];
+  const cafeRestriction =
+    activeBuild?.id === "cafe" ? CAFE_RESTRICTION_NOTES[props.zoning_code] : undefined;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -90,6 +132,18 @@ export default function ZonePanel({ feature, onClose }: ZonePanelProps) {
           </div>
         </div>
       </div>
+
+      {cafeRestriction && (
+        <div className="px-5 py-3">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+            Cafe Restrictions
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <div className="text-xs font-semibold text-amber-800">{cafeRestriction.section}</div>
+            <p className="text-xs text-amber-900 mt-1 leading-relaxed">{cafeRestriction.summary}</p>
+          </div>
+        </div>
+      )}
 
       {/* Data Sources */}
       <div className="px-5 py-4 mt-auto border-t border-gray-100">
