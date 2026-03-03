@@ -21,6 +21,11 @@ type CafeRestrictionNote = {
   summary: string;
 };
 
+type FourplexRestrictionNote = {
+  section: string;
+  summary: string;
+};
+
 const CAFE_RESTRICTION_NOTES: Record<string, CafeRestrictionNote> = {
   MF3: {
     section: "Sec. 37-249",
@@ -54,6 +59,39 @@ const CAFE_RESTRICTION_NOTES: Record<string, CafeRestrictionNote> = {
   },
 };
 
+const FOURPLEX_RESTRICTION_NOTES: Record<string, FourplexRestrictionNote> = {
+  CN: {
+    section: "Sec. 37-59.3(f)",
+    summary:
+      "Multifamily is provisional and no dwelling units are allowed below the second story.",
+  },
+  CG: {
+    section: "Sec. 37-60.3(d)",
+    summary:
+      "Multifamily is provisional with ground-floor residential limits on total area and street-facing frontage.",
+  },
+  CB1: {
+    section: "Sec. 37-61.3(e) + Sec. 37-262",
+    summary:
+      "Multifamily is provisional and must meet CB ground-floor residential restrictions, including frontage limits along core streets in this district.",
+  },
+  CB2: {
+    section: "Sec. 37-62.3(e) + Sec. 37-262",
+    summary:
+      "Multifamily is provisional and must meet CB ground-floor residential restrictions, including frontage limits along core streets in this district.",
+  },
+  CB3: {
+    section: "Sec. 37-63.3(e) + Sec. 37-262",
+    summary:
+      "Multifamily is provisional and must meet CB ground-floor residential restrictions, including frontage limits along core streets in this district.",
+  },
+  IBP: {
+    section: "Sec. 37-65.3(c)",
+    summary:
+      "Multifamily is provisional and no dwelling units are allowed below the second story.",
+  },
+};
+
 export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelProps) {
   if (!feature) {
     return (
@@ -76,6 +114,8 @@ export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelPr
   const area = props["SHAPE.STArea()"];
   const cafeRestriction =
     activeBuild?.id === "cafe" ? CAFE_RESTRICTION_NOTES[props.zoning_code] : undefined;
+  const fourplexRestriction =
+    activeBuild?.id === "fourplex" ? FOURPLEX_RESTRICTION_NOTES[props.zoning_code] : undefined;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -141,6 +181,17 @@ export default function ZonePanel({ feature, activeBuild, onClose }: ZonePanelPr
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
             <div className="text-xs font-semibold text-amber-800">{cafeRestriction.section}</div>
             <p className="text-xs text-amber-900 mt-1 leading-relaxed">{cafeRestriction.summary}</p>
+          </div>
+        </div>
+      )}
+      {fourplexRestriction && (
+        <div className="px-5 py-3">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+            Fourplex Restrictions
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <div className="text-xs font-semibold text-amber-800">{fourplexRestriction.section}</div>
+            <p className="text-xs text-amber-900 mt-1 leading-relaxed">{fourplexRestriction.summary}</p>
           </div>
         </div>
       )}
