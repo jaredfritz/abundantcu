@@ -8,4 +8,5 @@ export interface WritingItem {
   externalUrl: string;
   featured?: boolean;
   thumbnailSrc?: string;
+  thumbnailFocus?: string;
 }

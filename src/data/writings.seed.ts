@@ -11,6 +11,7 @@ export const writingSeed: WritingItem[] = [
     externalUrl:
       "https://www.news-gazette.com/opinion/guest-commentary/my-turn-a-stronger-champaign-built-from-the-ground-up/article_ede1f030-bae4-44d8-8822-9840990e832c.html",
     thumbnailSrc: "/writings/a-stronger-champaign.jpg",
+    thumbnailFocus: "58% 52%",
   },
   {
     slug: "ghosts-of-philo-road",
@@ -22,6 +23,7 @@ export const writingSeed: WritingItem[] = [
     externalUrl:
       "https://www.news-gazette.com/opinion/guest-commentary/my-turn-the-ghosts-of-philo-road-and-the-promise-ahead/article_2f29108d-9f76-4da7-b673-07f9a9a595c5.html",
     thumbnailSrc: "/writings/ghosts-of-philo-road.jpg",
+    thumbnailFocus: "52% 44%",
   },
   {
     slug: "century-old-building",
@@ -34,6 +36,7 @@ export const writingSeed: WritingItem[] = [
       "https://www.news-gazette.com/opinion/guest-commentary/my-turn-a-century-old-building-shouldnt-need-permission-to-exist/article_1ba059c8-c02e-40e7-b438-6c02409ba2a5.html",
     featured: true,
     thumbnailSrc: "/writings/a-century-old-building.png",
+    thumbnailFocus: "50% 46%",
   },
   {
     slug: "this-building-shouldnt-be-controversial",
@@ -44,6 +47,7 @@ export const writingSeed: WritingItem[] = [
       "A local zoning and housing commentary on how ordinary, compatible multifamily forms became unnecessarily contentious.",
     externalUrl: "https://www.champaignshowers.com/this-building-shouldnt-be-controversial/",
     thumbnailSrc: "/writings/this-building-shouldnt-be-controversial.jpg",
+    thumbnailFocus: "50% 50%",
   },
   {
     slug: "vacant-windows-theory",
@@ -54,5 +58,6 @@ export const writingSeed: WritingItem[] = [
       "A critique of vacancy-focused narratives that miss the deeper policy constraints limiting adaptive reuse and neighborhood vitality.",
     externalUrl: "https://www.champaignshowers.com/the-vacant-windows-theory/",
     thumbnailSrc: "/writings/vacant-windows.jpg",
+    thumbnailFocus: "52% 50%",
   },
 ];

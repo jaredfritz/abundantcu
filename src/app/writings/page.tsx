@@ -48,23 +48,28 @@ export default async function WritingsPage() {
               href={item.externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+              className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
             >
-              <Image
-                src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
-                alt={`Thumbnail for ${item.title}`}
-                width={1200}
-                height={630}
-                className="h-auto w-full border-b border-[var(--color-border)]"
-              />
-              <div className="p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-bold leading-tight">{item.title}</h2>
-                  <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                    {item.publicationName}
-                  </span>
+              <div className="relative w-28 shrink-0 self-stretch border-r border-[var(--color-border)] sm:w-32 md:w-28 lg:w-32">
+                <Image
+                  src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
+                  alt={`Thumbnail for ${item.title}`}
+                  fill
+                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 128px, 128px"
+                  className="object-cover"
+                  style={{ objectPosition: item.thumbnailFocus ?? "50% 50%" }}
+                />
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-5">
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-base font-bold leading-tight md:text-lg">{item.title}</h2>
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 md:text-xs">
+                      {item.publicationName}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-3 text-sm text-slate-700">{item.summary}</p>
                 </div>
-                <p className="mt-3 line-clamp-2 text-sm text-slate-700">{item.summary}</p>
                 <p className="mt-3 text-xs text-slate-500">{new Date(item.publishedAt).toLocaleDateString()}</p>
               </div>
             </a>
