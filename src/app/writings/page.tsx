@@ -25,7 +25,7 @@ export default async function WritingsPage() {
             className="mt-8 block overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
             <Image
-              src={featured.thumbnailSrc ?? "/writings/century-old-building-layout.png"}
+              src="/writings/century-old-building-layout.png"
               alt={`Featured publication: ${featured.title}`}
               width={2086}
               height={3042}
