@@ -41,7 +41,7 @@ export default async function WritingsPage() {
           </a>
         ) : null}
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <div className="mt-8 grid gap-4">
           {remaining.map((item) => (
             <a
               key={item.slug}
@@ -50,12 +50,12 @@ export default async function WritingsPage() {
               rel="noreferrer"
               className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
             >
-              <div className="relative w-28 shrink-0 self-stretch border-r border-[var(--color-border)] sm:w-32 md:w-28 lg:w-32">
+              <div className="relative w-56 shrink-0 self-stretch overflow-hidden border-r border-[var(--color-border)] md:w-64">
                 <Image
                   src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
                   alt={`Thumbnail for ${item.title}`}
                   fill
-                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 128px, 128px"
+                  sizes="(max-width: 768px) 224px, 256px"
                   className="object-cover"
                   style={{ objectPosition: item.thumbnailFocus ?? "50% 50%" }}
                 />
