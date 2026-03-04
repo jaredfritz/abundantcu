@@ -30,6 +30,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
   const [activeBuild, setActiveBuild] = useState<BuildType | null>(null);
   const [showPermits, setShowPermits] = useState(false);
   const [selectedPermit, setSelectedPermit] = useState<SelectedPermit | null>(null);
+  const hasPanelSelection = Boolean(selectedFeature || selectedPermit);
 
   function handleSearchResult(result: GeocodedAddress) {
     setSearchPin({ lat: result.lat, lng: result.lng });
@@ -50,10 +51,13 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
       {/* Top bar */}
-      <header className="bg-white border-b border-gray-100 shadow-sm z-20">
+      <header
+        className="bg-white border-b border-gray-100 shadow-sm z-20"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
         {/* Primary row */}
-        <div className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3">
-          <div className="flex-shrink-0">
+        <div className="flex items-start justify-between gap-3 md:gap-4 px-4 md:px-5 pt-3 pb-2">
+          <div className="min-w-0">
             <h1 className="text-base font-semibold text-gray-900 leading-tight">
               Champaign Zoning
             </h1>
@@ -64,7 +68,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
           <div className="hidden md:flex flex-1 min-w-0">
             <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
           </div>
-          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <div className="hidden md:flex ml-auto items-center gap-2 flex-shrink-0">
             <button
               onClick={() => {
                 setShowPermits((v) => {
@@ -80,7 +84,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
                   return next;
                 });
               }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              className={`min-h-10 px-3 rounded-full text-xs font-medium border transition-colors ${
                 showPermits
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-800"
@@ -92,8 +96,37 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
             <AddressSearch onResult={handleSearchResult} onClear={handleSearchClear} />
           </div>
         </div>
-        {/* FilterBar on second row for mobile */}
-        <div className="md:hidden px-4 pb-2">
+        {/* Controls row on mobile */}
+        <div className="md:hidden px-4 pb-2 flex items-start gap-2">
+          <button
+            onClick={() => {
+              setShowPermits((v) => {
+                const next = !v;
+                if (next) {
+                  setActiveBuild(null);
+                  setActiveCodes(new Set());
+                  setSelectedFeature(null);
+                } else {
+                  setSelectedPermit(null);
+                }
+                return next;
+              });
+            }}
+            className={`min-h-10 px-3 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              showPermits
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-white text-gray-600 border-gray-300"
+            }`}
+          >
+            Permits
+          </button>
+          <BuildFilter activeBuild={activeBuild} onChange={setActiveBuild} />
+          <div className="min-w-0 flex-1">
+            <AddressSearch onResult={handleSearchResult} onClear={handleSearchClear} />
+          </div>
+        </div>
+        {/* FilterBar on third row for mobile */}
+        <div className="md:hidden px-4 pb-3">
           <FilterBar activeCodes={activeCodes} onChange={setActiveCodes} disabled={activeBuild !== null} />
         </div>
       </header>
@@ -121,8 +154,8 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
         </div>
 
         <aside
-          className="bg-white border-l border-gray-100 shadow-sm flex-shrink-0 overflow-hidden transition-all duration-200"
-          style={{ width: selectedFeature || selectedPermit ? "20rem" : 0 }}
+          className="hidden md:block bg-white border-l border-gray-100 shadow-sm flex-shrink-0 overflow-hidden transition-all duration-200"
+          style={{ width: hasPanelSelection ? "20rem" : 0 }}
         >
           <ZonePanel
             feature={selectedFeature}
@@ -135,6 +168,37 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
           />
         </aside>
       </div>
+
+      {/* Mobile sheet panel */}
+      {hasPanelSelection && (
+        <>
+          <button
+            aria-label="Close details panel"
+            className="md:hidden fixed inset-0 z-30 bg-black/30"
+            onClick={() => {
+              setSelectedFeature(null);
+              setSelectedPermit(null);
+            }}
+          />
+          <aside
+            className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-100 shadow-2xl rounded-t-2xl overflow-hidden"
+            style={{
+              height: "min(66dvh, 34rem)",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+          >
+            <ZonePanel
+              feature={selectedFeature}
+              permit={selectedPermit}
+              activeBuild={activeBuild}
+              onClose={() => {
+                setSelectedFeature(null);
+                setSelectedPermit(null);
+              }}
+            />
+          </aside>
+        </>
+      )}
     </div>
   );
 }

@@ -48,7 +48,7 @@ function CodeChip({
     <button
       onClick={onToggle}
       title={description}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all hover:opacity-90"
+      className="min-h-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all hover:opacity-90"
       style={
         active
           ? { backgroundColor: color, borderColor: "transparent", color: "#1b2b3c" }
@@ -89,7 +89,7 @@ function SubgroupRow({
         <button
           onClick={() => onChange(toggleSubgroup(subgroup, activeCodes))}
           title={subgroup.description}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all hover:opacity-90"
+          className="min-h-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all hover:opacity-90"
           style={{
             backgroundColor: styles.bg,
             borderColor: styles.border,
@@ -107,7 +107,7 @@ function SubgroupRow({
         {multiCode && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="w-10 h-10 inline-flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <ChevronDown
               className="w-3.5 h-3.5 transition-transform"
@@ -148,7 +148,7 @@ function DistrictPanel({
   onChange: (codes: Set<string>) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 p-4 min-w-56">
+    <div className="flex flex-col gap-3 p-4 min-w-56 max-h-[min(70vh,30rem)] overflow-auto">
       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
         {district.label}
       </div>
@@ -206,7 +206,7 @@ function DistrictPill({
         {/* Main toggle area */}
         <button
           onClick={() => onChange(toggleDistrict(district, activeCodes))}
-          className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 hover:opacity-80 transition-opacity"
+          className="min-h-10 flex items-center gap-1.5 pl-3 pr-2 py-1.5 hover:opacity-80 transition-opacity"
         >
           <span
             className="w-2 h-2 rounded-full flex-shrink-0"
@@ -222,7 +222,7 @@ function DistrictPill({
         />
         <button
           onClick={() => setOpen((v) => !v)}
-          className="px-2 py-1.5 hover:opacity-80 transition-opacity"
+          className="min-h-10 px-2 py-1.5 hover:opacity-80 transition-opacity"
           aria-label={`Expand ${district.label}`}
         >
           <ChevronDown
@@ -234,7 +234,7 @@ function DistrictPill({
 
       {/* Floating panel */}
       {open && (
-        <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-xl border border-gray-100 shadow-xl min-w-max">
+        <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 z-50 bg-white rounded-xl border border-gray-100 shadow-xl min-w-max max-w-[calc(100vw-1rem)]">
           <DistrictPanel
             district={district}
             activeCodes={activeCodes}
@@ -258,7 +258,7 @@ export default function FilterBar({ activeCodes, onChange, disabled }: FilterBar
         onClick={() =>
           allActive ? onChange(new Set()) : onChange(new Set(ALL_ZONE_CODES))
         }
-        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+        className={`min-h-10 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
           allActive
             ? "bg-gray-900 text-white border-gray-900"
             : "bg-white text-gray-400 border-gray-200 hover:border-gray-400 hover:text-gray-600"

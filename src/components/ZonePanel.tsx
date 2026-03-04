@@ -292,9 +292,9 @@ export default function ZonePanel({ feature, permit, activeBuild, onClose }: Zon
 
 function Row({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-800">{value}</span>
+    <div className="py-1.5 border-b border-gray-50">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="text-sm font-medium text-gray-800 break-words leading-relaxed mt-0.5">{value}</div>
     </div>
   );
 }

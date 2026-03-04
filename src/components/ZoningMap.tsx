@@ -153,6 +153,7 @@ export default function ZoningMap({
   const mapRef = useRef<MapRef>(null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [hoveredPermitId, setHoveredPermitId] = useState<number | null>(null);
+  const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -316,6 +317,11 @@ export default function ZoningMap({
       ? "Provisional; ground-floor restrictions"
       : "Provisional; restrictions apply";
   const showProvisionalLegend = inBuildMode && (activeBuild!.provisionalCodes?.length ?? 0) > 0;
+  const showAnyLegend = inBuildMode || showPermits;
+
+  useEffect(() => {
+    if (!showAnyLegend) setMobileLegendOpen(false);
+  }, [showAnyLegend]);
 
   // Active fill color (normal vs build)
   const activeFillBase = inBuildMode ? buildFillColor! : fillColor;
@@ -484,7 +490,10 @@ export default function ZoningMap({
 
       {/* Build mode legend */}
       {inBuildMode && (
-        <div className="absolute bottom-4 md:bottom-8 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+        <div
+          className="hidden md:block absolute left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5"
+          style={{ bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
+        >
           <div className="text-xs font-semibold text-gray-700 mb-2">{activeBuild!.label}</div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -522,7 +531,10 @@ export default function ZoningMap({
         </div>
       )}
       {showPermits && (
-        <div className="absolute bottom-4 md:bottom-8 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+        <div
+          className="hidden md:block absolute right-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5"
+          style={{ bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
+        >
           <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -559,6 +571,101 @@ export default function ZoningMap({
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {showAnyLegend && (
+        <div
+          className="md:hidden absolute left-3 z-10"
+          style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <button
+            onClick={() => setMobileLegendOpen((v) => !v)}
+            className="min-h-11 px-3 py-2 rounded-full border border-gray-200 bg-white/95 backdrop-blur-sm text-xs font-medium text-gray-700 shadow-lg"
+          >
+            {mobileLegendOpen ? "Hide legend" : "Legend"}
+          </button>
+          {mobileLegendOpen && (
+            <div className="mt-2 w-[min(88vw,22rem)] max-h-[45dvh] overflow-auto bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+              {inBuildMode && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">{activeBuild!.label}</div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div
+                        className="w-4 h-4 rounded-sm flex-shrink-0"
+                        style={{ backgroundColor: BUILD_COLORS.allowed }}
+                      />
+                      <span>Allowed by right</span>
+                    </div>
+                    {showProvisionalLegend && (
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <div
+                          className="w-4 h-4 rounded-sm flex-shrink-0"
+                          style={{ backgroundColor: BUILD_COLORS.provisional }}
+                        />
+                        <span>{provisionalLegendLabel}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div
+                        className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
+                        style={{ backgroundColor: BUILD_COLORS.notAllowed }}
+                      >
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background:
+                              "repeating-linear-gradient(-45deg, rgba(0,0,0,0.38), rgba(0,0,0,0.38) 1px, transparent 1px, transparent 5px)",
+                          }}
+                        />
+                      </div>
+                      <span>Not allowed</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showPermits && (
+                <div className={inBuildMode ? "pt-2 mt-2 border-t border-gray-100" : ""}>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
+                      <span>Single-family (SF)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
+                      <span>Multifamily (MF)</span>
+                    </div>
+                    <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
+                      <div className="mb-1">Circle size scales by units per permit</div>
+                      <div className="flex items-end gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="rounded-full bg-gray-500/70 border border-white"
+                            style={{
+                              width: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                              height: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                            }}
+                          />
+                          <span>1 unit</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="rounded-full bg-gray-500/70 border border-white"
+                            style={{
+                              width: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                              height: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                            }}
+                          />
+                          <span>100 units</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

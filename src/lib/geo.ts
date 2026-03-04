@@ -129,8 +129,47 @@ export interface GeocodedAddress {
   displayName: string;
 }
 
-/** Geocodes an address string using Nominatim, biased toward Champaign IL. */
-export async function geocodeAddress(query: string): Promise<GeocodedAddress | null> {
+export interface AddressSuggestion {
+  description: string;
+  placeId: string;
+  primaryText: string;
+  secondaryText: string;
+}
+
+export async function autocompleteAddress(query: string): Promise<AddressSuggestion[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  try {
+    const res = await fetch(`/api/google/autocomplete?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.predictions) ? data.predictions : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Geocodes an address string using Google first, then Nominatim fallback. */
+export async function geocodeAddress(
+  query: string,
+  placeId?: string
+): Promise<GeocodedAddress | null> {
+  try {
+    const params = placeId
+      ? `placeId=${encodeURIComponent(placeId)}`
+      : `q=${encodeURIComponent(query)}`;
+    const googleRes = await fetch(`/api/google/geocode?${params}`);
+    if (googleRes.ok) {
+      const googleData = await googleRes.json();
+      if (googleData?.result) {
+        return googleData.result as GeocodedAddress;
+      }
+    }
+  } catch {
+    // Fall through to Nominatim fallback.
+  }
+
+  /** Fallback: Geocodes an address string using Nominatim, biased toward Champaign IL. */
   // Append city/state if not already present to bias results
   const fullQuery = /champaign|urbana/i.test(query)
     ? query
