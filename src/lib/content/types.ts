@@ -7,4 +7,5 @@ export interface WritingItem {
   summary: string;
   externalUrl: string;
   featured?: boolean;
+  thumbnailSrc?: string;
 }

@@ -4,7 +4,10 @@ import { getWritings } from "@/lib/content/writings";
 
 export default async function WritingsPage() {
   const writings = await getWritings();
-  const centuryOld = writings.find((item) => item.slug === "century-old-building");
+  const featured = writings.find((item) => item.slug === "century-old-building") ?? writings.find((item) => item.featured);
+  const remaining = writings
+    .filter((item) => item.slug !== featured?.slug)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   return (
     <SiteShell>
@@ -14,43 +17,56 @@ export default async function WritingsPage() {
           Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.
         </p>
 
-        {centuryOld ? (
-          <article className="mt-8 overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white">
-            <a href={centuryOld.externalUrl} target="_blank" rel="noreferrer" className="block">
-              <Image
-                src="/writings/century-old-building-layout.png"
-                alt="Print layout for 'A more-than-century-old building shouldn’t need permission to exist'"
-                width={2086}
-                height={3042}
-                className="h-auto w-full"
-                priority
-              />
-            </a>
+        {featured ? (
+          <a
+            href={featured.externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-8 block overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <Image
+              src={featured.thumbnailSrc ?? "/writings/century-old-building-layout.png"}
+              alt={`Featured publication: ${featured.title}`}
+              width={2086}
+              height={3042}
+              className="h-auto w-full"
+              priority
+            />
             <div className="border-t border-[var(--color-border)] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Featured Print Layout</p>
-              <h2 className="mt-2 text-xl font-bold">{centuryOld.title}</h2>
-              <p className="mt-2 text-sm text-slate-700">{centuryOld.summary}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Featured Publication</p>
+              <h2 className="mt-2 text-xl font-bold">{featured.title}</h2>
+              <p className="mt-2 text-sm text-slate-700">{featured.summary}</p>
+              <p className="mt-3 text-xs text-slate-500">{new Date(featured.publishedAt).toLocaleDateString()}</p>
             </div>
-          </article>
+          </a>
         ) : null}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {writings.map((item) => (
+          {remaining.map((item) => (
             <a
               key={item.slug}
               href={item.externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[4px] border border-[var(--color-border)] bg-white p-6 transition hover:-translate-y-0.5"
+              className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
             >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-bold leading-tight">{item.title}</h2>
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  {item.publicationName}
-                </span>
+              <Image
+                src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
+                alt={`Thumbnail for ${item.title}`}
+                width={1200}
+                height={630}
+                className="h-auto w-full border-b border-[var(--color-border)]"
+              />
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-lg font-bold leading-tight">{item.title}</h2>
+                  <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    {item.publicationName}
+                  </span>
+                </div>
+                <p className="mt-3 line-clamp-2 text-sm text-slate-700">{item.summary}</p>
+                <p className="mt-3 text-xs text-slate-500">{new Date(item.publishedAt).toLocaleDateString()}</p>
               </div>
-              <p className="mt-3 line-clamp-2 text-sm text-slate-700">{item.summary}</p>
-              <p className="mt-3 text-xs text-slate-500">{new Date(item.publishedAt).toLocaleDateString()}</p>
             </a>
           ))}
         </div>

@@ -17,7 +17,7 @@ export default function Navbar() {
           <span className="text-sm font-semibold uppercase tracking-[0.12em]">Abundant CU</span>
         </Link>
         <nav className="flex items-center gap-5 text-sm font-medium">
-          <Link href="/zoning" className="hover:opacity-70">Data</Link>
+          <Link href="/zoning" className="hover:opacity-70">Zoning</Link>
           <Link href="/writings" className="hover:opacity-70">Writings</Link>
           <Link href="/action" className="hover:opacity-70">Take Action</Link>
         </nav>
