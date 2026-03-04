@@ -248,7 +248,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
   const showPermitsToggle = mapMode === "advanced";
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-gray-50">
+    <div className="flex h-full min-h-[620px] flex-col bg-gray-50">
       <header
         className="bg-white border-b border-gray-100 shadow-sm z-20"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
