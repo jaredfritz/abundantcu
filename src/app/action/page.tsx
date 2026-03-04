@@ -6,6 +6,12 @@ const RESOURCES = [
   { label: "Abundant Housing Illinois", href: "https://abundanthousingil.org" },
 ];
 
+const CURBANISM_SOCIALS = [
+  { label: "Facebook", href: "https://www.facebook.com/groups/curbanismclub" },
+  { label: "Instagram", href: "https://www.instagram.com/curbanismclub/" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/curbanism-club/" },
+];
+
 export default function ActionPage() {
   return (
     <SiteShell>
@@ -23,13 +29,27 @@ export default function ActionPage() {
               Join for walking tours, socials, and local community-building around better urbanism.
             </p>
             <a
-              href="https://curbanism.org"
+              href="https://curbanism.org/"
               target="_blank"
               rel="noreferrer"
               className="mt-5 inline-flex rounded-[4px] border border-[var(--color-primary)] px-4 py-2 text-sm font-semibold"
             >
               Join CUrbanism
             </a>
+            <ul className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-3">
+              {CURBANISM_SOCIALS.map((social) => (
+                <li key={social.href}>
+                  <a
+                    href={social.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-[4px] border border-[var(--color-border)] px-3 py-2 hover:bg-slate-50"
+                  >
+                    {social.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </article>
 
           <article className="rounded-[4px] border border-[var(--color-border)] bg-white p-6">
@@ -39,7 +59,7 @@ export default function ActionPage() {
               Delegate your vote to Abundant CU on Sway and help build durable policy momentum.
             </p>
             <a
-              href="https://sway.co"
+              href="https://www.sway.co/g/jyvem38k?utm_source=share&ref=rtet6595"
               target="_blank"
               rel="noreferrer"
               className="mt-5 inline-flex rounded-[4px] border border-[var(--color-primary)] px-4 py-2 text-sm font-semibold"
