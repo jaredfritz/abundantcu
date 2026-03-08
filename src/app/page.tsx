@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import EmailSignupForm from "@/components/forms/EmailSignupForm";
 import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
 import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
@@ -29,10 +28,10 @@ export default async function HomePage() {
             We leverage data and policy to build a resilient city that works for everyone.
           </p>
           <a
-            href="#email-signup"
+            href="/action"
             className="mt-8 inline-flex rounded-[4px] bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-[var(--color-primary)]"
           >
-            Join the Email Signal
+            Take Action →
           </a>
         </div>
         <div className="h-[320px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white md:h-[420px]">
@@ -63,24 +62,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="email-signup" className="mx-auto w-full max-w-6xl px-5 pb-14 pt-4 md:px-8 md:pb-20">
-        <div className="rounded-[4px] border border-[var(--color-border)] bg-white p-6 md:p-8">
-          <h3 className="text-2xl font-bold">Stay Updated</h3>
-          <p className="mt-3 max-w-2xl text-sm text-slate-700">
-            Stay updated and informed. We&apos;ll share relevant policy updates and data insights from time to time.
-          </p>
-          <div className="mt-5">
-            <EmailSignupForm sourcePage="home" />
-          </div>
-        </div>
-      </section>
-
-      <a
-        href="#email-signup"
-        className="fixed bottom-5 right-5 z-40 rounded-[4px] bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm md:bottom-6 md:right-6"
-      >
-        Sign Up for Updates
-      </a>
     </SiteShell>
   );
 }

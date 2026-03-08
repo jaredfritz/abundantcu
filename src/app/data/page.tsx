@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
+import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
 
 export const metadata: Metadata = {
   title: "Data Hub",
@@ -12,7 +14,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DataHubPage() {
+export default async function DataHubPage() {
+  const zoningData = await getZoningGeoJson();
+
   return (
     <SiteShell>
       <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -25,22 +29,26 @@ export default function DataHubPage() {
         <div className="mt-8 grid gap-4">
           <Link
             href="/data/zoning"
-            className="rounded-[4px] border border-[var(--color-border)] bg-white p-6 transition hover:-translate-y-0.5"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Tool 01</p>
-              <span className="rounded-[4px] border border-[var(--color-border)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
-                Live
+            <div className="h-56 overflow-hidden border-b border-[var(--color-border)] md:h-72">
+              <MapEmbed mode="home" interactive={false} data={zoningData} className="h-full w-full" />
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-2xl font-bold">Champaign Zoning Explorer</h2>
+                <span className="rounded-[4px] border border-[var(--color-border)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
+                  Live
+                </span>
+              </div>
+              <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
+                Explore zoning districts, residential permit activity, and build-type overlays to understand how
+                regulations shape housing outcomes across Champaign.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Open Map
               </span>
             </div>
-            <h2 className="mt-3 text-2xl font-bold">Champaign Zoning Explorer</h2>
-            <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
-              Explore zoning districts, residential permit activity, and build-type overlays to understand how
-              regulations shape housing outcomes across Champaign.
-            </p>
-            <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
-              Open Map
-            </span>
           </Link>
         </div>
       </section>
