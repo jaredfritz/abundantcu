@@ -255,7 +255,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
       >
         <div className="h-14 px-4 md:px-5 flex items-center justify-between">
           <button
-            onClick={() => setControlsOpen(true)}
+            onClick={() => setControlsOpen((prev) => !prev)}
             className="w-10 h-10 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 inline-flex items-center justify-center"
             aria-label="Open controls"
           >
@@ -263,7 +263,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
           </button>
 
           <div className="min-w-0 text-center px-2">
-            <div className="text-sm font-semibold text-gray-900 leading-tight">Champaign Zoning</div>
+            <div className="text-sm font-semibold text-gray-900 leading-tight">Champaign Zoning Explorer</div>
             <div className="text-[11px] text-gray-500 truncate">{modeDef.label}</div>
           </div>
 
@@ -286,7 +286,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
           />
 
           <aside
-            className="hidden md:block fixed left-4 top-20 z-40 w-[24rem] max-h-[calc(100dvh-6rem)] overflow-y-auto overflow-x-visible bg-white border border-gray-200 shadow-2xl rounded-2xl"
+            className="hidden md:block fixed left-4 top-[130px] z-40 w-[24rem] max-h-[calc(100dvh-146px)] overflow-y-auto overflow-x-visible bg-white border border-gray-200 shadow-2xl rounded-2xl"
             style={{
               paddingBottom: "env(safe-area-inset-bottom, 0px)",
             }}
