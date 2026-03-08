@@ -1,6 +1,17 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import SiteShell from "@/components/site/SiteShell";
 import { getWritings } from "@/lib/content/writings";
+
+export const metadata: Metadata = {
+  title: "Writings",
+  description: "Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.",
+  openGraph: {
+    title: "Writings | Abundant CU",
+    description: "Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.",
+    url: "https://abundantcu.com/writings",
+  },
+};
 
 export default async function WritingsPage() {
   const writings = await getWritings();
@@ -30,13 +41,14 @@ export default async function WritingsPage() {
               width={2086}
               height={3042}
               className="h-auto w-full"
+              sizes="(max-width: 640px) calc(100vw - 40px), (max-width: 1280px) calc(100vw - 64px), 1152px"
               priority
             />
             <div className="border-t border-[var(--color-border)] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Featured Publication</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Featured Publication</p>
               <h2 className="mt-2 text-xl font-bold">{featured.title}</h2>
               <p className="mt-2 text-sm text-slate-700">{featured.summary}</p>
-              <p className="mt-3 text-xs text-slate-500">{new Date(featured.publishedAt).toLocaleDateString()}</p>
+              <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt).toLocaleDateString()}</p>
             </div>
           </a>
         ) : null}
@@ -64,13 +76,13 @@ export default async function WritingsPage() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-base font-bold leading-tight md:text-lg">{item.title}</h2>
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 md:text-xs">
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600 md:text-xs">
                       {item.publicationName}
                     </span>
                   </div>
                   <p className="mt-2 line-clamp-3 text-sm text-slate-700">{item.summary}</p>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">{new Date(item.publishedAt).toLocaleDateString()}</p>
+                <p className="mt-3 text-xs text-slate-600">{new Date(item.publishedAt).toLocaleDateString()}</p>
               </div>
             </a>
           ))}

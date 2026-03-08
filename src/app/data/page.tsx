@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteShell from "@/components/site/SiteShell";
+
+export const metadata: Metadata = {
+  title: "Data Hub",
+  description: "Maps, datasets, and policy tools for Champaign-Urbana land use and urban policy.",
+  openGraph: {
+    title: "Data Hub | Abundant CU",
+    description: "Maps, datasets, and policy tools for Champaign-Urbana land use and urban policy.",
+    url: "https://abundantcu.com/data",
+  },
+};
 
 export default function DataHubPage() {
   return (
@@ -17,7 +28,7 @@ export default function DataHubPage() {
             className="rounded-[4px] border border-[var(--color-border)] bg-white p-6 transition hover:-translate-y-0.5"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Tool 01</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Tool 01</p>
               <span className="rounded-[4px] border border-[var(--color-border)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
                 Live
               </span>

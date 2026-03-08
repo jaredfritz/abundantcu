@@ -44,3 +44,8 @@ next-env.d.ts
 src/data/*.csv
 src/data/*.kml
 src/data/*.zip
+.env*.local
+
+# local workspace structure (not part of production site repo)
+archive/
+_precleanup_backups/

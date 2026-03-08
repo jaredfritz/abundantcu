@@ -5,7 +5,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-primary)]">
       <Navbar />
-      <main>{children}</main>
+      <main id="main-content">{children}</main>
       <Footer />
     </div>
   );

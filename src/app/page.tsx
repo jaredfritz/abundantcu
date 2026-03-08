@@ -1,7 +1,18 @@
+import type { Metadata } from "next";
 import EmailSignupForm from "@/components/forms/EmailSignupForm";
 import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
 import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
+
+export const metadata: Metadata = {
+  title: "Abundant CU",
+  description: "Making Champaign-Urbana Affordable and Abundant. We leverage data and policy to build a resilient city that works for everyone.",
+  openGraph: {
+    title: "Abundant CU",
+    description: "Making Champaign-Urbana Affordable and Abundant.",
+    url: "https://abundantcu.com",
+  },
+};
 
 export default async function HomePage() {
   const zoningData = await getZoningGeoJson();
@@ -10,7 +21,7 @@ export default async function HomePage() {
     <SiteShell>
       <section className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 md:grid-cols-2 md:items-center md:px-8 md:py-16">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Abundant CU</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Abundant CU</p>
           <h1 className="mt-4 text-4xl font-extrabold leading-tight md:text-5xl">
             Making Champaign-Urbana Affordable and Abundant.
           </h1>

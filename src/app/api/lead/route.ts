@@ -2,7 +2,18 @@ import { NextResponse } from "next/server";
 import { submitLead } from "@/lib/leads/submitLead";
 import { LeadSubmission } from "@/lib/leads/types";
 
+const ALLOWED_ORIGINS = [
+  "https://abundantcu.com",
+  "https://www.abundantcu.com",
+  "http://localhost:3000",
+];
+
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin");
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const body = (await request.json()) as {
       email?: string;

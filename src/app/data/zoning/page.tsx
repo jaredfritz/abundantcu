@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
 import permitsData from "@/data/residential-permits.json";
 import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
+
+export const metadata: Metadata = {
+  title: "Champaign Zoning Explorer",
+  description: "Explore zoning districts, residential permit activity, and build-type overlays across Champaign, IL.",
+  openGraph: {
+    title: "Champaign Zoning Explorer | Abundant CU",
+    description: "Explore zoning districts, residential permit activity, and build-type overlays across Champaign, IL.",
+    url: "https://abundantcu.com/data/zoning",
+  },
+};
 
 export default async function DataZoningPage() {
   const zoningData = await getZoningGeoJson();
@@ -10,7 +21,7 @@ export default async function DataZoningPage() {
   return (
     <SiteShell>
       <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Data Hub</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Data Hub</p>
         <h1 className="mt-2 text-3xl font-extrabold md:text-4xl">Champaign Zoning Explorer</h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
           Explore the data behind how our city is built, and how it could be better.
