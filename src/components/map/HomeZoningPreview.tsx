@@ -43,6 +43,7 @@ export default function HomeZoningPreview({
         mapStyle={TILE_STYLE}
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
+        attributionControl={false}
         dragRotate={false}
         touchZoomRotate={false}
       >

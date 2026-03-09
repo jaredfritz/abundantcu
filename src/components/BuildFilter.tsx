@@ -56,7 +56,8 @@ export default function BuildFilter({ activeBuild, onChange }: BuildFilterProps)
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-2">
       <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wide px-1 pb-1.5">
-        Where Can I Build A...
+        Where Can I Build A <span className="sr-only">type</span>
+        <span aria-hidden className="mx-1 inline-block w-10 translate-y-[-1px] border-b border-current" />?
       </div>
       <div className="space-y-0.5">
         {BUILD_TYPES.map((bt) => {

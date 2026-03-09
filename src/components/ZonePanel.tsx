@@ -15,6 +15,7 @@ interface ZonePanelProps {
   feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null;
   permit: SelectedPermit | null;
   activeBuild: BuildType | null;
+  showPermitSourceNote?: boolean;
   onClose: () => void;
 }
 
@@ -94,7 +95,13 @@ const FOURPLEX_RESTRICTION_NOTES: Record<string, FourplexRestrictionNote> = {
   },
 };
 
-export default function ZonePanel({ feature, permit, activeBuild, onClose }: ZonePanelProps) {
+export default function ZonePanel({
+  feature,
+  permit,
+  activeBuild,
+  showPermitSourceNote = false,
+  onClose,
+}: ZonePanelProps) {
   if (!feature && !permit) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-400">
@@ -172,7 +179,7 @@ export default function ZonePanel({ feature, permit, activeBuild, onClose }: Zon
               </a>
               .
             </div>
-            <div>Permit data provided by the city.</div>
+            {showPermitSourceNote && <div>Permit data provided by the city.</div>}
           </div>
         </div>
       </div>
@@ -299,7 +306,7 @@ export default function ZonePanel({ feature, permit, activeBuild, onClose }: Zon
             </a>
             .
           </div>
-          <div>Permit data provided by the city.</div>
+          {showPermitSourceNote && <div>Permit data provided by the city.</div>}
         </div>
       </div>
     </div>

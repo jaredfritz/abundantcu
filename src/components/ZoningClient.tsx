@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Building2, Layers3, MapPinned, Menu, Search, Sparkles, X } from "lucide-react";
@@ -14,6 +14,7 @@ import AddressSearch from "./AddressSearch";
 import BuildFilter from "./BuildFilter";
 
 const ZoningMap = dynamic(() => import("./ZoningMap"), { ssr: false });
+const DEFAULT_BUILD_TYPE_ID = "duplex";
 
 interface ZoningClientProps {
   data: GeoJSON.FeatureCollection;
@@ -32,7 +33,7 @@ type ModeDef = {
 const MAP_MODES: ModeDef[] = [
   {
     id: "zoning",
-    label: "Champaign Zoning Districts",
+    label: "Zoning Districts",
     hint: "Browse district boundaries and zoning codes.",
     icon: "zoning",
   },
@@ -44,7 +45,7 @@ const MAP_MODES: ModeDef[] = [
   },
   {
     id: "build",
-    label: "Where Can I Build A...",
+    label: "Where Can I Build A?",
     hint: "Find where housing and cafe uses are allowed.",
     icon: "build",
   },
@@ -61,6 +62,20 @@ function modeFromParam(value: string | null): MapMode {
     return value;
   }
   return "zoning";
+}
+
+function renderModeLabel(mode: ModeDef, lineWidthClass = "w-10"): ReactNode {
+  if (mode.id !== "build") return mode.label;
+  return (
+    <>
+      Where Can I Build A <span className="sr-only">type</span>
+      <span
+        aria-hidden
+        className={`mx-1 inline-block ${lineWidthClass} translate-y-[-1px] border-b border-current`}
+      />
+      ?
+    </>
+  );
 }
 
 function ModeIcon({ icon }: { icon: ModeDef["icon"] }) {
@@ -184,7 +199,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
       setShowPermits(false);
       setActiveCodes(new Set(ALL_ZONE_CODES));
       if (!activeBuild) {
-        const defaultBuild = BUILD_TYPES.find((bt) => bt.id === "fourplex") ?? BUILD_TYPES[0] ?? null;
+        const defaultBuild = BUILD_TYPES.find((bt) => bt.id === DEFAULT_BUILD_TYPE_ID) ?? BUILD_TYPES[0] ?? null;
         setActiveBuild(defaultBuild);
       }
     } else {
@@ -206,7 +221,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
         setPermitYearRange({ from: permitYears[0], to: permitYears[permitYears.length - 1] });
       }
     } else if (mapMode === "build") {
-      const defaultBuild = BUILD_TYPES.find((bt) => bt.id === "fourplex") ?? BUILD_TYPES[0] ?? null;
+      const defaultBuild = BUILD_TYPES.find((bt) => bt.id === DEFAULT_BUILD_TYPE_ID) ?? BUILD_TYPES[0] ?? null;
       setActiveBuild(defaultBuild);
       setShowPermits(false);
       setActiveCodes(new Set(ALL_ZONE_CODES));
@@ -263,8 +278,11 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
           </button>
 
           <div className="min-w-0 text-center px-2">
-            <div className="text-sm font-semibold text-gray-900 leading-tight">Champaign Zoning Explorer</div>
-            <div className="text-[11px] text-gray-500 truncate">{modeDef.label}</div>
+            <div className="text-sm font-semibold text-gray-900 truncate">
+              {renderModeLabel(modeDef, "w-7")}
+              <span className="mx-1 text-gray-400">|</span>
+              <span className="text-gray-600 font-medium">City of Champaign</span>
+            </div>
           </div>
 
           <button
@@ -297,7 +315,6 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-semibold text-gray-900">Map Mode</div>
-                      <div className="text-xs text-gray-500">{modeDef.label}</div>
                     </div>
                     <button
                       onClick={() => setControlsOpen(false)}
@@ -324,7 +341,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
                         <div className="flex items-center gap-2">
                           <ModeIcon icon={mode.icon} />
                           <div className={`text-sm font-medium ${active ? "text-blue-700" : "text-gray-800"}`}>
-                            {mode.label}
+                            {renderModeLabel(mode, "w-10")}
                           </div>
                         </div>
                         <div className={`text-xs mt-0.5 ${active ? "text-blue-600/80" : "text-gray-500"}`}>
@@ -541,6 +558,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
             feature={selectedFeature}
             permit={selectedPermit}
             activeBuild={activeBuild}
+            showPermitSourceNote={mapMode === "permits" || mapMode === "advanced"}
             onClose={() => {
               setSelectedFeature(null);
               setSelectedPermit(null);
@@ -570,6 +588,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
               feature={selectedFeature}
               permit={selectedPermit}
               activeBuild={activeBuild}
+              showPermitSourceNote={mapMode === "permits" || mapMode === "advanced"}
               onClose={() => {
                 setSelectedFeature(null);
                 setSelectedPermit(null);
@@ -633,7 +652,6 @@ function ControlsContent({
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-gray-900">Controls</div>
-            <div className="text-xs text-gray-500">{modeDef.label}</div>
           </div>
           <button
             onClick={onClose}
@@ -662,7 +680,7 @@ function ControlsContent({
                   <div className="flex items-center gap-2">
                     <ModeIcon icon={mode.icon} />
                     <div className={`text-sm font-medium ${active ? "text-blue-700" : "text-gray-800"}`}>
-                      {mode.label}
+                      {renderModeLabel(mode, "w-10")}
                     </div>
                   </div>
                   <div className={`text-xs mt-0.5 ${active ? "text-blue-600/80" : "text-gray-500"}`}>

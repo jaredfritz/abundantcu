@@ -5,10 +5,10 @@ import { getWritings } from "@/lib/content/writings";
 
 export const metadata: Metadata = {
   title: "Writings",
-  description: "Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.",
+  description: "Data-informed essays and op-eds on legalizing more homes, lowering living costs, and building a financially resilient Champaign-Urbana.",
   openGraph: {
     title: "Writings | Abundant CU",
-    description: "Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.",
+    description: "Data-informed essays and op-eds on legalizing more homes, lowering living costs, and building a financially resilient Champaign-Urbana.",
     url: "https://abundantcu.com/writings",
   },
 };
@@ -16,6 +16,10 @@ export const metadata: Metadata = {
 export default async function WritingsPage() {
   const writings = await getWritings();
   const featured = writings.find((item) => item.slug === "century-old-building") ?? writings.find((item) => item.featured);
+  const featuredTitle =
+    featured?.slug === "century-old-building"
+      ? "My Turn | A century-old building shouldn't need permission to exist"
+      : featured?.title;
   const remaining = writings
     .filter((item) => item.slug !== featured?.slug)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
@@ -25,7 +29,7 @@ export default async function WritingsPage() {
       <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
         <h1 className="text-3xl font-extrabold md:text-4xl">Writings</h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
-          Essays and op-eds about housing, zoning, transit, and fiscal resilience in Champaign-Urbana.
+          Data-informed essays and op-eds on legalizing more homes, lowering living costs, and building a financially resilient Champaign-Urbana.
         </p>
 
         {featured ? (
@@ -37,7 +41,7 @@ export default async function WritingsPage() {
           >
             <Image
               src="/writings/century-old-building-layout.jpg"
-              alt={`Featured publication: ${featured.title}`}
+              alt={`Featured publication: ${featuredTitle ?? featured.title}`}
               width={2400}
               height={3384}
               className="h-auto w-full"
@@ -46,7 +50,7 @@ export default async function WritingsPage() {
             />
             <div className="border-t border-[var(--color-border)] p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Featured Publication</p>
-              <h2 className="mt-2 text-xl font-bold">{featured.title}</h2>
+              <h2 className="mt-2 text-xl font-bold">{featuredTitle ?? featured.title}</h2>
               <p className="mt-2 text-sm text-slate-700">{featured.summary}</p>
               <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt).toLocaleDateString()}</p>
             </div>

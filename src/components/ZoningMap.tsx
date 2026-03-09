@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import Map, { Layer, Marker, Source, MapMouseEvent, MapRef } from "react-map-gl/maplibre";
 import type { FilterSpecification, DataDrivenPropertyValueSpecification, ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
+  DISTRICTS,
   ZONE_COLOR_MAP,
   ZoneFeatureProperties,
   ZONE_DETAILS,
@@ -21,6 +23,13 @@ const SF_PERMIT_COLOR = "#0072B2";
 const MF_PERMIT_COLOR = "#E69F00";
 const LEGEND_RADIUS_1_UNIT_PX = 3;
 const LEGEND_RADIUS_100_UNITS_PX = 17;
+const DISTRICT_COLOR_BY_ID = Object.fromEntries(DISTRICTS.map((district) => [district.id, district.color]));
+const ZONING_DISTRICT_LEGEND = [
+  { label: "Residential", color: DISTRICT_COLOR_BY_ID["residential"] ?? "#93c5fd" },
+  { label: "In-Town", color: DISTRICT_COLOR_BY_ID["in-town"] ?? "#c4b5fd" },
+  { label: "Commercial", color: DISTRICT_COLOR_BY_ID["commercial"] ?? "#fcd34d" },
+  { label: "Industrial", color: DISTRICT_COLOR_BY_ID["industrial"] ?? "#fb923c" },
+] as const;
 
 function getFeatureCollectionBounds(data: GeoJSON.FeatureCollection): [number, number, number, number] | null {
   let minLng = Number.POSITIVE_INFINITY;
@@ -205,6 +214,7 @@ export default function ZoningMap({
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [hoveredPermitId, setHoveredPermitId] = useState<number | null>(null);
   const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
+  const [attributionOpen, setAttributionOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -383,11 +393,28 @@ export default function ZoningMap({
       ? "Provisional; ground-floor restrictions"
       : "Provisional; restrictions apply";
   const showProvisionalLegend = inBuildMode && (activeBuild!.provisionalCodes?.length ?? 0) > 0;
-  const showAnyLegend = inBuildMode || showPermits;
+  const showZoningLegend = !inBuildMode && !showPermits;
+  const showAnyLegend = inBuildMode || showPermits || showZoningLegend;
 
   useEffect(() => {
     if (!showAnyLegend) setMobileLegendOpen(false);
   }, [showAnyLegend]);
+
+  function toggleLegendPanel() {
+    setMobileLegendOpen((open) => {
+      const next = !open;
+      if (next) setAttributionOpen(false);
+      return next;
+    });
+  }
+
+  function toggleAttributionPanel() {
+    setAttributionOpen((open) => {
+      const next = !open;
+      if (next) setMobileLegendOpen(false);
+      return next;
+    });
+  }
 
   // Active fill color (normal vs build)
   const activeFillBase = inBuildMode ? buildFillColor! : fillColor;
@@ -439,6 +466,7 @@ export default function ZoningMap({
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle={TILE_STYLE}
+        attributionControl={false}
         onLoad={handleMapLoad}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -622,123 +650,182 @@ export default function ZoningMap({
 
       </Map>
 
-      {/* Build mode legend */}
-      {inBuildMode && (
-        <div
-          className="hidden md:block absolute left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5"
-          style={{ bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <div className="text-xs font-semibold text-gray-700 mb-2">{activeBuild!.label}</div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              <div
-                className="w-4 h-4 rounded-sm flex-shrink-0"
-                style={{ backgroundColor: BUILD_COLORS.allowed }}
-              />
-              <span>Allowed by right</span>
-            </div>
-            {showProvisionalLegend && (
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <div
-                  className="w-4 h-4 rounded-sm flex-shrink-0"
-                  style={{ backgroundColor: BUILD_COLORS.provisional }}
-                />
-                <span>{provisionalLegendLabel}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              <div
-                className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
-                style={{ backgroundColor: BUILD_COLORS.notAllowed }}
+      <div
+        className="hidden md:flex absolute right-3 z-20 flex-col items-end gap-2"
+        style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="relative">
+          <button
+            type="button"
+            onClick={toggleAttributionPanel}
+            className="h-9 px-3 rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-lg backdrop-blur-sm inline-flex items-center justify-center gap-1.5 hover:bg-white"
+            aria-label="Map attribution info"
+            aria-expanded={attributionOpen}
+          >
+            <Info className="h-4 w-4" />
+            <span className="text-xs font-medium">Info</span>
+          </button>
+          {attributionOpen && (
+            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 rounded bg-white/95 px-2 py-1 text-[10px] text-gray-600 shadow-sm border border-gray-100 backdrop-blur-sm whitespace-nowrap">
+              <a href="https://maplibre.org/" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
+                MapLibre
+              </a>
+              <span className="mx-1 text-gray-400">|</span>
+              <span>&copy; </span>
+              <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
+                CARTO
+              </a>
+              <span>, &copy; </span>
+              <a
+                href="https://www.openstreetmap.org/copyright"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-gray-800 underline"
               >
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "repeating-linear-gradient(-45deg, rgba(0,0,0,0.38), rgba(0,0,0,0.38) 1px, transparent 1px, transparent 5px)",
-                  }}
-                />
-              </div>
-              <span>Not allowed</span>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPermits && (
-        <div
-          className="hidden md:block absolute right-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5"
-          style={{ bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
-          {permitRenderMode === "points" ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
-                <span>Single-family (SF)</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
-                <span>Multifamily (MF)</span>
-              </div>
-              <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
-                <div className="mb-1">Circle size scales by units per permit</div>
-                <div className="flex items-end gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="rounded-full bg-gray-500/70 border border-white"
-                      style={{
-                        width: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
-                        height: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
-                      }}
-                    />
-                    <span>1 unit</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="rounded-full bg-gray-500/70 border border-white"
-                      style={{
-                        width: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
-                        height: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
-                      }}
-                    />
-                    <span>100 units</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="text-[11px] text-gray-500">Heat intensity weighted by unit count</div>
-              <div
-                className="h-2.5 w-44 rounded"
-                style={{
-                  background:
-                    "linear-gradient(90deg, rgba(56,189,248,0.65) 0%, rgba(34,197,94,0.75) 35%, rgba(250,204,21,0.8) 65%, rgba(239,68,68,0.9) 100%)",
-                }}
-              />
-              <div className="flex items-center justify-between text-[11px] text-gray-500">
-                <span>Lower units</span>
-                <span>Higher units</span>
-              </div>
+                OpenStreetMap contributors
+              </a>
             </div>
           )}
         </div>
-      )}
-      {showAnyLegend && (
-        <div
-          className="md:hidden absolute left-3 z-10"
-          style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <button
-            onClick={() => setMobileLegendOpen((v) => !v)}
-            className="min-h-11 px-3 py-2 rounded-full border border-gray-200 bg-white/95 backdrop-blur-sm text-xs font-medium text-gray-700 shadow-lg"
-          >
-            {mobileLegendOpen ? "Hide legend" : "Legend"}
-          </button>
-          {mobileLegendOpen && (
-            <div className="mt-2 w-[min(88vw,22rem)] max-h-[45dvh] overflow-auto bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
-              {inBuildMode && (
+
+        {showAnyLegend && (
+          <div className="flex flex-col items-end gap-2">
+            {showZoningLegend && (
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Zoning Districts</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {ZONING_DISTRICT_LEGEND.map((item) => (
+                    <div key={`desktop-zoning-${item.label}`} className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: item.color }} />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {inBuildMode && (
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+                <div className="text-xs font-semibold text-gray-700 mb-2">{activeBuild!.label}</div>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div
+                      className="w-4 h-4 rounded-sm flex-shrink-0"
+                      style={{ backgroundColor: BUILD_COLORS.allowed }}
+                    />
+                    <span>Allowed by right</span>
+                  </div>
+                  {showProvisionalLegend && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div
+                        className="w-4 h-4 rounded-sm flex-shrink-0"
+                        style={{ backgroundColor: BUILD_COLORS.provisional }}
+                      />
+                      <span>{provisionalLegendLabel}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div
+                      className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
+                      style={{ backgroundColor: BUILD_COLORS.notAllowed }}
+                    >
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background:
+                            "repeating-linear-gradient(-45deg, rgba(0,0,0,0.38), rgba(0,0,0,0.38) 1px, transparent 1px, transparent 5px)",
+                        }}
+                      />
+                    </div>
+                    <span>Not allowed</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showPermits && (
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
+                {permitRenderMode === "points" ? (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
+                      <span>Single-family (SF)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
+                      <span>Multifamily (MF)</span>
+                    </div>
+                    <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
+                      <div className="mb-1">Circle size scales by units per permit</div>
+                      <div className="flex items-end gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="rounded-full bg-gray-500/70 border border-white"
+                            style={{
+                              width: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                              height: `${LEGEND_RADIUS_1_UNIT_PX * 2}px`,
+                            }}
+                          />
+                          <span>1 unit</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="rounded-full bg-gray-500/70 border border-white"
+                            style={{
+                              width: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                              height: `${LEGEND_RADIUS_100_UNITS_PX * 2}px`,
+                            }}
+                          />
+                          <span>100 units</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-[11px] text-gray-500">Heat intensity weighted by unit count</div>
+                    <div
+                      className="h-2.5 w-44 rounded"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, rgba(56,189,248,0.65) 0%, rgba(34,197,94,0.75) 35%, rgba(250,204,21,0.8) 65%, rgba(239,68,68,0.9) 100%)",
+                      }}
+                    />
+                    <div className="flex items-center justify-between text-[11px] text-gray-500">
+                      <span>Lower units</span>
+                      <span>Higher units</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="md:hidden absolute right-3 z-20"
+        style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="relative">
+          {mobileLegendOpen && showAnyLegend && (
+            <div className="absolute bottom-full right-0 mb-2 w-[min(88vw,22rem)] max-h-[45dvh] overflow-auto bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 px-3 py-2.5">
+              {showZoningLegend && (
                 <div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">Zoning Districts</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {ZONING_DISTRICT_LEGEND.map((item) => (
+                      <div key={`mobile-zoning-${item.label}`} className="flex items-center gap-2 text-xs text-gray-600">
+                        <div className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: item.color }} />
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {inBuildMode && (
+                <div className={showZoningLegend ? "pt-2 mt-2 border-t border-gray-100" : ""}>
                   <div className="text-xs font-semibold text-gray-700 mb-2">{activeBuild!.label}</div>
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -776,7 +863,7 @@ export default function ZoningMap({
                 </div>
               )}
               {showPermits && (
-                <div className={inBuildMode ? "pt-2 mt-2 border-t border-gray-100" : ""}>
+                <div className={inBuildMode || showZoningLegend ? "pt-2 mt-2 border-t border-gray-100" : ""}>
                   <div className="text-xs font-semibold text-gray-700 mb-2">Residential Permits 2014-2024</div>
                   {permitRenderMode === "points" ? (
                     <div className="flex flex-col gap-1.5">
@@ -834,8 +921,51 @@ export default function ZoningMap({
               )}
             </div>
           )}
+
+          {attributionOpen && (
+            <div className="absolute bottom-full right-0 mb-2 rounded bg-white/95 px-2 py-1 text-[10px] text-gray-600 shadow-sm border border-gray-100 backdrop-blur-sm whitespace-nowrap">
+              <a href="https://maplibre.org/" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
+                MapLibre
+              </a>
+              <span className="mx-1 text-gray-400">|</span>
+              <span>&copy; </span>
+              <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
+                CARTO
+              </a>
+              <span>, &copy; </span>
+              <a
+                href="https://www.openstreetmap.org/copyright"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-gray-800 underline"
+              >
+                OpenStreetMap contributors
+              </a>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            {showAnyLegend && (
+              <button
+                onClick={toggleLegendPanel}
+                className="min-h-11 px-3 py-2 rounded-lg border border-gray-200 bg-white/95 backdrop-blur-sm text-xs font-medium text-gray-700 shadow-lg"
+              >
+                {mobileLegendOpen ? "Hide legend" : "Legend"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleAttributionPanel}
+              className="min-h-11 px-3 py-2 rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-lg backdrop-blur-sm inline-flex items-center justify-center gap-1.5"
+              aria-label="Map attribution info"
+              aria-expanded={attributionOpen}
+            >
+              <Info className="h-4 w-4" />
+              <span className="text-xs font-medium">Info</span>
+            </button>
+          </div>
         </div>
-      )}
+      </div>
 
       {tooltip && (
         <div
