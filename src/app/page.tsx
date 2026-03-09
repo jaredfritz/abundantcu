@@ -42,21 +42,21 @@ export default async function HomePage() {
       <section className="mx-auto w-full max-w-6xl px-5 py-6 md:px-8 md:py-10">
         <div className="grid gap-5 md:grid-cols-3">
           <article className="rounded-[4px] border border-[var(--color-border)] bg-white p-6">
-            <h2 className="text-xl font-bold">Legalize Housing</h2>
+            <h2 className="text-xl font-bold">Legalize More Homes</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-700">
-              End restrictive zoning and legalize missing middle housing so more people can live in more neighborhoods.
+              Champaign-Urbana cannot become affordable again until we allow more homes in more neighborhoods, at more price points, near jobs, schools, and daily needs.
             </p>
           </article>
           <article className="rounded-[4px] border border-[var(--color-border)] bg-white p-6">
-            <h2 className="text-xl font-bold">Fiscal Strength</h2>
+            <h2 className="text-xl font-bold">Lower the Cost of Living</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-700">
-              Support productive land use that improves tax productivity and sustains core infrastructure over time.
+              Affordability is more than rent or mortgage alone, so we focus on housing, transportation, and utility costs together to reduce what it actually takes to live well here.
             </p>
           </article>
           <article className="rounded-[4px] border border-[var(--color-border)] bg-white p-6">
-            <h2 className="text-xl font-bold">Connected Transit</h2>
+            <h2 className="text-xl font-bold">Make Growth Financially Productive</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-700">
-              Build a city with safer streets, reliable transit, and human-scale design that makes daily movement easier.
+              We champion land use and public investment that strengthen the tax base, lower long-run infrastructure liabilities, and make city finances more resilient without raising household burden.
             </p>
           </article>
         </div>
