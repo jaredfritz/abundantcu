@@ -120,6 +120,35 @@ export default async function DataHubPage() {
             </div>
           </Link>
         </div>
+
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
+          Community Data
+        </h2>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <Link
+            href="/data/parking"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="flex h-44 items-center justify-center border-b border-[var(--color-border)] bg-slate-900">
+              <span className="text-4xl font-black tracking-tight text-white opacity-20">P</span>
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Parking Map</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Community-mapped
+                surface lots and parking garages in downtown Champaign.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Understanding
+                how much land is devoted to parking is essential context for land use reform.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Parking Map
+              </span>
+            </div>
+          </Link>
+        </div>
       </section>
     </SiteShell>
   );
