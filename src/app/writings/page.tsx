@@ -36,10 +36,10 @@ export default async function WritingsPage() {
             className="mt-8 block overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
             <Image
-              src="/writings/century-old-building-layout.png"
+              src="/writings/century-old-building-layout.jpg"
               alt={`Featured publication: ${featured.title}`}
-              width={2086}
-              height={3042}
+              width={2400}
+              height={3384}
               className="h-auto w-full"
               sizes="(max-width: 640px) calc(100vw - 40px), (max-width: 1280px) calc(100vw - 64px), 1152px"
               priority
