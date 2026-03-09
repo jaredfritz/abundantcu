@@ -78,11 +78,12 @@ function renderModeLabel(mode: ModeDef, lineWidthClass = "w-10"): ReactNode {
   );
 }
 
-function ModeIcon({ icon }: { icon: ModeDef["icon"] }) {
-  if (icon === "zoning") return <MapPinned className="w-4 h-4 text-blue-700" />;
-  if (icon === "permits") return <Building2 className="w-4 h-4 text-emerald-700" />;
-  if (icon === "build") return <Sparkles className="w-4 h-4 text-amber-700" />;
-  return <Layers3 className="w-4 h-4 text-violet-700" />;
+function ModeIcon({ icon, active }: { icon: ModeDef["icon"]; active: boolean }) {
+  const iconClass = active ? "w-4 h-4 text-blue-700" : "w-4 h-4 text-gray-500";
+  if (icon === "zoning") return <MapPinned className={iconClass} />;
+  if (icon === "permits") return <Building2 className={iconClass} />;
+  if (icon === "build") return <Sparkles className={iconClass} />;
+  return <Layers3 className={iconClass} />;
 }
 
 function permitViewFromParam(value: string | null): "points" | "heatmap" {
@@ -339,7 +340,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <ModeIcon icon={mode.icon} />
+                          <ModeIcon icon={mode.icon} active={active} />
                           <div className={`text-sm font-medium ${active ? "text-blue-700" : "text-gray-800"}`}>
                             {renderModeLabel(mode, "w-10")}
                           </div>
@@ -678,7 +679,7 @@ function ControlsContent({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <ModeIcon icon={mode.icon} />
+                    <ModeIcon icon={mode.icon} active={active} />
                     <div className={`text-sm font-medium ${active ? "text-blue-700" : "text-gray-800"}`}>
                       {renderModeLabel(mode, "w-10")}
                     </div>

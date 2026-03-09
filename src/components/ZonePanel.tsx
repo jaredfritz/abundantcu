@@ -123,7 +123,7 @@ export default function ZonePanel({
           <div className="flex items-start gap-3">
             <div
               className="w-10 h-10 rounded-lg flex-shrink-0 mt-0.5"
-              style={{ backgroundColor: permit.buildingType === "MF" ? "#E69F00" : "#0072B2" }}
+              style={{ backgroundColor: permit.buildingType === "MF" ? "#B9387A" : "#1F6CB0" }}
             />
             <div>
               <div className="text-xl font-bold text-gray-900 break-words leading-tight">{permit.address}</div>

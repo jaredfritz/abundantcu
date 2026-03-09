@@ -103,7 +103,7 @@ export const BUILD_TYPES: BuildType[] = [
 ];
 
 export const BUILD_COLORS = {
-  allowed: "#0072B2",
-  provisional: "#E6B800",
-  notAllowed: "#D55E00",
+  allowed: "#1F6CB0",
+  provisional: "#D28A00",
+  notAllowed: "#B2415C",
 } as const;

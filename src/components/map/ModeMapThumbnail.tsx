@@ -46,9 +46,9 @@ function buildPermitColorExpr(): DataDrivenPropertyValueSpecification<string> {
     "match",
     ["get", "building_type"],
     "SF",
-    "#0072B2",
+    "#1F6CB0",
     "MF",
-    "#E69F00",
+    "#B9387A",
     "#64748b",
   ] as unknown as DataDrivenPropertyValueSpecification<string>;
 }
