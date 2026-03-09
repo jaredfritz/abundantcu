@@ -9,7 +9,6 @@ interface EmailSignupFormProps {
 
 export default function EmailSignupForm({ sourcePage, compact = false }: EmailSignupFormProps) {
   const [email, setEmail] = useState("");
-  const [curbanismOptIn, setCurbanismOptIn] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -29,7 +28,7 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          curbanismOptIn,
+          curbanismOptIn: false,
           sourcePage,
           honeypot,
         }),
@@ -43,7 +42,6 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
       setStatus("success");
       setMessage("Thanks. You are on the list.");
       setEmail("");
-      setCurbanismOptIn(false);
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Submission failed.");
@@ -81,15 +79,6 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
           {status === "submitting" ? "Submitting..." : "Sign Up"}
         </button>
       </div>
-      <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={curbanismOptIn}
-          onChange={(event) => setCurbanismOptIn(event.target.checked)}
-          className="h-4 w-4 rounded border-[var(--color-border)]"
-        />
-        Also sign up for CUrbanism local event updates.
-      </label>
       {message ? (
         <p className={`text-sm ${status === "error" ? "text-red-700" : "text-emerald-700"}`}>{message}</p>
       ) : null}

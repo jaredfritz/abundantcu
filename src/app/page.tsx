@@ -20,8 +20,7 @@ export default async function HomePage() {
     <SiteShell>
       <section className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 md:grid-cols-2 md:items-center md:px-8 md:py-16">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Abundant CU</p>
-          <h1 className="mt-4 text-4xl font-extrabold leading-tight md:text-5xl">
+          <h1 className="text-4xl font-extrabold leading-tight md:text-5xl">
             Making Champaign-Urbana Affordable and Abundant.
           </h1>
           <p className="mt-4 max-w-xl text-base text-slate-700 md:text-lg">

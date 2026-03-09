@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/data", label: "Data Hub" },
   { href: "/writings", label: "Writings" },
   { href: "/action", label: "Take Action" },
+  { href: "/about", label: "About" },
 ];
 
 export default function Navbar() {
@@ -37,7 +38,10 @@ export default function Navbar() {
             className="h-9 w-9 object-contain"
             priority
           />
-          <span className="text-sm font-semibold uppercase tracking-[0.12em]">Abundant CU</span>
+          <span className="text-sm uppercase tracking-[0.12em] text-[var(--color-primary)]">
+            <span className="font-extrabold">ABUNDANT</span>
+            <span className="font-medium"> CU</span>
+          </span>
         </Link>
 
         {/* Desktop nav */}
