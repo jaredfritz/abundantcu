@@ -13,7 +13,7 @@ import {
 import * as turf from "@turf/turf";
 import type { Feature, Polygon, MultiPolygon, Position } from "geojson";
 import {
-  Check, Download, Layers, LogIn, LogOut, Pencil, Plus, Satellite, Trash2, UserPlus, X, AlertTriangle,
+  AlertTriangle, Check, ChevronDown, Download, Layers, LogIn, LogOut, Pencil, Plus, Satellite, Trash2, UserPlus, X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
@@ -154,17 +154,21 @@ interface MapContentProps {
   onVertexDrag: (id: string, idx: number, lat: number, lng: number) => void;
   onVertexDragEnd: (id: string, idx: number, lat: number, lng: number) => void;
   instanceRef: React.MutableRefObject<google.maps.Map | null>;
+  onMapReady?: () => void;
 }
 
 function MapContent({
   features, selectedId, drawing, drawMode, cfg, liveVerts, rectPreviewCoords, vertices,
-  selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef,
+  selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady,
 }: MapContentProps) {
   const map = useMap();
   const mapsLib = useMapsLibrary("maps");
   const onFeatureClickRef = useRef(onFeatureClick);
   useEffect(() => { onFeatureClickRef.current = onFeatureClick; }, [onFeatureClick]);
-  useEffect(() => { instanceRef.current = map; }, [map, instanceRef]);
+  useEffect(() => {
+    instanceRef.current = map;
+    if (map) onMapReady?.();
+  }, [map, instanceRef, onMapReady]);
 
   useEffect(() => {
     if (!map) return;
@@ -430,6 +434,7 @@ function OverlapModal({ overlaps, features, onClip, onLeave, onCancel }: {
 
 export default function ParkingMapper({ editMode = false }: { editMode?: boolean }) {
   const [basemap, setBasemap] = useState<Basemap>("satellite");
+  const [tiltOn, setTiltOn] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<"polygon" | "rectangle">("polygon");
   const [drawType, setDrawType] = useState<ParkingType>("surface");
@@ -440,6 +445,10 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [listOpen, setListOpen] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const listContainerRef = useRef<HTMLUListElement | null>(null);
+  const listItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   // Auth
   const [user, setUser] = useState<User | null>(null);
@@ -741,6 +750,38 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
     await removeFeature(id);
   };
 
+  useEffect(() => {
+    if (!listOpen || !selectedId) return;
+    const listItem = listItemRefs.current[selectedId];
+    if (listItem) {
+      listItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [listOpen, selectedId]);
+
+  useEffect(() => {
+    const map = gmapRef.current;
+    if (!map) return;
+
+    const enforceTilt = () => {
+      if (!tiltOn && (map.getTilt() ?? 0) !== 0) {
+        map.setTilt(0);
+      }
+    };
+
+    if (tiltOn) {
+      map.setTilt(45);
+    } else {
+      map.setTilt(0);
+    }
+
+    const zoomListener = map.addListener("zoom_changed", enforceTilt);
+    const tiltListener = map.addListener("tilt_changed", enforceTilt);
+    return () => {
+      zoomListener.remove();
+      tiltListener.remove();
+    };
+  }, [mapReady, tiltOn]);
+
   const exportGeoJSON = () => {
     const collection: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -800,11 +841,12 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
           mapTypeId={basemap}
           mapId={MAP_ID}
           mapTypeControl={false}
+          cameraControl={false}
           streetViewControl={false}
           fullscreenControl={false}
+          rotateControl={false}
           zoomControl
           gestureHandling="greedy"
-          tilt={0}
           disableDoubleClickZoom
           onClick={handleMapClick}
           onDblclick={handleMapDblClick}
@@ -827,6 +869,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
             onVertexDrag={handleVertexDrag}
             onVertexDragEnd={handleVertexDragEnd}
             instanceRef={gmapRef}
+            onMapReady={() => setMapReady(true)}
           />
         </Map>
       </APIProvider>
@@ -948,6 +991,15 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
               {label}
             </button>
           ))}
+          <button
+            onClick={() => setTiltOn((current) => !current)}
+            className={`flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              tiltOn ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"
+            }`}
+            aria-pressed={tiltOn}
+          >
+            Tilt
+          </button>
         </div>
       </div>
 
@@ -960,56 +1012,72 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
               &middot;{" "}
               <span className="font-semibold text-gray-900">{garageCount}</span> garage{garageCount !== 1 ? "s" : ""}
             </div>
-            <button onClick={exportGeoJSON}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              <Download className="h-3 w-3" aria-hidden />
-              Export
-            </button>
-          </div>
-          <ul className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
-            {features.map((f, i) => (
-              <li key={f.id}
-                className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                  selectedId === f.id ? "bg-gray-100 ring-1 ring-inset ring-gray-300" : "hover:bg-gray-50/60"
-                }`}
-                onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
+            <div className="flex items-center gap-1.5">
+              {editMode && (
+                <button
+                  onClick={exportGeoJSON}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="h-3 w-3" aria-hidden />
+                  Export
+                </button>
+              )}
+              <button
+                onClick={() => setListOpen((open) => !open)}
+                className="rounded-lg border border-gray-200 p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                aria-label={listOpen ? "Collapse parking list" : "Expand parking list"}
+                aria-expanded={listOpen}
               >
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
-                {editMode && editingId === f.id ? (
-                  <form className="flex flex-1 items-center gap-1 min-w-0"
-                    onSubmit={(e) => { e.preventDefault(); commitRename(); }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input autoFocus value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onBlur={commitRename}
-                      className="min-w-0 flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs outline-none focus:border-gray-400"
-                    />
-                    <button type="submit" className="shrink-0 text-gray-400 hover:text-green-500">
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
-                  </form>
-                ) : (
-                  <>
-                    <span className="min-w-0 flex-1 truncate text-xs text-gray-800">{displayName(f, i)}</span>
-                    {editMode && user && f.created_by === user.id && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); startRename(f, i); }}
-                          className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Rename">
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteFeature(f.id); }}
-                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors" aria-label="Delete">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${listOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+          </div>
+          {listOpen && (
+            <ul ref={listContainerRef} className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
+              {features.map((f, i) => (
+                <li key={f.id}
+                  ref={(node) => { listItemRefs.current[f.id] = node; }}
+                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
+                    selectedId === f.id ? "bg-gray-100 ring-1 ring-inset ring-gray-300" : "hover:bg-gray-50/60"
+                  }`}
+                  onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
+                  {editMode && editingId === f.id ? (
+                    <form className="flex flex-1 items-center gap-1 min-w-0"
+                      onSubmit={(e) => { e.preventDefault(); commitRename(); }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input autoFocus value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onBlur={commitRename}
+                        className="min-w-0 flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs outline-none focus:border-gray-400"
+                      />
+                      <button type="submit" className="shrink-0 text-gray-400 hover:text-green-500">
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="min-w-0 flex-1 truncate text-xs text-gray-800">{displayName(f, i)}</span>
+                      {editMode && user && f.created_by === user.id && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); startRename(f, i); }}
+                            className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Rename">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteFeature(f.id); }}
+                            className="shrink-0 text-gray-300 hover:text-red-500 transition-colors" aria-label="Delete">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

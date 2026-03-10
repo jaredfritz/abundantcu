@@ -69,12 +69,16 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
-          className="w-full rounded-[4px] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-primary)] outline-none ring-offset-0 placeholder:text-slate-500 focus:border-[var(--color-accent-secondary)]"
+          className={`w-full rounded-[4px] border border-[var(--color-border)] bg-white text-sm text-[var(--color-primary)] outline-none ring-offset-0 placeholder:text-slate-500 focus:border-[var(--color-accent-secondary)] ${
+            compact ? "px-3.5 py-2.5" : "px-4 py-3"
+          }`}
         />
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="rounded-[4px] bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70"
+          className={`shrink-0 whitespace-nowrap rounded-[4px] bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70 ${
+            compact ? "px-4 py-2.5" : "px-5 py-3"
+          }`}
         >
           {status === "submitting" ? "Submitting..." : "Sign Up"}
         </button>
