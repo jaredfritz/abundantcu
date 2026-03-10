@@ -26,12 +26,20 @@ export default async function HomePage() {
           <p className="mt-4 max-w-xl text-base text-slate-700 md:text-lg">
             We leverage data and policy to build a resilient city that works for everyone.
           </p>
-          <a
-            href="/action"
-            className="mt-8 inline-flex rounded-[4px] bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-[var(--color-primary)]"
-          >
-            Take Action →
-          </a>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href="/data"
+              className="inline-flex rounded-[4px] bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white"
+            >
+              Explore Data Hub
+            </a>
+            <a
+              href="/action"
+              className="inline-flex rounded-[4px] border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-semibold text-[var(--color-primary)]"
+            >
+              Take Action
+            </a>
+          </div>
         </div>
         <div className="h-[320px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white md:h-[420px]">
           <MapEmbed mode="home" interactive={false} data={zoningData} className="h-full w-full" />
