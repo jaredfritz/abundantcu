@@ -29,7 +29,7 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <a
               href="/data"
-              className="inline-flex rounded-[4px] bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white"
+              className="inline-flex rounded-[4px] bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white visited:text-white hover:text-white focus:text-white"
             >
               Explore Data Hub
             </a>
