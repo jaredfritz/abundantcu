@@ -49,6 +49,7 @@ const TYPE_CONFIG: Record<ParkingType, { label: string; fill: string; border: st
 const DOWNTOWN_CENTER = { lat: 40.1165, lng: -88.2434 };
 const INITIAL_ZOOM = 17;
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "DEMO_MAP_ID";
 const LEGACY_STORAGE_KEY = "parking-mapper-gmap-v1";
 const MINOR_OVERLAP_THRESHOLD = 0.05;
 
@@ -797,7 +798,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
           defaultCenter={DOWNTOWN_CENTER}
           defaultZoom={INITIAL_ZOOM}
           mapTypeId={basemap}
-          mapId="DEMO_MAP_ID"
+          mapId={MAP_ID}
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import ModeMapThumbnail from "@/components/map/ModeMapThumbnail";
 import SiteShell from "@/components/site/SiteShell";
@@ -130,8 +131,14 @@ export default async function DataHubPage() {
             href="/data/parking"
             className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
-            <div className="flex h-44 items-center justify-center border-b border-[var(--color-border)] bg-slate-900">
-              <span className="text-4xl font-black tracking-tight text-white opacity-20">P</span>
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/champaign parking map thumbnail.png"
+                alt="Downtown Champaign parking map thumbnail"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Parking Map</h3>
