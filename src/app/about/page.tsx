@@ -8,6 +8,11 @@ export const metadata: Metadata = {
     title: "About | Abundant CU",
     description: "About Abundant CU: what this site is and how to submit suggestions or corrections.",
     url: "https://abundantcu.com/about",
+    images: [{ url: "/og/home.png" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/home.png"],
   },
 };
 

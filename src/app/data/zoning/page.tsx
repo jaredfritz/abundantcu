@@ -12,6 +12,15 @@ export const metadata: Metadata = {
     title: "Champaign Zoning Explorer | Abundant CU",
     description: "Explore zoning districts, residential permit activity, and build-type overlays across Champaign, IL.",
     url: "https://abundantcu.com/data/zoning",
+    images: [
+      {
+        url: "/og/data.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/data.png"],
   },
 };
 

@@ -10,6 +10,15 @@ export const metadata: Metadata = {
     title: "Abundant CU",
     description: "Making Champaign-Urbana Affordable and Abundant.",
     url: "https://abundantcu.com",
+    images: [
+      {
+        url: "/og/home.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/home.png"],
   },
 };
 

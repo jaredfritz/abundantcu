@@ -13,6 +13,15 @@ export const metadata: Metadata = {
     title: "Data Hub | Abundant CU",
     description: "Maps, datasets, and policy tools for Champaign-Urbana land use and urban policy.",
     url: "https://abundantcu.com/data",
+    images: [
+      {
+        url: "/og/data.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/data.png"],
   },
 };
 

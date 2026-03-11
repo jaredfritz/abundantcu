@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     title: "Writings | Abundant CU",
     description: "Data-informed essays and op-eds on legalizing more homes, lowering living costs, and building a financially resilient Champaign-Urbana.",
     url: "https://abundantcu.com/writings",
+    images: [{ url: "/og/writings.png" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/writings.png"],
   },
 };
 

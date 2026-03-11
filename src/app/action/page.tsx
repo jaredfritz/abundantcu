@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     title: "Take Action | Abundant CU",
     description: "Join partner organizations and take practical steps to support housing abundance in Champaign-Urbana.",
     url: "https://abundantcu.com/action",
+    images: [{ url: "/og/home.png" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/home.png"],
   },
 };
 
