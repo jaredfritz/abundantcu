@@ -7,6 +7,10 @@ interface EmailSignupFormProps {
   compact?: boolean;
 }
 
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+
+type TurnstileApi = { reset: () => void };
+
 export default function EmailSignupForm({ sourcePage, compact = false }: EmailSignupFormProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -21,6 +25,8 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
 
     const form = event.currentTarget;
     const honeypot = (form.elements.namedItem("company") as HTMLInputElement | null)?.value ?? "";
+    const turnstileToken =
+      (form.elements.namedItem("cf-turnstile-response") as HTMLInputElement | null)?.value ?? "";
 
     try {
       const response = await fetch("/api/lead", {
@@ -31,6 +37,7 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
           curbanismOptIn: false,
           sourcePage,
           honeypot,
+          turnstileToken,
         }),
       });
 
@@ -45,6 +52,9 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Submission failed.");
+    } finally {
+      const turnstile = (window as Window & { turnstile?: TurnstileApi }).turnstile;
+      turnstile?.reset?.();
     }
   }
 
@@ -83,6 +93,14 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
           {status === "submitting" ? "Submitting..." : "Sign Up"}
         </button>
       </div>
+      {TURNSTILE_SITE_KEY ? (
+        <div
+          className="cf-turnstile"
+          data-sitekey={TURNSTILE_SITE_KEY}
+          data-theme="light"
+          data-size="flexible"
+        />
+      ) : null}
       {message ? (
         <p className={`text-sm ${status === "error" ? "text-red-700" : "text-emerald-700"}`}>{message}</p>
       ) : null}

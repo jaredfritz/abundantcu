@@ -151,22 +151,11 @@ export async function autocompleteAddress(query: string): Promise<AddressSuggest
 
   try {
     const fallbackQuery = /champaign|urbana/i.test(q) ? q : `${q}, Champaign, IL`;
-    const fallbackUrl =
-      `https://nominatim.openstreetmap.org/search` +
-      `?q=${encodeURIComponent(fallbackQuery)}` +
-      `&format=json&addressdetails=1&limit=6&countrycodes=us`;
-    const fallbackRes = await fetch(fallbackUrl, {
-      headers: { "User-Agent": "ChampaignZoningTool/1.0" },
-    });
+    const fallbackRes = await fetch(`/api/nominatim/autocomplete?q=${encodeURIComponent(fallbackQuery)}`);
     if (!fallbackRes.ok) return [];
-    const rows = await fallbackRes.json();
-    if (!Array.isArray(rows)) return [];
-    return rows.map((row: { display_name: string; place_id: string | number }) => ({
-      description: row.display_name,
-      placeId: `nominatim-${row.place_id}`,
-      primaryText: row.display_name.split(",")[0] ?? row.display_name,
-      secondaryText: row.display_name,
-    }));
+    const payload = await fallbackRes.json();
+    const predictions = Array.isArray(payload?.predictions) ? payload.predictions : [];
+    return predictions;
   } catch {
     return [];
   }
@@ -198,23 +187,9 @@ export async function geocodeAddress(
     ? query
     : `${query}, Champaign, IL`;
 
-  const url =
-    `https://nominatim.openstreetmap.org/search` +
-    `?q=${encodeURIComponent(fullQuery)}` +
-    `&format=json&limit=1&countrycodes=us` +
-    `&viewbox=-88.4,40.0,-88.1,40.25&bounded=0`;
-
-  const res = await fetch(url, {
-    headers: { "User-Agent": "ChampaignZoningTool/1.0" },
-  });
+  const res = await fetch(`/api/nominatim/geocode?q=${encodeURIComponent(fullQuery)}`);
 
   if (!res.ok) throw new Error(`Geocoding failed: ${res.status}`);
-  const results = await res.json();
-  if (!results.length) return null;
-
-  return {
-    lat: parseFloat(results[0].lat),
-    lng: parseFloat(results[0].lon),
-    displayName: results[0].display_name,
-  };
+  const payload = await res.json();
+  return payload?.result ?? null;
 }

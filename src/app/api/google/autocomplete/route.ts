@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRequestIp, rateLimit } from "@/lib/security/rateLimit";
 
 const AUTOCOMPLETE_ENDPOINT = "https://maps.googleapis.com/maps/api/place/autocomplete/json";
 
@@ -7,12 +8,29 @@ function getApiKey(): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = getRequestIp(req);
+  const limit = await rateLimit({
+    bucket: "google-autocomplete",
+    identifier: ip,
+    limit: 90,
+    windowSec: 60,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { predictions: [], source: "google", error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+    );
+  }
+
   const key = getApiKey();
   if (!key) {
     return NextResponse.json({ predictions: [], source: "google", error: "Google Maps API key not configured" });
   }
 
   const input = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+  if (input.length > 160) {
+    return NextResponse.json({ predictions: [], source: "google", error: "Query too long" }, { status: 400 });
+  }
   if (!input) return NextResponse.json({ predictions: [] });
 
   const params = new URLSearchParams({

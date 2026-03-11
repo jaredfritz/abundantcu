@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRequestIp, rateLimit } from "@/lib/security/rateLimit";
 
 const GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json";
 
@@ -7,6 +8,20 @@ function getApiKey(): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = getRequestIp(req);
+  const limit = await rateLimit({
+    bucket: "google-geocode",
+    identifier: ip,
+    limit: 45,
+    windowSec: 60,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { result: null, error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+    );
+  }
+
   const key = getApiKey();
   if (!key) {
     return NextResponse.json({ error: "Google Maps API key not configured" }, { status: 500 });
@@ -14,6 +29,9 @@ export async function GET(req: NextRequest) {
 
   const placeId = req.nextUrl.searchParams.get("placeId")?.trim() ?? "";
   const query = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+  if (query.length > 180) {
+    return NextResponse.json({ result: null, error: "Query too long" }, { status: 400 });
+  }
 
   const params = new URLSearchParams({ key });
   if (placeId) {
