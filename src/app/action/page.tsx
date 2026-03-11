@@ -51,6 +51,23 @@ export default function ActionPage() {
           Join partner organizations and take practical steps to support abundance in Champaign-Urbana.
         </p>
 
+        <section className="mt-8 rounded-[4px] border border-[var(--color-border)] bg-white p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Action Alert</p>
+          <h2 className="mt-2 text-2xl font-bold md:text-3xl">Tell Illinois lawmakers to pass the BUILD Plan</h2>
+          <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
+            Illinois cannot solve affordability without building more homes. Send a quick letter in support of the BUILD
+            Plan package to legalize more housing choices and remove outdated barriers.
+          </p>
+          <a
+            href="https://actionnetwork.org/letters/pass-the-build-plan/?source=abundantcu.com"
+            target="_blank"
+            rel="noreferrer"
+            className="cta-primary mt-5 inline-flex rounded-[4px] px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+          >
+            Send a Letter →
+          </a>
+        </section>
+
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           <article className="rounded-[4px] border border-[var(--color-border)] bg-white p-6">
             <div className="flex items-center justify-between gap-4">

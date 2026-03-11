@@ -27,9 +27,20 @@ body {
   color: var(--color-primary);
 }
 
-a {
+:where(a) {
   color: inherit;
   text-decoration: none;
+}
+
+.cta-primary {
+  background: var(--color-primary);
+  color: #fff !important;
+}
+
+.cta-primary:visited,
+.cta-primary:hover,
+.cta-primary:focus {
+  color: #fff !important;
 }
 
 .maplibregl-ctrl-attrib {
