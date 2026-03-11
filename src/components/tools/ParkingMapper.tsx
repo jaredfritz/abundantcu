@@ -274,13 +274,14 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const reset = () => { setError(null); setEmail(""); setPassword(""); setDisplayName(""); };
+  const reset = () => { setError(null); setInfo(null); setEmail(""); setPassword(""); setDisplayName(""); };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setInfo(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) { setError(error.message); return; }
@@ -291,7 +292,7 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
     e.preventDefault();
     if (!displayName.trim()) { setError("Display name is required."); return; }
     if (displayName.trim().length < 2) { setError("Display name must be at least 2 characters."); return; }
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setInfo(null);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -299,6 +300,21 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
     });
     setLoading(false);
     if (error) { setError(error.message); return; }
+    try {
+      await fetch("/api/editor-access/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          displayName: displayName.trim(),
+          notes: "Access request from Parking Mapper account signup.",
+          requesterUserId: data.user?.id,
+        }),
+      });
+    } catch {
+      // Non-fatal; account creation should still succeed.
+    }
+    setInfo("Account created. Editor access request submitted for review.");
     if (data.user) onSuccess(data.user);
   };
 
@@ -349,6 +365,12 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
             onChange={(e) => { setPassword(e.target.value); setError(null); }}
             className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-gray-500"
           />
+          {tab === "signup" && (
+            <p className="text-[11px] leading-relaxed text-gray-500">
+              Creating an account also submits an editor access request for approval.
+            </p>
+          )}
+          {info && <p className="text-xs text-emerald-700">{info}</p>}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <button
             type="submit"
@@ -454,6 +476,10 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingDraw, setPendingDraw] = useState(false);
+  const [editorAllowed, setEditorAllowed] = useState(!editMode);
+  const [editorStatusLoading, setEditorStatusLoading] = useState(editMode);
+  const [accessRequestState, setAccessRequestState] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [accessRequestMessage, setAccessRequestMessage] = useState("");
 
   // Overlap resolution
   const [pendingFeature, setPendingFeature] = useState<{ coords: [number, number][]; overlaps: OverlapInfo[] } | null>(null);
@@ -475,6 +501,45 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   useEffect(() => { drawTypeRef.current = drawType; }, [drawType]);
   useEffect(() => { featuresRef.current = features; }, [features]);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  useEffect(() => {
+    if (!editMode) {
+      setEditorAllowed(true);
+      setEditorStatusLoading(false);
+      return;
+    }
+    if (!user) {
+      setEditorAllowed(false);
+      setEditorStatusLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const checkEditorAccess = async () => {
+      setEditorStatusLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) {
+          if (!cancelled) setEditorAllowed(false);
+          return;
+        }
+        const response = await fetch("/api/editor-access/status", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as { allowed?: boolean } | null;
+        if (!cancelled) setEditorAllowed(Boolean(payload?.allowed));
+      } catch {
+        if (!cancelled) setEditorAllowed(false);
+      } finally {
+        if (!cancelled) setEditorStatusLoading(false);
+      }
+    };
+
+    void checkEditorAccess();
+    return () => { cancelled = true; };
+  }, [editMode, user]);
 
   // Migrate localStorage data once after user signs in (defined before auth effect)
   const migrateLocalStorage = useCallback(async (u: User) => {
@@ -536,12 +601,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
     setUser(u);
     setShowAuthModal(false);
     await migrateLocalStorage(u);
-    if (pendingDraw) {
-      setPendingDraw(false);
-      setDrawing(true);
-      setSelectedId(null);
-    }
-  }, [migrateLocalStorage, pendingDraw]);
+  }, [migrateLocalStorage]);
 
   // Supabase write helpers
   const saveFeature = useCallback(async (feature: ParkingFeature) => {
@@ -562,9 +622,46 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
       setShowAuthModal(true);
       return;
     }
+    if (!editorAllowed) return;
     setDrawing(true);
     setSelectedId(null);
   };
+
+  const requestEditorAccess = useCallback(async () => {
+    if (!user?.email) return;
+    setAccessRequestState("submitting");
+    setAccessRequestMessage("");
+    try {
+      const response = await fetch("/api/editor-access/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          displayName: getUserDisplayName(user),
+          notes: "Access request from Parking Mapper.",
+          requesterUserId: user.id,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Unable to submit request.");
+      }
+      setAccessRequestState("success");
+      setAccessRequestMessage("Request submitted. You will be notified once access is approved.");
+    } catch (error) {
+      setAccessRequestState("error");
+      setAccessRequestMessage(error instanceof Error ? error.message : "Unable to submit request.");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!pendingDraw || editorStatusLoading) return;
+    if (editorAllowed) {
+      setDrawing(true);
+      setSelectedId(null);
+    }
+    setPendingDraw(false);
+  }, [editorAllowed, editorStatusLoading, pendingDraw]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
@@ -812,7 +909,8 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   // Derived
   const cfg = TYPE_CONFIG[drawType];
   const selectedFeature = features.find((f) => f.id === selectedId);
-  const canEditSelected = editMode && !!user && !!selectedFeature && selectedFeature.created_by === user.id;
+  const canEditMap = editMode && editorAllowed;
+  const canEditSelected = canEditMap && !!user && !!selectedFeature && selectedFeature.created_by === user.id;
   const editableVertices = canEditSelected ? selectedFeature!.coordinates[0].slice(0, -1) : [];
   const rectPreviewCoords = drawMode === "rectangle" && vertices.length === 1 && mousePos ? makeRect(vertices[0], mousePos) : null;
   const liveVerts = drawMode === "rectangle" ? (rectPreviewCoords ?? vertices) : (mousePos ? [...vertices, mousePos] : vertices);
@@ -850,7 +948,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
           disableDoubleClickZoom
           onClick={handleMapClick}
           onDblclick={handleMapDblClick}
-          onMousemove={editMode ? handleMouseMove : undefined}
+          onMousemove={canEditMap ? handleMouseMove : undefined}
           style={{ width: "100%", height: "100%" }}
         >
           <MapContent
@@ -864,7 +962,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
             vertices={vertices}
             selectedFeature={canEditSelected ? selectedFeature : undefined}
             editableVertices={editableVertices}
-            editMode={editMode}
+            editMode={canEditMap}
             onFeatureClick={handleFeatureClick}
             onVertexDrag={handleVertexDrag}
             onVertexDragEnd={handleVertexDragEnd}
@@ -877,7 +975,55 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
       {/* Draw panel — edit mode only */}
       {editMode && (
         <div className="absolute left-4 top-4 z-10 w-56">
-          {!drawing ? (
+          {!user && (
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
+              <div className="border-b border-gray-100 px-4 py-3">
+                <p className="text-sm font-bold text-gray-900">Parking Mapper</p>
+                <p className="mt-1 text-xs text-gray-500">Sign in to request editor access.</p>
+              </div>
+              <div className="p-3">
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden />
+                  Sign In
+                </button>
+              </div>
+            </div>
+          )}
+          {user && !editorStatusLoading && !editorAllowed && (
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
+              <div className="border-b border-gray-100 px-4 py-3">
+                <p className="text-sm font-bold text-gray-900">Editor Access Required</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Your account is signed in but not approved for map editing yet.
+                </p>
+              </div>
+              <div className="space-y-2.5 p-3">
+                <button
+                  onClick={() => { void requestEditorAccess(); }}
+                  disabled={accessRequestState === "submitting"}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-60"
+                >
+                  {accessRequestState === "submitting" ? "Submitting..." : "Request Editor Access"}
+                </button>
+                {accessRequestMessage && (
+                  <p className={`text-[11px] leading-relaxed ${
+                    accessRequestState === "error" ? "text-red-600" : "text-gray-600"
+                  }`}>
+                    {accessRequestMessage}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {user && editorStatusLoading && (
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg p-3">
+              <p className="text-xs text-gray-500">Checking editor access...</p>
+            </div>
+          )}
+          {canEditMap && (!drawing ? (
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
@@ -974,7 +1120,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
                 </button>
               </div>
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -1013,7 +1159,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
               <span className="font-semibold text-gray-900">{garageCount}</span> garage{garageCount !== 1 ? "s" : ""}
             </div>
             <div className="flex items-center gap-1.5">
-              {editMode && (
+              {canEditMap && (
                 <button
                   onClick={exportGeoJSON}
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
@@ -1043,7 +1189,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
                   onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
                 >
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
-                  {editMode && editingId === f.id ? (
+                  {canEditMap && editingId === f.id ? (
                     <form className="flex flex-1 items-center gap-1 min-w-0"
                       onSubmit={(e) => { e.preventDefault(); commitRename(); }}
                       onClick={(e) => e.stopPropagation()}
@@ -1060,7 +1206,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
                   ) : (
                     <>
                       <span className="min-w-0 flex-1 truncate text-xs text-gray-800">{displayName(f, i)}</span>
-                      {editMode && user && f.created_by === user.id && (
+                      {canEditMap && user && f.created_by === user.id && (
                         <>
                           <button onClick={(e) => { e.stopPropagation(); startRename(f, i); }}
                             className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Rename">
