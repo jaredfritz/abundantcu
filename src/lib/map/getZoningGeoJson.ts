@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fetchZoningGeoJSON } from "@/lib/api";
+
+let zoningCache: GeoJSON.FeatureCollection | null = null;
 
 function normalizeZoningCodes(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
   for (const feature of data.features) {
@@ -13,15 +14,12 @@ function normalizeZoningCodes(data: GeoJSON.FeatureCollection): GeoJSON.FeatureC
 }
 
 export async function getZoningGeoJson(): Promise<GeoJSON.FeatureCollection> {
-  // Prefer live GIS data at runtime.
-  try {
-    const live = await fetchZoningGeoJSON();
-    return normalizeZoningCodes(live);
-  } catch {
-    // Fall back to local static file so routes never depend on localhost URLs.
-    const filePath = path.join(process.cwd(), "src/data/Zoning_-_Zoning_Classifications.geojson");
-    const raw = await readFile(filePath, "utf-8");
-    const local = JSON.parse(raw) as GeoJSON.FeatureCollection;
-    return normalizeZoningCodes(local);
-  }
+  if (zoningCache) return zoningCache;
+
+  // Use the committed local snapshot to avoid runtime ISR cache churn on oversized GIS responses.
+  const filePath = path.join(process.cwd(), "src/data/Zoning_-_Zoning_Classifications.geojson");
+  const raw = await readFile(filePath, "utf-8");
+  const local = JSON.parse(raw) as GeoJSON.FeatureCollection;
+  zoningCache = normalizeZoningCodes(local);
+  return zoningCache;
 }

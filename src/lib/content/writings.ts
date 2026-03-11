@@ -2,6 +2,11 @@ import { writingSeed } from "@/data/writings.seed";
 import { WritingItem } from "@/lib/content/types";
 
 const SANITY_VERSION = "2025-10-01";
+const rawWritingsRevalidate = Number(process.env.SANITY_REVALIDATE_SECONDS);
+const WRITINGS_REVALIDATE_SECONDS =
+  Number.isFinite(rawWritingsRevalidate) && rawWritingsRevalidate > 0
+    ? Math.floor(rawWritingsRevalidate)
+    : 3600;
 
 export async function getWritings(): Promise<WritingItem[]> {
   const projectId = process.env.SANITY_PROJECT_ID;
@@ -20,7 +25,7 @@ export async function getWritings(): Promise<WritingItem[]> {
     headers: process.env.SANITY_READ_TOKEN
       ? { Authorization: `Bearer ${process.env.SANITY_READ_TOKEN}` }
       : undefined,
-    next: { revalidate: 300 },
+    next: { revalidate: WRITINGS_REVALIDATE_SECONDS },
   });
 
   if (!response.ok) {
