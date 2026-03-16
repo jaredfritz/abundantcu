@@ -39,7 +39,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#002147" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-[4px] focus:bg-[#002147] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"

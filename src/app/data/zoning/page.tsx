@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
 import permitsData from "@/data/residential-permits.json";
-import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
 
 export const metadata: Metadata = {
   title: "Champaign Zoning Explorer",
@@ -24,9 +23,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function DataZoningPage() {
-  const zoningData = await getZoningGeoJson();
-
+export default function DataZoningPage() {
   return (
     <SiteShell>
       <div className="h-[calc(100dvh-69px)] overflow-hidden">
@@ -34,7 +31,6 @@ export default async function DataZoningPage() {
           <MapEmbed
             mode="full"
             interactive
-            data={zoningData}
             permitsData={permitsData as GeoJSON.FeatureCollection}
             className="h-full w-full"
           />

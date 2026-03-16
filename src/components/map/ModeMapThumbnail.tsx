@@ -9,6 +9,7 @@ import type {
 } from "maplibre-gl";
 import { BUILD_COLORS, BUILD_TYPES } from "@/lib/buildTypes";
 import { ZONE_COLOR_MAP } from "@/lib/zoning";
+import { useZoningData } from "@/hooks/useZoningData";
 
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const DEFAULT_BUILD = BUILD_TYPES.find((bt) => bt.id === "duplex") ?? BUILD_TYPES[0];
@@ -17,7 +18,6 @@ export type ModeThumbnailVariant = "zoning" | "permits" | "build";
 
 interface ModeMapThumbnailProps {
   variant: ModeThumbnailVariant;
-  data: GeoJSON.FeatureCollection;
   permitsData: GeoJSON.FeatureCollection;
   className?: string;
   initialViewState?: Partial<ViewState>;
@@ -71,11 +71,11 @@ function buildPermitRadiusExpr(): ExpressionSpecification {
 
 export default function ModeMapThumbnail({
   variant,
-  data,
   permitsData,
   className,
   initialViewState,
 }: ModeMapThumbnailProps) {
+  const data = useZoningData();
   const zoningFillExpr = useMemo(() => buildZoningFillExpr(), []);
   const buildFillExpr = useMemo(() => buildBuildFillExpr(), []);
   const permitColorExpr = useMemo(() => buildPermitColorExpr(), []);
@@ -102,27 +102,29 @@ export default function ModeMapThumbnail({
         dragRotate={false}
         touchZoomRotate={false}
       >
-        <Source id={`thumb-zoning-${variant}`} type="geojson" data={data}>
-          <Layer
-            id={`thumb-fill-${variant}`}
-            type="fill"
-            filter={visibleFilter}
-            paint={{
-              "fill-color": fillColor,
-              "fill-opacity": fillOpacity,
-            }}
-          />
-          <Layer
-            id={`thumb-outline-${variant}`}
-            type="line"
-            filter={visibleFilter}
-            paint={{
-              "line-color": "#475569",
-              "line-width": 0.45,
-              "line-opacity": 0.45,
-            }}
-          />
-        </Source>
+        {data && (
+          <Source id={`thumb-zoning-${variant}`} type="geojson" data={data}>
+            <Layer
+              id={`thumb-fill-${variant}`}
+              type="fill"
+              filter={visibleFilter}
+              paint={{
+                "fill-color": fillColor,
+                "fill-opacity": fillOpacity,
+              }}
+            />
+            <Layer
+              id={`thumb-outline-${variant}`}
+              type="line"
+              filter={visibleFilter}
+              paint={{
+                "line-color": "#475569",
+                "line-width": 0.45,
+                "line-opacity": 0.45,
+              }}
+            />
+          </Source>
+        )}
 
         {variant === "permits" ? (
           <Source id={`thumb-permits-${variant}`} type="geojson" data={permitsData}>

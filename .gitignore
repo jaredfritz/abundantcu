@@ -49,3 +49,4 @@ src/data/*.zip
 # local workspace structure (not part of production site repo)
 archive/
 _precleanup_backups/
+exports/

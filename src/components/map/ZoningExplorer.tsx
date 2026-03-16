@@ -1,15 +1,14 @@
 import ZoningClient from "@/components/ZoningClient";
 
 interface ZoningExplorerProps {
-  data: GeoJSON.FeatureCollection;
   permitsData: GeoJSON.FeatureCollection;
   className?: string;
 }
 
-export default function ZoningExplorer({ data, permitsData, className }: ZoningExplorerProps) {
+export default function ZoningExplorer({ permitsData, className }: ZoningExplorerProps) {
   return (
     <div className={className}>
-      <ZoningClient data={data} permitsData={permitsData} />
+      <ZoningClient permitsData={permitsData} />
     </div>
   );
 }

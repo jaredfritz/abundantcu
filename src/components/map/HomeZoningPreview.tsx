@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Map, { Layer, Source, ViewState } from "react-map-gl/maplibre";
 import type { DataDrivenPropertyValueSpecification, FilterSpecification } from "maplibre-gl";
 import { ZONE_COLOR_MAP } from "@/lib/zoning";
+import { useZoningData } from "@/hooks/useZoningData";
 
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
@@ -16,18 +17,17 @@ function buildFillColorExpr(): DataDrivenPropertyValueSpecification<string> {
 }
 
 interface HomeZoningPreviewProps {
-  data: GeoJSON.FeatureCollection;
   interactive?: boolean;
   initialViewState?: Partial<ViewState>;
   className?: string;
 }
 
 export default function HomeZoningPreview({
-  data,
   interactive = false,
   initialViewState,
   className,
 }: HomeZoningPreviewProps) {
+  const data = useZoningData();
   const fillColorExpr = useMemo(() => buildFillColorExpr(), []);
   const visibleFilter = ["has", "zoning_code"] as unknown as FilterSpecification;
 
@@ -47,27 +47,29 @@ export default function HomeZoningPreview({
         dragRotate={false}
         touchZoomRotate={false}
       >
-        <Source id="zoning-home" type="geojson" data={data}>
-          <Layer
-            id="zoning-home-fill"
-            type="fill"
-            filter={visibleFilter}
-            paint={{
-              "fill-color": fillColorExpr,
-              "fill-opacity": 0.55,
-            }}
-          />
-          <Layer
-            id="zoning-home-outline"
-            type="line"
-            filter={visibleFilter}
-            paint={{
-              "line-color": "#45556c",
-              "line-width": 0.6,
-              "line-opacity": 0.55,
-            }}
-          />
-        </Source>
+        {data && (
+          <Source id="zoning-home" type="geojson" data={data}>
+            <Layer
+              id="zoning-home-fill"
+              type="fill"
+              filter={visibleFilter}
+              paint={{
+                "fill-color": fillColorExpr,
+                "fill-opacity": 0.55,
+              }}
+            />
+            <Layer
+              id="zoning-home-outline"
+              type="line"
+              filter={visibleFilter}
+              paint={{
+                "line-color": "#45556c",
+                "line-width": 0.6,
+                "line-opacity": 0.55,
+              }}
+            />
+          </Source>
+        )}
       </Map>
     </div>
   );

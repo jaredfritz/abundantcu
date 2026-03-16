@@ -8,6 +8,7 @@ import { ALL_ZONE_CODES, ZoneFeatureProperties } from "@/lib/zoning";
 import { GeocodedAddress, findZoneAtPoint } from "@/lib/geo";
 import { BUILD_TYPES, BuildType } from "@/lib/buildTypes";
 import { SelectedPermit } from "@/lib/permits";
+import { useZoningData } from "@/hooks/useZoningData";
 import FilterBar from "./FilterBar";
 import ZonePanel from "./ZonePanel";
 import AddressSearch from "./AddressSearch";
@@ -17,7 +18,6 @@ const ZoningMap = dynamic(() => import("./ZoningMap"), { ssr: false });
 const DEFAULT_BUILD_TYPE_ID = "duplex";
 
 interface ZoningClientProps {
-  data: GeoJSON.FeatureCollection;
   permitsData: GeoJSON.FeatureCollection;
 }
 
@@ -90,7 +90,8 @@ function permitViewFromParam(value: string | null): "points" | "heatmap" {
   return value === "heatmap" ? "heatmap" : "points";
 }
 
-export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
+export default function ZoningClient({ permitsData }: ZoningClientProps) {
+  const data = useZoningData();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -238,7 +239,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
 
   function handleSearchResult(result: GeocodedAddress) {
     setSearchPin({ lat: result.lat, lng: result.lng });
-    const zone = findZoneAtPoint(data, result.lng, result.lat);
+    const zone = data ? findZoneAtPoint(data, result.lng, result.lat) : null;
     setSelectedPermit(null);
     setSelectedFeature(
       zone as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null
@@ -531,7 +532,7 @@ export default function ZoningClient({ data, permitsData }: ZoningClientProps) {
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 relative">
           <ZoningMap
-            data={data}
+            data={data ?? { type: "FeatureCollection", features: [] }}
             activeCodes={activeCodes}
             activeBuild={activeBuild}
             permitsData={permitsData}

@@ -4,7 +4,6 @@ import Link from "next/link";
 import ModeMapThumbnail from "@/components/map/ModeMapThumbnail";
 import SiteShell from "@/components/site/SiteShell";
 import permitsData from "@/data/residential-permits.json";
-import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
 
 export const metadata: Metadata = {
   title: "Data Hub",
@@ -25,9 +24,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function DataHubPage() {
-  const zoningData = await getZoningGeoJson();
-
+export default function DataHubPage() {
   return (
     <SiteShell>
       <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -48,7 +45,7 @@ export default async function DataHubPage() {
             <div className="h-44 border-b border-[var(--color-border)]">
               <ModeMapThumbnail
                 variant="zoning"
-                data={zoningData}
+
                 permitsData={permitsData as GeoJSON.FeatureCollection}
                 className="h-full w-full"
               />
@@ -76,7 +73,7 @@ export default async function DataHubPage() {
             <div className="h-44 border-b border-[var(--color-border)]">
               <ModeMapThumbnail
                 variant="permits"
-                data={zoningData}
+
                 permitsData={permitsData as GeoJSON.FeatureCollection}
                 className="h-full w-full"
               />
@@ -105,7 +102,7 @@ export default async function DataHubPage() {
             <div className="h-44 border-b border-[var(--color-border)]">
               <ModeMapThumbnail
                 variant="build"
-                data={zoningData}
+
                 permitsData={permitsData as GeoJSON.FeatureCollection}
                 className="h-full w-full"
               />

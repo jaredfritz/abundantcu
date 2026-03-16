@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import MapEmbed from "@/components/map/MapEmbed";
 import SiteShell from "@/components/site/SiteShell";
-import { getZoningGeoJson } from "@/lib/map/getZoningGeoJson";
 
 export const metadata: Metadata = {
   title: "Abundant CU",
@@ -22,9 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  const zoningData = await getZoningGeoJson();
-
+export default function HomePage() {
   return (
     <SiteShell>
       <section className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 md:grid-cols-2 md:items-center md:px-8 md:py-16">
@@ -51,7 +48,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="h-[320px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white md:h-[420px]">
-          <MapEmbed mode="home" interactive={false} data={zoningData} className="h-full w-full" />
+          <MapEmbed mode="home" interactive={false} className="h-full w-full" />
         </div>
       </section>
 

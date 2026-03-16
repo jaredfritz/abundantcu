@@ -1,0 +1,60 @@
+{
+  "size": 4096,
+  "dpr": 2,
+  "border": 0.1,
+  "labelBoost": 4,
+  "outDir": "exports/map-prints",
+  "style": {
+    "permitSizeScale": 1,
+    "permitColors": {
+      "sf": "#1F6CB0",
+      "mf": "#B9387A",
+      "other": "#6b7280"
+    },
+    "buildColors": {
+      "allowed": "#1F6CB0",
+      "provisional": "#D28A00",
+      "notAllowed": "#B2415C"
+    }
+  },
+  "legend": {
+    "enabled": true,
+    "xPct": 0.03,
+    "yPct": 0.03,
+    "widthPct": 0.26,
+    "scale": 1,
+    "layout": "column",
+    "backgroundColor": "rgba(255,255,255,0.94)",
+    "borderColor": "rgba(17,24,39,0.16)",
+    "textColor": "#1f2937"
+  },
+  "variants": {
+    "permits": {
+      "style": {
+        "permitSizeScale": 1.35
+      },
+      "legend": {
+        "title": "Residential Permits 2014-2024",
+        "items": [
+          { "label": "Single-family (SF)", "color": "#1F6CB0", "shape": "circle" },
+          { "label": "Multifamily (MF)", "color": "#B9387A", "shape": "circle" }
+        ]
+      }
+    },
+    "build-sfh": {
+      "legend": {
+        "title": "Where Can I Build A Single Family Home?"
+      }
+    },
+    "build-duplex": {
+      "legend": {
+        "title": "Where Can I Build A Duplex?"
+      }
+    },
+    "build-cafe": {
+      "legend": {
+        "title": "Where Can I Build A Cafe?"
+      }
+    }
+  }
+}

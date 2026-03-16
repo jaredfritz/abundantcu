@@ -20,8 +20,9 @@ import { PermitFeatureProperties, SelectedPermit } from "@/lib/permits";
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const CHAMPAIGN_CENTER = { lng: -88.2434, lat: 40.1164 };
 const SHOW_BUILD_HACHURE = true;
-const SF_PERMIT_COLOR = "#1F6CB0";
-const MF_PERMIT_COLOR = "#B9387A";
+const DEFAULT_SF_PERMIT_COLOR = "#1F6CB0";
+const DEFAULT_MF_PERMIT_COLOR = "#B9387A";
+const DEFAULT_OTHER_PERMIT_COLOR = "#6b7280";
 const LEGEND_RADIUS_1_UNIT_PX = 3;
 const LEGEND_RADIUS_100_UNITS_PX = 17;
 const DISTRICT_COLOR_BY_ID = Object.fromEntries(DISTRICTS.map((district) => [district.id, district.color]));
@@ -31,6 +32,21 @@ const ZONING_DISTRICT_LEGEND = [
   { label: "Commercial", color: DISTRICT_COLOR_BY_ID["commercial"] ?? "#fcd34d" },
   { label: "Industrial", color: DISTRICT_COLOR_BY_ID["industrial"] ?? "#fb923c" },
 ] as const;
+
+export interface MapStyleOverrides {
+  zoningColors?: Record<string, string>;
+  buildColors?: {
+    allowed?: string;
+    provisional?: string;
+    notAllowed?: string;
+  };
+  permitColors?: {
+    sf?: string;
+    mf?: string;
+    other?: string;
+  };
+  permitSizeScale?: number;
+}
 
 function getFeatureCollectionBounds(data: GeoJSON.FeatureCollection): [number, number, number, number] | null {
   let minLng = Number.POSITIVE_INFINITY;
@@ -79,15 +95,59 @@ function getFeatureCollectionBounds(data: GeoJSON.FeatureCollection): [number, n
   return [minLng, minLat, maxLng, maxLat];
 }
 
-function applyThoroughfareLabelDraft(map: MapLibreMap) {
+function mergeBounds(
+  boundsList: Array<[number, number, number, number] | null>
+): [number, number, number, number] | null {
+  let minLng = Number.POSITIVE_INFINITY;
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLng = Number.NEGATIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+
+  for (const bounds of boundsList) {
+    if (!bounds) continue;
+    minLng = Math.min(minLng, bounds[0]);
+    minLat = Math.min(minLat, bounds[1]);
+    maxLng = Math.max(maxLng, bounds[2]);
+    maxLat = Math.max(maxLat, bounds[3]);
+  }
+
+  if (
+    !Number.isFinite(minLng) ||
+    !Number.isFinite(minLat) ||
+    !Number.isFinite(maxLng) ||
+    !Number.isFinite(maxLat)
+  ) {
+    return null;
+  }
+
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+type RoadLabelBaseStyle = {
+  min: number;
+  max: number;
+  textSize?: unknown;
+  textHaloWidth?: unknown;
+  textHaloColor?: unknown;
+};
+
+function applyThoroughfareLabelDraft(
+  map: MapLibreMap,
+  minZoomReduction = 2,
+  baseStyles?: Record<string, RoadLabelBaseStyle>
+) {
   const style = map.getStyle();
   if (!style?.layers) return;
+  const normalizedBoost = Math.min(Math.max(minZoomReduction / 8, 0), 1);
+  const labelSizeFactor = 1 + normalizedBoost * 0.55;
+  const extraHaloWidth = normalizedBoost * 1.2;
 
   for (const layer of style.layers) {
     if (layer.type !== "symbol") continue;
     const layerDef = layer as {
       id: string;
       layout?: Record<string, unknown>;
+      paint?: Record<string, unknown>;
       source?: string;
       "source-layer"?: string;
     };
@@ -105,23 +165,44 @@ function applyThoroughfareLabelDraft(map: MapLibreMap) {
     if (!isRoadLabelLayer) continue;
 
     try {
-      // Keep original style and only reveal major-road labels earlier.
-      const isMajorRoadNameLayer =
-        id.includes("highway") ||
-        id.includes("major") ||
-        id.includes("primary") ||
-        id.includes("trunk") ||
-        id.includes("motorway");
-      if (!isMajorRoadNameLayer) continue;
-
-      const min = typeof (layer as { minzoom?: unknown }).minzoom === "number"
-        ? (layer as { minzoom?: number }).minzoom!
-        : 0;
-      const max = typeof (layer as { maxzoom?: unknown }).maxzoom === "number"
-        ? (layer as { maxzoom?: number }).maxzoom!
-        : 24;
-      const loweredMin = Math.max(0, min - 2);
+      const existingBase = baseStyles?.[layerDef.id];
+      const min = existingBase
+        ? existingBase.min
+        : (typeof (layer as { minzoom?: unknown }).minzoom === "number"
+          ? (layer as { minzoom?: number }).minzoom!
+          : 0);
+      const max = existingBase
+        ? existingBase.max
+        : (typeof (layer as { maxzoom?: unknown }).maxzoom === "number"
+          ? (layer as { maxzoom?: number }).maxzoom!
+          : 24);
+      const baseTextSize = existingBase?.textSize ?? layerDef.layout?.["text-size"];
+      const baseHaloWidth = existingBase?.textHaloWidth ?? layerDef.paint?.["text-halo-width"];
+      const baseHaloColor = existingBase?.textHaloColor ?? layerDef.paint?.["text-halo-color"];
+      if (baseStyles && !existingBase) {
+        baseStyles[layerDef.id] = {
+          min,
+          max,
+          textSize: baseTextSize,
+          textHaloWidth: baseHaloWidth,
+          textHaloColor: baseHaloColor,
+        };
+      }
+      const loweredMin = Math.max(0, min - minZoomReduction);
       map.setLayerZoomRange(layerDef.id, loweredMin, max);
+
+      if (baseTextSize !== undefined) {
+        if (typeof baseTextSize === "number") {
+          map.setLayoutProperty(layerDef.id, "text-size", (baseTextSize * labelSizeFactor) as never);
+        } else if (Array.isArray(baseTextSize)) {
+          // Only boost expression-based text sizes. Legacy object function definitions are skipped.
+          const boostedExpr = ["*", ["to-number", baseTextSize as unknown, 12], labelSizeFactor] as unknown;
+          map.setLayoutProperty(layerDef.id, "text-size", boostedExpr as never);
+        }
+      }
+      const haloWidthBase = typeof baseHaloWidth === "number" ? baseHaloWidth : 0;
+      map.setPaintProperty(layerDef.id, "text-halo-width", haloWidthBase + extraHaloWidth);
+      map.setPaintProperty(layerDef.id, "text-halo-color", baseHaloColor ?? "rgba(255,255,255,0.92)");
     } catch {
       // Ignore style-layer mismatches across third-party basemap style versions.
     }
@@ -138,10 +219,11 @@ function darken(hex: string): string {
 
 // Normal mode: color by zone code
 function buildFillColorExpr(
-  activeCodes: Set<string>
+  activeCodes: Set<string>,
+  zoneColorMap: Record<string, string>
 ): DataDrivenPropertyValueSpecification<string> {
   const arms: string[] = [];
-  for (const [code, color] of Object.entries(ZONE_COLOR_MAP)) {
+  for (const [code, color] of Object.entries(zoneColorMap)) {
     if (activeCodes.has(code)) arms.push(code, color);
   }
   if (arms.length === 0) return "rgba(0,0,0,0)";
@@ -149,10 +231,11 @@ function buildFillColorExpr(
 }
 
 function buildHoverColorExpr(
-  activeCodes: Set<string>
+  activeCodes: Set<string>,
+  zoneColorMap: Record<string, string>
 ): DataDrivenPropertyValueSpecification<string> {
   const arms: string[] = [];
-  for (const [code, color] of Object.entries(ZONE_COLOR_MAP)) {
+  for (const [code, color] of Object.entries(zoneColorMap)) {
     if (activeCodes.has(code)) arms.push(code, darken(color));
   }
   if (arms.length === 0) return "rgba(0,0,0,0)";
@@ -168,20 +251,48 @@ function buildVisibilityFilter(activeCodes: Set<string>): FilterSpecification {
 }
 
 // Build mode: blue for by-right, amber for provisional, rose for not-allowed, gray for others
-function buildModeFillColor(bt: BuildType): DataDrivenPropertyValueSpecification<string> {
+function buildModeFillColor(
+  bt: BuildType,
+  buildColors: { allowed: string; provisional: string; notAllowed: string }
+): DataDrivenPropertyValueSpecification<string> {
   const arms: unknown[] = [];
-  if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, BUILD_COLORS.allowed);
-  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, BUILD_COLORS.provisional);
-  if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, BUILD_COLORS.notAllowed);
+  if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, buildColors.allowed);
+  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, buildColors.provisional);
+  if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, buildColors.notAllowed);
   return ["match", ["get", "zoning_code"], ...arms, "#d1d5db"] as unknown as DataDrivenPropertyValueSpecification<string>;
 }
 
-function buildModeHoverColor(bt: BuildType): DataDrivenPropertyValueSpecification<string> {
+function buildModeHoverColor(
+  bt: BuildType,
+  buildColors: { allowed: string; provisional: string; notAllowed: string }
+): DataDrivenPropertyValueSpecification<string> {
   const arms: unknown[] = [];
-  if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, darken(BUILD_COLORS.allowed));
-  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, darken(BUILD_COLORS.provisional));
-  if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, darken(BUILD_COLORS.notAllowed));
+  if (bt.allowedCodes.length > 0) arms.push(bt.allowedCodes, darken(buildColors.allowed));
+  if (bt.provisionalCodes && bt.provisionalCodes.length > 0) arms.push(bt.provisionalCodes, darken(buildColors.provisional));
+  if (bt.notAllowedCodes.length > 0) arms.push(bt.notAllowedCodes, darken(buildColors.notAllowed));
   return ["match", ["get", "zoning_code"], ...arms, "#9ca3af"] as unknown as DataDrivenPropertyValueSpecification<string>;
+}
+
+const PERMIT_RADIUS_STOPS = [
+  { units: 1, normal: 3.5, hover: 5 },
+  { units: 2, normal: 4.5, hover: 6 },
+  { units: 4, normal: 6.5, hover: 8 },
+  { units: 8, normal: 9, hover: 10.5 },
+  { units: 20, normal: 12.5, hover: 14 },
+  { units: 50, normal: 15.5, hover: 17 },
+  { units: 150, normal: 19.5, hover: 21 },
+  { units: 322, normal: 22.5, hover: 24 },
+] as const;
+
+function buildPermitRadiusExpression(hoveredPermitId: number | null, scale: number): ExpressionSpecification {
+  const normalStops = PERMIT_RADIUS_STOPS.flatMap((stop) => [stop.units, stop.normal * scale]);
+  const hoverStops = PERMIT_RADIUS_STOPS.flatMap((stop) => [stop.units, stop.hover * scale]);
+  return [
+    "case",
+    ["==", ["id"], hoveredPermitId ?? -1],
+    ["interpolate", ["linear"], ["to-number", ["get", "units"], 1], ...hoverStops],
+    ["interpolate", ["linear"], ["to-number", ["get", "units"], 1], ...normalStops],
+  ] as unknown as ExpressionSpecification;
 }
 
 interface ZoningMapProps {
@@ -196,6 +307,14 @@ interface ZoningMapProps {
   onSelectFeature: (feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null) => void;
   onSelectPermit: (permit: SelectedPermit | null) => void;
   searchPin: { lat: number; lng: number } | null;
+  fitPaddingPx?: number;
+  fitPaddingRatio?: number;
+  fitBoundsCollections?: GeoJSON.FeatureCollection[];
+  majorRoadLabelZoomReduction?: number;
+  interactive?: boolean;
+  showOverlayUi?: boolean;
+  onMapIdle?: (map: MapLibreMap) => void;
+  styleOverrides?: MapStyleOverrides;
 }
 
 export default function ZoningMap({
@@ -210,8 +329,17 @@ export default function ZoningMap({
   onSelectFeature,
   onSelectPermit,
   searchPin,
+  fitPaddingPx = 36,
+  fitPaddingRatio,
+  fitBoundsCollections,
+  majorRoadLabelZoomReduction = 2,
+  interactive = true,
+  showOverlayUi = true,
+  onMapIdle,
+  styleOverrides,
 }: ZoningMapProps) {
   const mapRef = useRef<MapRef>(null);
+  const roadLabelBaseStylesRef = useRef<Record<string, RoadLabelBaseStyle>>({});
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [hoveredPermitId, setHoveredPermitId] = useState<number | null>(null);
   const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
@@ -224,6 +352,51 @@ export default function ZoningMap({
     districtLabel: string;
     buildStatus: "allowed" | "provisional" | "notAllowed" | null;
   } | null>(null);
+
+  const applyPrintViewportAndLabels = useCallback(
+    (map: MapLibreMap) => {
+      // Draft map readability tuning: stronger major thoroughfare labels.
+      applyThoroughfareLabelDraft(
+        map,
+        majorRoadLabelZoomReduction,
+        roadLabelBaseStylesRef.current
+      );
+
+      const collectionsToFit = fitBoundsCollections ?? [data];
+      const bounds = mergeBounds(collectionsToFit.map((collection) => getFeatureCollectionBounds(collection)));
+      if (bounds) {
+        const paddingFromRatio = typeof fitPaddingRatio === "number"
+          ? Math.round(
+              Math.min(map.getCanvas().clientWidth, map.getCanvas().clientHeight) * fitPaddingRatio
+            )
+          : null;
+        map.fitBounds(
+          [
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ],
+          {
+            padding: paddingFromRatio ?? fitPaddingPx,
+            duration: 0,
+            maxZoom: 15,
+          }
+        );
+      }
+      if (onMapIdle) {
+        map.once("idle", () => {
+          onMapIdle(map);
+        });
+      }
+    },
+    [
+      data,
+      fitBoundsCollections,
+      fitPaddingPx,
+      fitPaddingRatio,
+      majorRoadLabelZoomReduction,
+      onMapIdle,
+    ]
+  );
 
   // Register hachure sprite on map load
   const handleMapLoad = useCallback(() => {
@@ -240,25 +413,15 @@ export default function ZoningMap({
       };
       img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
+    applyPrintViewportAndLabels(map);
+  }, [applyPrintViewportAndLabels]);
 
-    // Draft map readability tuning: stronger major thoroughfare labels.
-    applyThoroughfareLabelDraft(map);
-
-    const bounds = getFeatureCollectionBounds(data);
-    if (bounds) {
-      map.fitBounds(
-        [
-          [bounds[0], bounds[1]],
-          [bounds[2], bounds[3]],
-        ],
-        {
-          padding: 36,
-          duration: 0,
-          maxZoom: 15,
-        }
-      );
-    }
-  }, [data]);
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    if (!map.loaded()) return;
+    applyPrintViewportAndLabels(map);
+  }, [applyPrintViewportAndLabels]);
 
   // Fly to searched address when pin changes
   useEffect(() => {
@@ -387,15 +550,31 @@ export default function ZoningMap({
   );
 
   const inBuildMode = activeBuild !== null;
+  const resolvedZoneColors = { ...ZONE_COLOR_MAP, ...(styleOverrides?.zoningColors ?? {}) };
+  const resolvedBuildColors = {
+    allowed: styleOverrides?.buildColors?.allowed ?? BUILD_COLORS.allowed,
+    provisional: styleOverrides?.buildColors?.provisional ?? BUILD_COLORS.provisional,
+    notAllowed: styleOverrides?.buildColors?.notAllowed ?? BUILD_COLORS.notAllowed,
+  };
+  const resolvedPermitColors = {
+    sf: styleOverrides?.permitColors?.sf ?? DEFAULT_SF_PERMIT_COLOR,
+    mf: styleOverrides?.permitColors?.mf ?? DEFAULT_MF_PERMIT_COLOR,
+    other: styleOverrides?.permitColors?.other ?? DEFAULT_OTHER_PERMIT_COLOR,
+  };
+  const permitSizeScale = (() => {
+    const v = styleOverrides?.permitSizeScale;
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return 1;
+    return Math.max(0.2, Math.min(v, 6));
+  })();
 
   // Normal mode expressions
-  const fillColor = buildFillColorExpr(activeCodes);
-  const hoverColor = buildHoverColorExpr(activeCodes);
+  const fillColor = buildFillColorExpr(activeCodes, resolvedZoneColors);
+  const hoverColor = buildHoverColorExpr(activeCodes, resolvedZoneColors);
   const visibilityFilter = buildVisibilityFilter(activeCodes);
 
   // Build mode expressions
-  const buildFillColor = inBuildMode ? buildModeFillColor(activeBuild!) : null;
-  const buildHoverColor = inBuildMode ? buildModeHoverColor(activeBuild!) : null;
+  const buildFillColor = inBuildMode ? buildModeFillColor(activeBuild!, resolvedBuildColors) : null;
+  const buildHoverColor = inBuildMode ? buildModeHoverColor(activeBuild!, resolvedBuildColors) : null;
   const showAllFilter = ["has", "zoning_code"] as unknown as FilterSpecification;
   const hachureCodes = inBuildMode
     ? Array.from(new Set([...(activeBuild!.notAllowedCodes ?? []), ...(activeBuild!.hatchedCodes ?? [])]))
@@ -468,7 +647,7 @@ export default function ZoningMap({
         [">=", ["to-number", ["get", "year"], 0], permitYearRange.from],
         ["<=", ["to-number", ["get", "year"], 0], permitYearRange.to],
       ] as unknown as FilterSpecification)
-    : undefined;
+    : (["has", "permit_no"] as unknown as FilterSpecification);
 
   return (
     <div className="relative w-full h-full">
@@ -483,9 +662,16 @@ export default function ZoningMap({
         mapStyle={TILE_STYLE}
         attributionControl={false}
         onLoad={handleMapLoad}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
+        onMouseMove={interactive ? handleMouseMove : undefined}
+        onMouseLeave={interactive ? handleMouseLeave : undefined}
+        onClick={interactive ? handleClick : undefined}
+        dragPan={interactive}
+        dragRotate={interactive}
+        scrollZoom={interactive}
+        boxZoom={interactive}
+        keyboard={interactive}
+        doubleClickZoom={interactive}
+        touchZoomRotate={interactive}
       >
         <Source id="zoning" type="geojson" data={data}>
           <Layer
@@ -531,57 +717,12 @@ export default function ZoningMap({
                     "match",
                     ["get", "building_type"],
                     "SF",
-                    SF_PERMIT_COLOR,
+                    resolvedPermitColors.sf,
                     "MF",
-                    MF_PERMIT_COLOR,
-                    "#6b7280",
+                    resolvedPermitColors.mf,
+                    resolvedPermitColors.other,
                   ],
-                  "circle-radius": [
-                    "case",
-                    ["==", ["id"], hoveredPermitId ?? -1],
-                    [
-                      "interpolate",
-                      ["linear"],
-                      ["to-number", ["get", "units"], 1],
-                      1,
-                      5,
-                      2,
-                      6,
-                      4,
-                      8,
-                      8,
-                      10.5,
-                      20,
-                      14,
-                      50,
-                      17,
-                      150,
-                      21,
-                      322,
-                      24,
-                    ],
-                    [
-                      "interpolate",
-                      ["linear"],
-                      ["to-number", ["get", "units"], 1],
-                      1,
-                      3.5,
-                      2,
-                      4.5,
-                      4,
-                      6.5,
-                      8,
-                      9,
-                      20,
-                      12.5,
-                      50,
-                      15.5,
-                      150,
-                      19.5,
-                      322,
-                      22.5,
-                    ],
-                  ],
+                  "circle-radius": buildPermitRadiusExpression(hoveredPermitId, permitSizeScale),
                   "circle-stroke-color": "#ffffff",
                   "circle-stroke-width": [
                     "case",
@@ -666,6 +807,8 @@ export default function ZoningMap({
 
       </Map>
 
+      {showOverlayUi && (
+      <>
       <div
         className="hidden md:flex absolute right-3 z-20 flex-col items-end gap-2"
         style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
@@ -727,7 +870,7 @@ export default function ZoningMap({
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <div
                       className="w-4 h-4 rounded-sm flex-shrink-0"
-                      style={{ backgroundColor: BUILD_COLORS.allowed }}
+                      style={{ backgroundColor: resolvedBuildColors.allowed }}
                     />
                     <span>Allowed by right</span>
                   </div>
@@ -735,7 +878,7 @@ export default function ZoningMap({
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <div
                         className="w-4 h-4 rounded-sm flex-shrink-0"
-                        style={{ backgroundColor: BUILD_COLORS.provisional }}
+                        style={{ backgroundColor: resolvedBuildColors.provisional }}
                       />
                       <span>{provisionalLegendLabel}</span>
                     </div>
@@ -743,7 +886,7 @@ export default function ZoningMap({
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <div
                       className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
-                      style={{ backgroundColor: BUILD_COLORS.notAllowed }}
+                      style={{ backgroundColor: resolvedBuildColors.notAllowed }}
                     >
                       {SHOW_BUILD_HACHURE && (
                         <div
@@ -767,11 +910,11 @@ export default function ZoningMap({
                 {permitRenderMode === "points" ? (
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: resolvedPermitColors.sf }} />
                       <span>Single-family (SF)</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: resolvedPermitColors.mf }} />
                       <span>Multifamily (MF)</span>
                     </div>
                     <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
@@ -849,7 +992,7 @@ export default function ZoningMap({
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <div
                         className="w-4 h-4 rounded-sm flex-shrink-0"
-                        style={{ backgroundColor: BUILD_COLORS.allowed }}
+                        style={{ backgroundColor: resolvedBuildColors.allowed }}
                       />
                       <span>Allowed by right</span>
                     </div>
@@ -857,7 +1000,7 @@ export default function ZoningMap({
                       <div className="flex items-center gap-2 text-xs text-gray-600">
                         <div
                           className="w-4 h-4 rounded-sm flex-shrink-0"
-                          style={{ backgroundColor: BUILD_COLORS.provisional }}
+                          style={{ backgroundColor: resolvedBuildColors.provisional }}
                         />
                         <span>{provisionalLegendLabel}</span>
                       </div>
@@ -865,7 +1008,7 @@ export default function ZoningMap({
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <div
                         className="w-4 h-4 rounded-sm flex-shrink-0 relative overflow-hidden"
-                        style={{ backgroundColor: BUILD_COLORS.notAllowed }}
+                        style={{ backgroundColor: resolvedBuildColors.notAllowed }}
                       >
                         {SHOW_BUILD_HACHURE && (
                           <div
@@ -888,11 +1031,11 @@ export default function ZoningMap({
                   {permitRenderMode === "points" ? (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: SF_PERMIT_COLOR }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: resolvedPermitColors.sf }} />
                         <span>Single-family (SF)</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: MF_PERMIT_COLOR }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: resolvedPermitColors.mf }} />
                         <span>Multifamily (MF)</span>
                       </div>
                       <div className="pt-1 mt-0.5 border-t border-gray-100 text-[11px] text-gray-500">
@@ -986,8 +1129,10 @@ export default function ZoningMap({
           </div>
         </div>
       </div>
+      </>
+      )}
 
-      {tooltip && (
+      {showOverlayUi && tooltip && (
         <div
           className="absolute z-10 pointer-events-none bg-white/95 backdrop-blur-sm shadow-lg rounded-lg px-3 py-2 text-sm border border-gray-100"
           style={{ left: tooltip.x + 12, top: tooltip.y - 48 }}
