@@ -2,13 +2,26 @@
 
 import { useMemo, useState } from "react";
 import ParkingMapper from "@/components/tools/ParkingMapper";
-import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
+import type {
+  ParkingBasemap,
+  ParkingExportFeature,
+  ParkingLegendConfig,
+  ParkingStyleOverrides,
+} from "@/lib/parkingExport";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export default function ParkingExportStudio() {
+interface ParkingExportStudioProps {
+  initialFeatures?: ParkingExportFeature[];
+  initialFeatureError?: string | null;
+}
+
+export default function ParkingExportStudio({
+  initialFeatures,
+  initialFeatureError,
+}: ParkingExportStudioProps) {
   const [widthPx, setWidthPx] = useState(1600);
   const [heightPx, setHeightPx] = useState(1200);
   const [dpr, setDpr] = useState(2);
@@ -168,6 +181,11 @@ export default function ParkingExportStudio() {
         <p className="mt-1 text-xs text-slate-600">
           Export high-resolution screenshots of `/data/parking`.
         </p>
+        {initialFeatureError && (
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+            Feature preload warning: {initialFeatureError}
+          </p>
+        )}
 
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -455,6 +473,8 @@ export default function ParkingExportStudio() {
                 fitToFeaturesBorderRatio={borderRatio}
                 styleOverrides={styleOverrides}
                 captureLegendConfig={legendConfig}
+                initialFeatures={initialFeatures}
+                initialFeatureError={initialFeatureError}
               />
             </div>
           </div>

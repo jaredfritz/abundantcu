@@ -1,4 +1,14 @@
 export type ParkingBasemap = "roadmap" | "satellite";
+export type ParkingFeatureType = "surface" | "garage";
+
+export interface ParkingExportFeature {
+  id: string;
+  type: ParkingFeatureType;
+  name?: string | null;
+  coordinates: [number, number][][];
+  created_by?: string;
+  created_by_name?: string;
+}
 
 export interface ParkingStyleOverrides {
   surfaceFill?: string;

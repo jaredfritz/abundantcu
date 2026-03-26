@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ParkingMapper from "@/components/tools/ParkingMapper";
 import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
+import { loadParkingFeaturesForCapture } from "@/lib/parkingFeatures.server";
 
 export const metadata: Metadata = {
   title: "Parking Map Print Export",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
     follow: false,
   },
 };
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -58,6 +60,7 @@ export default async function ParkingPrintPage({ searchParams }: PageProps) {
   const roadLabelBoost = Math.max(0, Math.min(8, Math.round(getFloat(getFirst(params.labelBoost), 0))));
   const styleOverrides = decodeBase64JsonParam<ParkingStyleOverrides>(getFirst(params.style));
   const legendConfig = decodeBase64JsonParam<ParkingLegendConfig>(getFirst(params.legend));
+  const { features, error } = await loadParkingFeaturesForCapture();
 
   return (
     <main id="parking-print-root" className="h-screen w-screen overflow-hidden bg-white">
@@ -71,6 +74,8 @@ export default async function ParkingPrintPage({ searchParams }: PageProps) {
         fitToFeaturesBorderRatio={borderRatio}
         styleOverrides={styleOverrides}
         captureLegendConfig={legendConfig}
+        initialFeatures={features}
+        initialFeatureError={error}
       />
     </main>
   );

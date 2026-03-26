@@ -17,7 +17,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
-import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
+import type {
+  ParkingBasemap,
+  ParkingExportFeature,
+  ParkingLegendConfig,
+  ParkingStyleOverrides,
+} from "@/lib/parkingExport";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,15 +93,79 @@ function toGPath(ring: [number, number][]): google.maps.LatLngLiteral[] {
   return ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng }));
 }
 
-function dbToFeature(row: DbParkingFeature): ParkingFeature {
+interface ParkingFeatureSource {
+  id: string;
+  type: ParkingType;
+  name?: string | null;
+  coordinates: unknown;
+  created_by?: string;
+  created_by_name?: string;
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function sanitizeRing(rawRing: unknown): [number, number][] | null {
+  if (!Array.isArray(rawRing)) return null;
+  const points: [number, number][] = [];
+  for (const rawPoint of rawRing) {
+    if (!Array.isArray(rawPoint) || rawPoint.length < 2) continue;
+    const lng = toFiniteNumber(rawPoint[0]);
+    const lat = toFiniteNumber(rawPoint[1]);
+    if (lng === null || lat === null) continue;
+    points.push([lng, lat]);
+  }
+
+  if (points.length < 3) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    points.push([first[0], first[1]]);
+  }
+  return points.length >= 4 ? points : null;
+}
+
+function sanitizeCoordinates(rawCoordinates: unknown): [number, number][][] | null {
+  if (!Array.isArray(rawCoordinates)) return null;
+  const rings: [number, number][][] = [];
+  for (const rawRing of rawCoordinates) {
+    const ring = sanitizeRing(rawRing);
+    if (ring) rings.push(ring);
+  }
+  return rings.length > 0 ? rings : null;
+}
+
+function sourceToFeature(source: ParkingFeatureSource): ParkingFeature | null {
+  if (!source.id) return null;
+  if (source.type !== "surface" && source.type !== "garage") return null;
+  const coordinates = sanitizeCoordinates(source.coordinates);
+  if (!coordinates) return null;
+
   return {
+    id: source.id,
+    type: source.type,
+    name: source.name ?? undefined,
+    coordinates,
+    created_by: source.created_by ?? "",
+    created_by_name: source.created_by_name ?? "contributor",
+  };
+}
+
+function dbToFeature(row: DbParkingFeature): ParkingFeature | null {
+  return sourceToFeature({
     id: row.id,
     type: row.type,
     name: row.name ?? undefined,
     coordinates: row.coordinates,
     created_by: row.created_by,
     created_by_name: row.created_by_name,
-  };
+  });
 }
 
 function getUserDisplayName(user: User): string {
@@ -154,6 +223,7 @@ function detectOverlaps(newCoords: [number, number][], existing: ParkingFeature[
 // ─── MapContent ───────────────────────────────────────────────────────────────
 
 interface MapContentProps {
+  captureMode?: boolean;
   features: ParkingFeature[];
   selectedId: string | null;
   drawing: boolean;
@@ -175,6 +245,7 @@ interface MapContentProps {
 }
 
 function MapContent({
+  captureMode = false,
   features, selectedId, drawing, drawMode, typeConfig, cfg, liveVerts, rectPreviewCoords, vertices,
   selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady, onOverlaysRendered,
 }: MapContentProps) {
@@ -193,15 +264,67 @@ function MapContent({
   }, [map, drawing]);
 
   const featureOverlaysRef = useRef<{ id: string; poly: google.maps.Polygon; highlight: google.maps.Polygon | null }[]>([]);
+  const dataLayerFeaturesRef = useRef<google.maps.Data.Feature[]>([]);
 
   useEffect(() => {
-    if (!map || !mapsLib) {
+    if (!map) {
       onOverlaysRendered?.(0);
       return;
     }
-    const { Polygon } = mapsLib;
-    featureOverlaysRef.current.forEach(({ poly, highlight }) => { poly.setMap(null); highlight?.setMap(null); });
 
+    featureOverlaysRef.current.forEach(({ poly, highlight }) => { poly.setMap(null); highlight?.setMap(null); });
+    featureOverlaysRef.current = [];
+    dataLayerFeaturesRef.current.forEach((feature) => map.data.remove(feature));
+    dataLayerFeaturesRef.current = [];
+
+    if (captureMode) {
+      map.data.setStyle((feature) => {
+        const featureType = feature.getProperty("parkingType");
+        const style = featureType === "garage" ? typeConfig.garage : typeConfig.surface;
+        return {
+          clickable: false,
+          fillColor: style.fill,
+          fillOpacity: 0.4,
+          strokeColor: style.border,
+          strokeWeight: 2,
+          zIndex: 2,
+        };
+      });
+
+      for (const parkingFeature of features) {
+        const paths = parkingFeature.coordinates
+          .map((ring) => ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng })))
+          .filter((ring) => ring.length >= 3);
+        if (paths.length === 0) continue;
+
+        const dataFeature = new google.maps.Data.Feature({
+          id: parkingFeature.id,
+          geometry: new google.maps.Data.Polygon(paths),
+        });
+        dataFeature.setProperty("parkingType", parkingFeature.type);
+        map.data.add(dataFeature);
+        dataLayerFeaturesRef.current.push(dataFeature);
+      }
+
+      const notify = () => onOverlaysRendered?.(dataLayerFeaturesRef.current.length);
+      const idleListener = map.addListener("idle", notify);
+      const settleTimer = setTimeout(notify, 150);
+
+      return () => {
+        idleListener.remove();
+        clearTimeout(settleTimer);
+        dataLayerFeaturesRef.current.forEach((feature) => map.data.remove(feature));
+        dataLayerFeaturesRef.current = [];
+        onOverlaysRendered?.(0);
+      };
+    }
+
+    if (!mapsLib) {
+      onOverlaysRendered?.(0);
+      return;
+    }
+
+    const { Polygon } = mapsLib;
     featureOverlaysRef.current = features.map((f) => {
       const paths = [toGPath(f.coordinates[0])];
       const isSelected = f.id === selectedId;
@@ -224,7 +347,7 @@ function MapContent({
       featureOverlaysRef.current = [];
       onOverlaysRendered?.(0);
     };
-  }, [map, mapsLib, features, selectedId, drawing, onOverlaysRendered]);
+  }, [captureMode, map, mapsLib, features, selectedId, drawing, onOverlaysRendered, typeConfig.garage, typeConfig.surface]);
 
   const previewPolyRef = useRef<google.maps.Polygon | null>(null);
   const previewLineRef = useRef<google.maps.Polyline | null>(null);
@@ -486,6 +609,8 @@ interface ParkingMapperProps {
   fitToFeaturesBorderRatio?: number;
   styleOverrides?: ParkingStyleOverrides;
   captureLegendConfig?: ParkingLegendConfig;
+  initialFeatures?: ParkingExportFeature[];
+  initialFeatureError?: string | null;
 }
 
 export default function ParkingMapper({
@@ -498,7 +623,32 @@ export default function ParkingMapper({
   fitToFeaturesBorderRatio = 0.04,
   styleOverrides,
   captureLegendConfig,
+  initialFeatures,
+  initialFeatureError,
 }: ParkingMapperProps) {
+  const normalizedInitialCaptureFeatures = useMemo<ParkingFeature[]>(
+    () =>
+      (initialFeatures ?? [])
+        .map((feature) =>
+          sourceToFeature({
+            id: feature.id,
+            type: feature.type,
+            name: feature.name ?? undefined,
+            coordinates: feature.coordinates,
+            created_by: feature.created_by,
+            created_by_name: feature.created_by_name,
+          })
+        )
+        .filter((feature): feature is ParkingFeature => feature !== null),
+    [initialFeatures]
+  );
+  const hasServerSeededCaptureFeatures = captureMode && Array.isArray(initialFeatures);
+  const initialCaptureLoadError =
+    initialFeatureError ??
+    (hasServerSeededCaptureFeatures && normalizedInitialCaptureFeatures.length === 0
+      ? "No parking features returned for export."
+      : null);
+
   const [basemap, setBasemap] = useState<Basemap>(initialBasemap);
   const [tiltOn, setTiltOn] = useState(initialTilt);
   const [drawing, setDrawing] = useState(false);
@@ -506,12 +656,16 @@ export default function ParkingMapper({
   const [drawType, setDrawType] = useState<ParkingType>("surface");
   const [vertices, setVertices] = useState<[number, number][]>([]);
   const [mousePos, setMousePos] = useState<[number, number] | null>(null);
-  const [features, setFeatures] = useState<ParkingFeature[]>([]);
+  const [features, setFeatures] = useState<ParkingFeature[]>(
+    hasServerSeededCaptureFeatures ? normalizedInitialCaptureFeatures : []
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [featureLoadError, setFeatureLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!hasServerSeededCaptureFeatures);
+  const [featureLoadError, setFeatureLoadError] = useState<string | null>(
+    hasServerSeededCaptureFeatures ? initialCaptureLoadError : null
+  );
   const [listOpen, setListOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
@@ -764,7 +918,10 @@ export default function ParkingMapper({
       if (!error) {
         localStorage.removeItem(LEGACY_STORAGE_KEY);
         const { data } = await supabase.from("parking_features").select("*").order("created_at");
-        setFeatures((data ?? []).map(dbToFeature));
+        const mapped = (data ?? [])
+          .map((row) => dbToFeature(row as DbParkingFeature))
+          .filter((feature): feature is ParkingFeature => feature !== null);
+        setFeatures(mapped);
       }
     } catch { /* non-fatal */ }
   }, []);
@@ -786,6 +943,13 @@ export default function ParkingMapper({
 
   // Load features from Supabase
   useEffect(() => {
+    if (captureMode && hasServerSeededCaptureFeatures) {
+      setFeatures(normalizedInitialCaptureFeatures);
+      setFeatureLoadError(initialCaptureLoadError);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -801,7 +965,9 @@ export default function ParkingMapper({
         if (cancelled) return;
 
         if (!error) {
-          const mapped = (data ?? []).map(dbToFeature);
+          const mapped = (data ?? [])
+            .map((row) => dbToFeature(row as DbParkingFeature))
+            .filter((feature): feature is ParkingFeature => feature !== null);
           if (mapped.length > 0 || !captureMode || attempt === maxAttempts - 1) {
             setFeatures(mapped);
             if (captureMode && mapped.length === 0) {
@@ -830,7 +996,12 @@ export default function ParkingMapper({
     return () => {
       cancelled = true;
     };
-  }, [captureMode]);
+  }, [
+    captureMode,
+    hasServerSeededCaptureFeatures,
+    initialCaptureLoadError,
+    normalizedInitialCaptureFeatures,
+  ]);
 
   const handleAuthSuccess = useCallback(async (u: User) => {
     setUser(u);
@@ -1322,6 +1493,7 @@ export default function ParkingMapper({
           style={{ width: "100%", height: "100%" }}
         >
           <MapContent
+            captureMode={captureMode}
             features={features}
             selectedId={selectedId}
             drawing={drawing}

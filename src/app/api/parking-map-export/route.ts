@@ -80,6 +80,7 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("parking features missing from capture") ||
     message.includes("parking export never reached ready state") ||
     message.includes("parking overlays not ready for capture") ||
+    message.includes("parking screenshot appears incomplete") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
   );
@@ -88,7 +89,8 @@ function isRecoverableExportError(error: unknown): boolean {
 async function captureViewportScreenshot(
   page: Page,
   viewportWidth: number,
-  viewportHeight: number
+  viewportHeight: number,
+  preferCdp: boolean
 ): Promise<Buffer> {
   const screenshotTimeoutMs = 12000;
   const clip = {
@@ -139,35 +141,41 @@ async function captureViewportScreenshot(
   };
 
   let lastError: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const attempts: Array<() => Promise<Buffer>> = preferCdp
+    ? [captureWithCdp, captureWithClip, captureWithClip, captureWithoutClip]
+    : [captureWithClip, captureWithClip, captureWithoutClip, captureWithCdp];
+
+  for (let attempt = 0; attempt < attempts.length; attempt += 1) {
     try {
-      return await captureWithClip();
+      return await attempts[attempt]();
     } catch (error) {
       lastError = error;
+      if (!isTransientScreenshotError(error) && attempt < attempts.length - 1) {
+        continue;
+      }
       if (!isTransientScreenshotError(error)) {
         throw error;
       }
-      if (attempt < 1) {
-        await page.waitForTimeout(250 * (attempt + 1));
+      if (attempt < attempts.length - 1) {
+        await page.waitForTimeout(220 * (attempt + 1));
       }
     }
   }
 
-  try {
-    return await captureWithoutClip();
-  } catch (error) {
-    lastError = error;
-    if (!isTransientScreenshotError(error)) throw error;
-  }
-
-  try {
-    return await captureWithCdp();
-  } catch (error) {
-    lastError = error;
-    throw error;
-  }
-
   throw lastError instanceof Error ? lastError : new Error("Unable to capture screenshot.");
+}
+
+function isSuspiciouslySmallScreenshot(
+  bytes: Uint8Array,
+  viewportWidth: number,
+  viewportHeight: number,
+  basemap: ParkingBasemap
+): boolean {
+  const pixels = viewportWidth * viewportHeight;
+  const minBytes = basemap === "satellite"
+    ? Math.max(70000, Math.floor(pixels * 0.03))
+    : Math.max(35000, Math.floor(pixels * 0.015));
+  return bytes.byteLength < minBytes;
 }
 
 async function renderParkingScreenshot(
@@ -210,6 +218,16 @@ async function renderParkingScreenshot(
     });
 
     await page.waitForSelector("#parking-print-root .gm-style canvas", { timeout: 120000 });
+    await page.waitForFunction(
+      () => {
+        const canvas = document.querySelector("#parking-print-root .gm-style canvas") as
+          | HTMLCanvasElement
+          | null;
+        if (!canvas) return false;
+        return canvas.clientWidth > 100 && canvas.clientHeight > 100;
+      },
+      { timeout: 120000 }
+    );
     if (basemap === "satellite") {
       await page.waitForFunction(
         () => {
@@ -283,9 +301,27 @@ async function renderParkingScreenshot(
     }
     await page.waitForSelector("#parking-print-root", { timeout: 120000 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(80);
+    await page.waitForTimeout(120);
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(() => resolve(), 60);
+            });
+          });
+        })
+    );
 
-    const screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight);
+    const screenshot = await captureViewportScreenshot(
+      page,
+      viewportWidth,
+      viewportHeight,
+      basemap === "satellite"
+    );
+    if (isSuspiciouslySmallScreenshot(screenshot, viewportWidth, viewportHeight, basemap)) {
+      throw new Error("Parking screenshot appears incomplete.");
+    }
     return new Uint8Array(screenshot);
   } finally {
     if (context) {
