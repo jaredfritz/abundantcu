@@ -66,6 +66,19 @@ function isTransientScreenshotError(error: unknown): boolean {
   );
 }
 
+function isRecoverableExportError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    isTransientScreenshotError(error) ||
+    message.includes("target page, context or browser has been closed") ||
+    message.includes("browser has been closed") ||
+    message.includes("contextresult::kfatalfailure") ||
+    message.includes("transferbuffer::initialize() failed") ||
+    message.includes("sharedimage") ||
+    message.includes("gpu")
+  );
+}
+
 async function captureViewportScreenshot(
   page: Page,
   viewportWidth: number,
@@ -99,39 +112,16 @@ async function captureViewportScreenshot(
   throw lastError instanceof Error ? lastError : new Error("Unable to capture screenshot.");
 }
 
-export async function POST(request: NextRequest) {
+async function renderParkingScreenshot(
+  browser: Browser,
+  renderUrl: string,
+  viewportWidth: number,
+  viewportHeight: number,
+  dpr: number,
+  basemap: ParkingBasemap
+): Promise<Uint8Array> {
   let context: Awaited<ReturnType<Browser["newContext"]>> | null = null;
-
   try {
-    const body = (await request.json()) as ParkingExportRequestBody;
-    const widthPx = clamp(typeof body.widthPx === "number" ? body.widthPx : 1600, 800, 6000);
-    const heightPx = clamp(typeof body.heightPx === "number" ? body.heightPx : 1200, 800, 6000);
-    const dpr = clamp(typeof body.dpr === "number" ? body.dpr : 2, 1, 4);
-    const viewportWidth = Math.round(widthPx / dpr);
-    const viewportHeight = Math.round(heightPx / dpr);
-    const basemap: ParkingBasemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
-    const tilt = Boolean(body.tilt);
-    const borderRatio = clamp(typeof body.borderRatio === "number" ? body.borderRatio : 0, 0, 0.18);
-    const roadLabelBoost = clamp(typeof body.roadLabelBoost === "number" ? body.roadLabelBoost : 0, 0, 8);
-    const filename = safeFilename(body.filename);
-
-    const params = new URLSearchParams({
-      basemap,
-      tilt: tilt ? "1" : "0",
-      border: borderRatio.toFixed(4),
-      labelBoost: String(Math.round(roadLabelBoost)),
-      capture: "1",
-    });
-
-    const styleParam = encodeBase64UrlJson(body.styleOverrides);
-    if (styleParam) params.set("style", styleParam);
-
-    const legendParam = encodeBase64UrlJson(body.legendConfig);
-    if (legendParam) params.set("legend", legendParam);
-
-    const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
-
-    const browser = await getSharedBrowser();
     context = await browser.newContext({
       viewport: { width: viewportWidth, height: viewportHeight },
       deviceScaleFactor: dpr,
@@ -166,17 +156,99 @@ export async function POST(request: NextRequest) {
       () => (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY === true,
       { timeout: 120000 }
     );
+    if (basemap === "roadmap") {
+      await page
+        .waitForFunction(
+          () =>
+            ((window as { __PARKING_EXPORT_FEATURE_COUNT?: number }).__PARKING_EXPORT_FEATURE_COUNT ?? 0) > 0,
+          { timeout: 10000 }
+        )
+        .catch(() => undefined);
+    }
     await page.waitForSelector("#parking-print-root", { timeout: 120000 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(80);
 
     const screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight);
-    const screenshotBytes = new Uint8Array(screenshot);
+    return new Uint8Array(screenshot);
+  } finally {
+    if (context) {
+      await context.close();
+    }
+  }
+}
 
-    await context.close();
-    context = null;
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as ParkingExportRequestBody;
+    const widthPx = clamp(typeof body.widthPx === "number" ? body.widthPx : 1600, 800, 6000);
+    const heightPx = clamp(typeof body.heightPx === "number" ? body.heightPx : 1200, 800, 6000);
+    const dpr = clamp(typeof body.dpr === "number" ? body.dpr : 2, 1, 4);
+    const basemap: ParkingBasemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
+    const tilt = Boolean(body.tilt);
+    const borderRatio = clamp(typeof body.borderRatio === "number" ? body.borderRatio : 0, 0, 0.18);
+    const roadLabelBoost = clamp(typeof body.roadLabelBoost === "number" ? body.roadLabelBoost : 0, 0, 8);
+    const filename = safeFilename(body.filename);
 
-    return new NextResponse(screenshotBytes, {
+    const params = new URLSearchParams({
+      basemap,
+      tilt: tilt ? "1" : "0",
+      border: borderRatio.toFixed(4),
+      labelBoost: String(Math.round(roadLabelBoost)),
+      capture: "1",
+    });
+
+    const styleParam = encodeBase64UrlJson(body.styleOverrides);
+    if (styleParam) params.set("style", styleParam);
+
+    const legendParam = encodeBase64UrlJson(body.legendConfig);
+    if (legendParam) params.set("legend", legendParam);
+
+    const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
+
+    const dprAttempts = basemap === "satellite"
+      ? Array.from(new Set([
+          Number(dpr.toFixed(2)),
+          Number(Math.min(dpr, 1.5).toFixed(2)),
+          1,
+        ]))
+      : [Number(dpr.toFixed(2))];
+
+    let screenshotBytes: Uint8Array | null = null;
+    let lastError: unknown = null;
+
+    for (let attemptIndex = 0; attemptIndex < dprAttempts.length; attemptIndex += 1) {
+      const attemptDpr = dprAttempts[attemptIndex];
+      const viewportWidth = Math.round(widthPx / attemptDpr);
+      const viewportHeight = Math.round(heightPx / attemptDpr);
+
+      try {
+        const browser = await getSharedBrowser();
+        screenshotBytes = await renderParkingScreenshot(
+          browser,
+          renderUrl,
+          viewportWidth,
+          viewportHeight,
+          attemptDpr,
+          basemap
+        );
+        break;
+      } catch (error) {
+        lastError = error;
+        const isLastAttempt = attemptIndex === dprAttempts.length - 1;
+        if (!isRecoverableExportError(error) || isLastAttempt) {
+          throw error;
+        }
+        sharedBrowserPromise = null;
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+
+    if (!screenshotBytes) {
+      throw (lastError instanceof Error ? lastError : new Error("Parking map export failed."));
+    }
+
+    return new NextResponse(Buffer.from(screenshotBytes), {
       headers: {
         "content-type": "image/png",
         "content-disposition": `attachment; filename="${filename}"`,
@@ -184,10 +256,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (context) {
-      await context.close();
-    }
-
     const message = error instanceof Error ? error.message : "Parking map export failed.";
     if (message.toLowerCase().includes("browser") || message.toLowerCase().includes("target")) {
       sharedBrowserPromise = null;

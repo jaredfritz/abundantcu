@@ -954,10 +954,16 @@ export default function ParkingMapper({
 
   useEffect(() => {
     if (!captureMode) return;
-    const ready = mapReady && !loading && mapTilesReady;
+    (window as { __PARKING_EXPORT_FEATURE_COUNT?: number }).__PARKING_EXPORT_FEATURE_COUNT = features.length;
+  }, [captureMode, features.length]);
+
+  useEffect(() => {
+    if (!captureMode) return;
+    const fitSettledForCapture = features.length === 0 || captureFitRevision > 0;
+    const ready = mapReady && !loading && mapTilesReady && fitSettledForCapture;
     (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = ready;
     document.body.dataset.parkingExportReady = ready ? "true" : "false";
-  }, [captureMode, loading, mapReady, mapTilesReady]);
+  }, [captureFitRevision, captureMode, features.length, loading, mapReady, mapTilesReady]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
