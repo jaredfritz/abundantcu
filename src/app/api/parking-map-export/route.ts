@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chromium } from "playwright";
-import type { Browser } from "playwright";
+import type { Browser } from "playwright-core";
+import { launchExportBrowser } from "@/lib/export/browser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,12 +31,12 @@ let sharedBrowserPromise: Promise<Browser> | null = null;
 
 async function getSharedBrowser(): Promise<Browser> {
   if (!sharedBrowserPromise) {
-    sharedBrowserPromise = chromium.launch({ headless: true });
+    sharedBrowserPromise = launchExportBrowser();
   }
 
   let browser = await sharedBrowserPromise;
   if (!browser.isConnected()) {
-    sharedBrowserPromise = chromium.launch({ headless: true });
+    sharedBrowserPromise = launchExportBrowser();
     browser = await sharedBrowserPromise;
   }
 

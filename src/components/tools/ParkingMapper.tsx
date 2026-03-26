@@ -457,6 +457,7 @@ function OverlapModal({ overlaps, features, onClip, onLeave, onCancel }: {
 interface ParkingMapperProps {
   editMode?: boolean;
   captureMode?: boolean;
+  captureFillParent?: boolean;
   initialBasemap?: Basemap;
   initialTilt?: boolean;
 }
@@ -464,6 +465,7 @@ interface ParkingMapperProps {
 export default function ParkingMapper({
   editMode = false,
   captureMode = false,
+  captureFillParent = false,
   initialBasemap = "satellite",
   initialTilt = false,
 }: ParkingMapperProps) {
@@ -1023,7 +1025,10 @@ export default function ParkingMapper({
   const garageCount = features.filter((f) => f.type === "garage").length;
 
   return (
-    <div className="relative overflow-hidden" style={{ height: captureMode ? "100dvh" : "calc(100dvh - 69px)" }}>
+    <div
+      className="relative overflow-hidden"
+      style={{ height: captureMode ? (captureFillParent ? "100%" : "100dvh") : "calc(100dvh - 69px)" }}
+    >
       {showAuthModal && (
         <AuthModal onSuccess={handleAuthSuccess} onClose={() => { setShowAuthModal(false); setPendingDraw(false); }} />
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ParkingMapper from "@/components/tools/ParkingMapper";
 
 type Basemap = "roadmap" | "satellite";
 
@@ -18,14 +19,10 @@ export default function ParkingExportStudio() {
   const [isExporting, setIsExporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const previewUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      basemap,
-      tilt: tiltOn ? "1" : "0",
-      capture: "1",
-    });
-    return `/data/parking/print?${params.toString()}`;
-  }, [basemap, tiltOn]);
+  const previewKey = useMemo(
+    () => `${basemap}-${tiltOn ? "1" : "0"}`,
+    [basemap, tiltOn]
+  );
 
   const megapixels = useMemo(() => {
     return (Math.round(widthPx) * Math.round(heightPx)) / 1_000_000;
@@ -183,14 +180,17 @@ export default function ParkingExportStudio() {
           <span>Preview</span>
           <span>{Math.round(widthPx)} x {Math.round(heightPx)} @ {dpr.toFixed(2)}x</span>
         </div>
-        <div className="aspect-[4/3] w-full bg-slate-100">
-          <iframe
-            key={previewUrl}
-            src={previewUrl}
-            title="Parking export preview"
-            className="h-full w-full border-0"
-            loading="lazy"
-          />
+        <div className="relative aspect-[4/3] w-full bg-slate-100">
+          <div className="absolute inset-0">
+            <ParkingMapper
+              key={previewKey}
+              editMode={false}
+              captureMode
+              captureFillParent
+              initialBasemap={basemap}
+              initialTilt={tiltOn}
+            />
+          </div>
         </div>
       </section>
     </div>
