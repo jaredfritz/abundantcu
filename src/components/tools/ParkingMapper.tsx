@@ -47,6 +47,20 @@ const TYPE_CONFIG: Record<ParkingType, { label: string; fill: string; border: st
   garage: { label: "Parking Garage", fill: "#f97316", border: "#c2410c", text: "text-orange-600" },
 };
 
+const ZONING_LIKE_ROADMAP_STYLE: google.maps.MapTypeStyle[] = [
+  { elementType: "geometry", stylers: [{ color: "#edf1f5" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f8fafc" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#d1d5db" }] },
+  { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#e9edf2" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#f3f4f6" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#e5e7eb" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
+];
+
 const DOWNTOWN_CENTER = { lat: 40.1165, lng: -88.2434 };
 const INITIAL_ZOOM = 17;
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -462,8 +476,8 @@ interface ParkingMapperProps {
   captureFillParent?: boolean;
   initialBasemap?: Basemap;
   initialTilt?: boolean;
-  initialZoom?: number;
   roadLabelBoost?: number;
+  fitToFeaturesBorderRatio?: number;
   styleOverrides?: ParkingStyleOverrides;
   captureLegendConfig?: ParkingLegendConfig;
 }
@@ -474,8 +488,8 @@ export default function ParkingMapper({
   captureFillParent = false,
   initialBasemap = "satellite",
   initialTilt = false,
-  initialZoom = INITIAL_ZOOM,
   roadLabelBoost = 0,
+  fitToFeaturesBorderRatio = 0.04,
   styleOverrides,
   captureLegendConfig,
 }: ParkingMapperProps) {
@@ -494,6 +508,7 @@ export default function ParkingMapper({
   const [listOpen, setListOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
+  const [captureFitRevision, setCaptureFitRevision] = useState(0);
   const listContainerRef = useRef<HTMLUListElement | null>(null);
   const listItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -528,7 +543,7 @@ export default function ParkingMapper({
     ]
   );
 
-  const boostedRoadLabelStyles = useMemo(() => {
+  const boostRoadLabelStyles = useMemo(() => {
     const boost = Math.max(0, Math.min(8, Math.round(roadLabelBoost)));
     if (boost === 0) return undefined;
     return [
@@ -549,6 +564,19 @@ export default function ParkingMapper({
       },
     ] as google.maps.MapTypeStyle[];
   }, [roadLabelBoost]);
+
+  const mapStyles = useMemo(() => {
+    if (basemap !== "roadmap") return undefined;
+
+    const styles: google.maps.MapTypeStyle[] = [];
+    if (captureMode) {
+      styles.push(...ZONING_LIKE_ROADMAP_STYLE);
+    }
+    if (boostRoadLabelStyles) {
+      styles.push(...boostRoadLabelStyles);
+    }
+    return styles.length > 0 ? styles : undefined;
+  }, [basemap, boostRoadLabelStyles, captureMode]);
 
   const captureLegend = useMemo(() => {
     const enabled = Boolean(captureLegendConfig?.enabled);
@@ -866,7 +894,41 @@ export default function ParkingMapper({
       clearTimeout(fallbackTimer);
       if (settleTimer) clearTimeout(settleTimer);
     };
-  }, [basemap, captureMode, mapReady, roadLabelBoost, tiltOn]);
+  }, [basemap, captureFitRevision, captureMode, mapReady, mapStyles, tiltOn]);
+
+  useEffect(() => {
+    if (!captureMode) return;
+    if (loading || !mapReady || features.length === 0) return;
+
+    const map = gmapRef.current;
+    if (!map) return;
+
+    let pointCount = 0;
+    const bounds = new google.maps.LatLngBounds();
+    for (const feature of features) {
+      for (const ring of feature.coordinates) {
+        for (const [lng, lat] of ring) {
+          bounds.extend({ lat, lng });
+          pointCount += 1;
+        }
+      }
+    }
+
+    if (pointCount === 0 || bounds.isEmpty()) return;
+
+    const ratio = Math.max(0, Math.min(0.18, fitToFeaturesBorderRatio));
+    const div = map.getDiv();
+    const width = div.clientWidth || 1200;
+    const height = div.clientHeight || 900;
+    setMapTilesReady(false);
+    map.fitBounds(bounds, {
+      top: Math.round(height * ratio),
+      right: Math.round(width * ratio),
+      bottom: Math.round(height * ratio),
+      left: Math.round(width * ratio),
+    });
+    setCaptureFitRevision((value) => value + 1);
+  }, [captureMode, features, fitToFeaturesBorderRatio, loading, mapReady]);
 
   useEffect(() => {
     if (!captureMode) return;
@@ -1150,10 +1212,10 @@ export default function ParkingMapper({
       <APIProvider apiKey={API_KEY}>
         <Map
           defaultCenter={DOWNTOWN_CENTER}
-          defaultZoom={initialZoom}
+          defaultZoom={INITIAL_ZOOM}
           mapTypeId={basemap}
-          mapId={boostedRoadLabelStyles ? undefined : MAP_ID}
-          styles={boostedRoadLabelStyles}
+          mapId={mapStyles ? undefined : MAP_ID}
+          styles={mapStyles}
           mapTypeControl={false}
           cameraControl={false}
           streetViewControl={false}

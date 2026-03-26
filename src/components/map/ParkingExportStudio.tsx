@@ -12,9 +12,8 @@ export default function ParkingExportStudio() {
   const [widthPx, setWidthPx] = useState(1600);
   const [heightPx, setHeightPx] = useState(1200);
   const [dpr, setDpr] = useState(2);
-  const [basemap, setBasemap] = useState<ParkingBasemap>("satellite");
+  const [basemap, setBasemap] = useState<ParkingBasemap>("roadmap");
   const [tiltOn, setTiltOn] = useState(false);
-  const [zoom, setZoom] = useState(17);
   const [borderRatio, setBorderRatio] = useState(0.04);
   const [roadLabelBoost, setRoadLabelBoost] = useState(0);
 
@@ -74,7 +73,6 @@ export default function ParkingExportStudio() {
       [
         basemap,
         tiltOn ? "tilt" : "flat",
-        zoom.toFixed(2),
         borderRatio.toFixed(4),
         roadLabelBoost,
         surfaceFill,
@@ -107,7 +105,6 @@ export default function ParkingExportStudio() {
       surfaceBorder,
       surfaceFill,
       tiltOn,
-      zoom,
     ]
   );
 
@@ -129,7 +126,6 @@ export default function ParkingExportStudio() {
           dpr,
           basemap,
           tilt: tiltOn,
-          zoom,
           borderRatio,
           roadLabelBoost,
           styleOverrides,
@@ -205,7 +201,7 @@ export default function ParkingExportStudio() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700" htmlFor="parking-export-dpr">
                 Device Pixel Ratio
@@ -218,21 +214,6 @@ export default function ParkingExportStudio() {
                 step={0.25}
                 value={dpr}
                 onChange={(event) => setDpr(clamp(Number.parseFloat(event.target.value || "0"), 1, 4))}
-                className="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700" htmlFor="parking-export-zoom">
-                Zoom
-              </label>
-              <input
-                id="parking-export-zoom"
-                type="number"
-                min={14}
-                max={21}
-                step={0.25}
-                value={zoom}
-                onChange={(event) => setZoom(clamp(Number.parseFloat(event.target.value || "0"), 14, 21))}
                 className="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm"
               />
             </div>
@@ -261,18 +242,23 @@ export default function ParkingExportStudio() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700" htmlFor="parking-export-border">
-                Border Ratio
+                Border (%)
               </label>
               <input
                 id="parking-export-border"
                 type="number"
                 min={0}
-                max={0.18}
-                step={0.01}
-                value={borderRatio}
-                onChange={(event) => setBorderRatio(clamp(Number.parseFloat(event.target.value || "0"), 0, 0.18))}
+                max={18}
+                step={0.5}
+                value={Number((borderRatio * 100).toFixed(1))}
+                onChange={(event) =>
+                  setBorderRatio(clamp(Number.parseFloat(event.target.value || "0") / 100, 0, 0.18))
+                }
                 className="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm"
               />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Minimum map margin around all parking polygons.
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700" htmlFor="parking-export-road-label-boost">
@@ -441,21 +427,19 @@ export default function ParkingExportStudio() {
           <span>{Math.round(widthPx)} x {Math.round(heightPx)} @ {dpr.toFixed(2)}x</span>
         </div>
         <div className="relative aspect-[4/3] w-full bg-slate-100">
-          <div className="absolute inset-0" style={{ padding: `${(borderRatio * 100).toFixed(2)}%` }}>
-            <div className="h-full w-full overflow-hidden">
-              <ParkingMapper
-                key={previewKey}
-                editMode={false}
-                captureMode
-                captureFillParent
-                initialBasemap={basemap}
-                initialTilt={tiltOn}
-                initialZoom={zoom}
-                roadLabelBoost={roadLabelBoost}
-                styleOverrides={styleOverrides}
-                captureLegendConfig={legendConfig}
-              />
-            </div>
+          <div className="absolute inset-0">
+            <ParkingMapper
+              key={previewKey}
+              editMode={false}
+              captureMode
+              captureFillParent
+              initialBasemap={basemap}
+              initialTilt={tiltOn}
+              roadLabelBoost={roadLabelBoost}
+              fitToFeaturesBorderRatio={borderRatio}
+              styleOverrides={styleOverrides}
+              captureLegendConfig={legendConfig}
+            />
           </div>
         </div>
       </section>

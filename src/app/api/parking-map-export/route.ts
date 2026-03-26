@@ -12,7 +12,6 @@ interface ParkingExportRequestBody {
   dpr?: number;
   basemap?: ParkingBasemap;
   tilt?: boolean;
-  zoom?: number;
   borderRatio?: number;
   roadLabelBoost?: number;
   styleOverrides?: ParkingStyleOverrides;
@@ -69,7 +68,6 @@ export async function POST(request: NextRequest) {
     const viewportHeight = Math.round(heightPx / dpr);
     const basemap: ParkingBasemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
     const tilt = Boolean(body.tilt);
-    const zoom = clamp(typeof body.zoom === "number" ? body.zoom : 17, 14, 21);
     const borderRatio = clamp(typeof body.borderRatio === "number" ? body.borderRatio : 0, 0, 0.18);
     const roadLabelBoost = clamp(typeof body.roadLabelBoost === "number" ? body.roadLabelBoost : 0, 0, 8);
     const filename = safeFilename(body.filename);
@@ -77,7 +75,6 @@ export async function POST(request: NextRequest) {
     const params = new URLSearchParams({
       basemap,
       tilt: tilt ? "1" : "0",
-      zoom: zoom.toFixed(2),
       border: borderRatio.toFixed(4),
       labelBoost: String(Math.round(roadLabelBoost)),
       capture: "1",

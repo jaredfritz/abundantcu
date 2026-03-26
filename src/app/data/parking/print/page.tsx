@@ -54,31 +54,24 @@ export default async function ParkingPrintPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const basemap = getBasemap(getFirst(params.basemap));
   const tiltOn = getTilt(getFirst(params.tilt));
-  const zoom = Math.max(14, Math.min(21, getFloat(getFirst(params.zoom), 17)));
   const borderRatio = Math.max(0, Math.min(0.18, getFloat(getFirst(params.border), 0)));
   const roadLabelBoost = Math.max(0, Math.min(8, Math.round(getFloat(getFirst(params.labelBoost), 0))));
   const styleOverrides = decodeBase64JsonParam<ParkingStyleOverrides>(getFirst(params.style));
   const legendConfig = decodeBase64JsonParam<ParkingLegendConfig>(getFirst(params.legend));
 
   return (
-    <main
-      id="parking-print-root"
-      className="h-screen w-screen overflow-hidden bg-white"
-      style={{ padding: `${(borderRatio * 100).toFixed(2)}%` }}
-    >
-      <div className="h-full w-full overflow-hidden">
-        <ParkingMapper
-          editMode={false}
-          captureMode
-          captureFillParent
-          initialBasemap={basemap}
-          initialTilt={tiltOn}
-          initialZoom={zoom}
-          roadLabelBoost={roadLabelBoost}
-          styleOverrides={styleOverrides}
-          captureLegendConfig={legendConfig}
-        />
-      </div>
+    <main id="parking-print-root" className="h-screen w-screen overflow-hidden bg-white">
+      <ParkingMapper
+        editMode={false}
+        captureMode
+        captureFillParent
+        initialBasemap={basemap}
+        initialTilt={tiltOn}
+        roadLabelBoost={roadLabelBoost}
+        fitToFeaturesBorderRatio={borderRatio}
+        styleOverrides={styleOverrides}
+        captureLegendConfig={legendConfig}
+      />
     </main>
   );
 }
