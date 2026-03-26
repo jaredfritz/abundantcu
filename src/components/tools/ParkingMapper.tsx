@@ -171,11 +171,12 @@ interface MapContentProps {
   onVertexDragEnd: (id: string, idx: number, lat: number, lng: number) => void;
   instanceRef: React.MutableRefObject<google.maps.Map | null>;
   onMapReady?: () => void;
+  onOverlaysRendered?: (count: number) => void;
 }
 
 function MapContent({
   features, selectedId, drawing, drawMode, typeConfig, cfg, liveVerts, rectPreviewCoords, vertices,
-  selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady,
+  selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady, onOverlaysRendered,
 }: MapContentProps) {
   const map = useMap();
   const mapsLib = useMapsLibrary("maps");
@@ -194,7 +195,10 @@ function MapContent({
   const featureOverlaysRef = useRef<{ id: string; poly: google.maps.Polygon; highlight: google.maps.Polygon | null }[]>([]);
 
   useEffect(() => {
-    if (!map || !mapsLib) return;
+    if (!map || !mapsLib) {
+      onOverlaysRendered?.(0);
+      return;
+    }
     const { Polygon } = mapsLib;
     featureOverlaysRef.current.forEach(({ poly, highlight }) => { poly.setMap(null); highlight?.setMap(null); });
 
@@ -213,12 +217,14 @@ function MapContent({
       poly.addListener("click", () => onFeatureClickRef.current(f.id));
       return { id: f.id, poly, highlight };
     });
+    onOverlaysRendered?.(featureOverlaysRef.current.length);
 
     return () => {
       featureOverlaysRef.current.forEach(({ poly, highlight }) => { poly.setMap(null); highlight?.setMap(null); });
       featureOverlaysRef.current = [];
+      onOverlaysRendered?.(0);
     };
-  }, [map, mapsLib, features, selectedId, drawing]);
+  }, [map, mapsLib, features, selectedId, drawing, onOverlaysRendered]);
 
   const previewPolyRef = useRef<google.maps.Polygon | null>(null);
   const previewLineRef = useRef<google.maps.Polyline | null>(null);
@@ -509,6 +515,7 @@ export default function ParkingMapper({
   const [mapReady, setMapReady] = useState(false);
   const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
   const [captureFitRevision, setCaptureFitRevision] = useState(0);
+  const [captureOverlayCount, setCaptureOverlayCount] = useState(0);
   const listContainerRef = useRef<HTMLUListElement | null>(null);
   const listItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -959,11 +966,17 @@ export default function ParkingMapper({
 
   useEffect(() => {
     if (!captureMode) return;
+    (window as { __PARKING_EXPORT_OVERLAY_COUNT?: number }).__PARKING_EXPORT_OVERLAY_COUNT = captureOverlayCount;
+  }, [captureMode, captureOverlayCount]);
+
+  useEffect(() => {
+    if (!captureMode) return;
     const fitSettledForCapture = features.length === 0 || captureFitRevision > 0;
-    const ready = mapReady && !loading && mapTilesReady && fitSettledForCapture;
+    const overlaysSettledForCapture = features.length === 0 || captureOverlayCount >= features.length;
+    const ready = mapReady && !loading && mapTilesReady && fitSettledForCapture && overlaysSettledForCapture;
     (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = ready;
     document.body.dataset.parkingExportReady = ready ? "true" : "false";
-  }, [captureFitRevision, captureMode, features.length, loading, mapReady, mapTilesReady]);
+  }, [captureFitRevision, captureMode, captureOverlayCount, features.length, loading, mapReady, mapTilesReady]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
@@ -1275,6 +1288,7 @@ export default function ParkingMapper({
             onVertexDragEnd={handleVertexDragEnd}
             instanceRef={gmapRef}
             onMapReady={() => setMapReady(true)}
+            onOverlaysRendered={captureMode ? setCaptureOverlayCount : undefined}
           />
         </Map>
       </APIProvider>

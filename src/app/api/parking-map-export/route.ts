@@ -74,6 +74,7 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("browser has been closed") ||
     message.includes("contextresult::kfatalfailure") ||
     message.includes("transferbuffer::initialize() failed") ||
+    message.includes("parking overlays not ready for capture") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
   );
@@ -157,13 +158,22 @@ async function renderParkingScreenshot(
       { timeout: 120000 }
     );
     if (basemap === "roadmap") {
-      await page
-        .waitForFunction(
-          () =>
-            ((window as { __PARKING_EXPORT_FEATURE_COUNT?: number }).__PARKING_EXPORT_FEATURE_COUNT ?? 0) > 0,
-          { timeout: 10000 }
-        )
-        .catch(() => undefined);
+      try {
+        await page.waitForFunction(
+          () => {
+            const payload = window as {
+              __PARKING_EXPORT_FEATURE_COUNT?: number;
+              __PARKING_EXPORT_OVERLAY_COUNT?: number;
+            };
+            const featureCount = payload.__PARKING_EXPORT_FEATURE_COUNT ?? 0;
+            const overlayCount = payload.__PARKING_EXPORT_OVERLAY_COUNT ?? 0;
+            return featureCount > 0 && overlayCount >= featureCount;
+          },
+          { timeout: 15000 }
+        );
+      } catch {
+        throw new Error("Parking overlays not ready for capture.");
+      }
     }
     await page.waitForSelector("#parking-print-root", { timeout: 120000 });
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -206,13 +216,14 @@ export async function POST(request: NextRequest) {
 
     const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
 
+    const baseDpr = Number(dpr.toFixed(2));
     const dprAttempts = basemap === "satellite"
       ? Array.from(new Set([
-          Number(dpr.toFixed(2)),
+          baseDpr,
           Number(Math.min(dpr, 1.5).toFixed(2)),
           1,
         ]))
-      : [Number(dpr.toFixed(2))];
+      : [baseDpr, baseDpr, baseDpr];
 
     let screenshotBytes: Uint8Array | null = null;
     let lastError: unknown = null;
