@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Browser } from "playwright-core";
+import type { Browser, Page } from "playwright-core";
 import { launchExportBrowser } from "@/lib/export/browser";
 import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
 
@@ -54,6 +54,49 @@ async function getSharedBrowser(): Promise<Browser> {
   }
 
   return browser;
+}
+
+function isTransientScreenshotError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes("capture screenshot") ||
+    message.includes("page.capturescreenshot") ||
+    message.includes("target closed") ||
+    message.includes("context closed")
+  );
+}
+
+async function captureViewportScreenshot(
+  page: Page,
+  viewportWidth: number,
+  viewportHeight: number
+): Promise<Buffer> {
+  const clip = {
+    x: 0,
+    y: 0,
+    width: Math.max(1, Math.round(viewportWidth)),
+    height: Math.max(1, Math.round(viewportHeight)),
+  };
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await page.screenshot({
+        type: "png",
+        clip,
+        animations: "disabled",
+        caret: "hide",
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isTransientScreenshotError(error) || attempt === 2) {
+        throw error;
+      }
+      await page.waitForTimeout(250 * (attempt + 1));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Unable to capture screenshot.");
 }
 
 export async function POST(request: NextRequest) {
@@ -123,8 +166,11 @@ export async function POST(request: NextRequest) {
       () => (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY === true,
       { timeout: 120000 }
     );
+    await page.waitForSelector("#parking-print-root", { timeout: 120000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(80);
 
-    const screenshot = await page.locator("#parking-print-root").screenshot({ type: "png" });
+    const screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight);
     const screenshotBytes = new Uint8Array(screenshot);
 
     await context.close();
