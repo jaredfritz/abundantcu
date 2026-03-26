@@ -917,17 +917,39 @@ export default function ParkingMapper({
     if (pointCount === 0 || bounds.isEmpty()) return;
 
     const ratio = Math.max(0, Math.min(0.18, fitToFeaturesBorderRatio));
-    const div = map.getDiv();
-    const width = div.clientWidth || 1200;
-    const height = div.clientHeight || 900;
+    const shrinkFactor = 1 - ratio * 2;
+    const zoomOutDelta =
+      shrinkFactor > 0 && shrinkFactor < 1
+        ? Math.log2(1 / shrinkFactor)
+        : 0;
+
+    let cancelled = false;
+    let finalized = false;
+    const finalizeFit = () => {
+      if (cancelled || finalized) return;
+      finalized = true;
+      if (zoomOutDelta > 0) {
+        const zoom = map.getZoom();
+        if (typeof zoom === "number") {
+          map.setZoom(Math.max(0, zoom - zoomOutDelta));
+        }
+      }
+      setCaptureFitRevision((value) => value + 1);
+    };
+
     setMapTilesReady(false);
-    map.fitBounds(bounds, {
-      top: Math.round(height * ratio),
-      right: Math.round(width * ratio),
-      bottom: Math.round(height * ratio),
-      left: Math.round(width * ratio),
+    map.fitBounds(bounds);
+    const idleListener = map.addListener("idle", () => {
+      idleListener.remove();
+      finalizeFit();
     });
-    setCaptureFitRevision((value) => value + 1);
+    const fallbackTimer = setTimeout(finalizeFit, 800);
+
+    return () => {
+      cancelled = true;
+      idleListener.remove();
+      clearTimeout(fallbackTimer);
+    };
   }, [captureMode, features, fitToFeaturesBorderRatio, loading, mapReady]);
 
   useEffect(() => {

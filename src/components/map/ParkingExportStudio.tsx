@@ -14,7 +14,7 @@ export default function ParkingExportStudio() {
   const [dpr, setDpr] = useState(2);
   const [basemap, setBasemap] = useState<ParkingBasemap>("roadmap");
   const [tiltOn, setTiltOn] = useState(false);
-  const [borderRatio, setBorderRatio] = useState(0.04);
+  const [borderPct, setBorderPct] = useState(4);
   const [roadLabelBoost, setRoadLabelBoost] = useState(0);
 
   const [surfaceFill, setSurfaceFill] = useState("#ef4444");
@@ -34,6 +34,7 @@ export default function ParkingExportStudio() {
   const [filename, setFilename] = useState("parking-map-export.png");
   const [isExporting, setIsExporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const borderRatio = useMemo(() => clamp(borderPct / 100, 0, 0.18), [borderPct]);
 
   const styleOverrides = useMemo<ParkingStyleOverrides>(
     () => ({
@@ -111,6 +112,11 @@ export default function ParkingExportStudio() {
   const megapixels = useMemo(() => {
     return (Math.round(widthPx) * Math.round(heightPx)) / 1_000_000;
   }, [heightPx, widthPx]);
+  const previewAspectRatio = useMemo(
+    () => `${Math.max(1, Math.round(widthPx))} / ${Math.max(1, Math.round(heightPx))}`,
+    [heightPx, widthPx]
+  );
+  const previewFitByWidth = widthPx >= heightPx;
 
   async function exportScreenshot() {
     setIsExporting(true);
@@ -250,14 +256,14 @@ export default function ParkingExportStudio() {
                 min={0}
                 max={18}
                 step={0.5}
-                value={Number((borderRatio * 100).toFixed(1))}
+                value={Number(borderPct.toFixed(1))}
                 onChange={(event) =>
-                  setBorderRatio(clamp(Number.parseFloat(event.target.value || "0") / 100, 0, 0.18))
+                  setBorderPct(clamp(Number.parseFloat(event.target.value || "0"), 0, 18))
                 }
                 className="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm"
               />
               <p className="mt-1 text-[11px] text-slate-500">
-                Minimum map margin around all parking polygons.
+                Minimum map margin around all parking polygons. Use whole percent (`4` = 4%).
               </p>
             </div>
             <div>
@@ -426,20 +432,31 @@ export default function ParkingExportStudio() {
           <span>Preview</span>
           <span>{Math.round(widthPx)} x {Math.round(heightPx)} @ {dpr.toFixed(2)}x</span>
         </div>
-        <div className="relative aspect-[4/3] w-full bg-slate-100">
-          <div className="absolute inset-0">
-            <ParkingMapper
-              key={previewKey}
-              editMode={false}
-              captureMode
-              captureFillParent
-              initialBasemap={basemap}
-              initialTilt={tiltOn}
-              roadLabelBoost={roadLabelBoost}
-              fitToFeaturesBorderRatio={borderRatio}
-              styleOverrides={styleOverrides}
-              captureLegendConfig={legendConfig}
-            />
+        <div className="relative flex h-[min(70vh,760px)] w-full items-center justify-center bg-slate-100 p-3">
+          <div
+            className="relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+            style={{
+              aspectRatio: previewAspectRatio,
+              width: previewFitByWidth ? "100%" : "auto",
+              height: previewFitByWidth ? "auto" : "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+            }}
+          >
+            <div className="absolute inset-0">
+              <ParkingMapper
+                key={previewKey}
+                editMode={false}
+                captureMode
+                captureFillParent
+                initialBasemap={basemap}
+                initialTilt={tiltOn}
+                roadLabelBoost={roadLabelBoost}
+                fitToFeaturesBorderRatio={borderRatio}
+                styleOverrides={styleOverrides}
+                captureLegendConfig={legendConfig}
+              />
+            </div>
           </div>
         </div>
       </section>
