@@ -530,6 +530,39 @@ export default function ParkingMapper({
     }
 
     let cancelled = false;
+    const checkEditorAccessFromClient = async (): Promise<"allowed" | "denied" | "unavailable"> => {
+      try {
+        const byUserId = await supabase
+          .from("editor_roles")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (!byUserId.error && byUserId.data && byUserId.data.length > 0) {
+          return "allowed";
+        }
+
+        const email = user.email?.trim().toLowerCase() ?? "";
+        if (!email) {
+          return byUserId.error ? "unavailable" : "denied";
+        }
+
+        const byEmail = await supabase
+          .from("editor_roles")
+          .select("id")
+          .ilike("email", email)
+          .limit(1);
+
+        if (!byEmail.error) {
+          return byEmail.data && byEmail.data.length > 0 ? "allowed" : "denied";
+        }
+
+        return byUserId.error ? "unavailable" : "denied";
+      } catch {
+        return "unavailable";
+      }
+    };
+
     const checkEditorAccess = async () => {
       setEditorStatusLoading(true);
       setEditorStatusError("");
@@ -538,8 +571,17 @@ export default function ParkingMapper({
         const token = data.session?.access_token;
         if (!token) {
           if (!cancelled) {
-            setEditorAllowed(false);
-            setEditorStatusError("Session token missing. Please sign out and sign in again.");
+            const fallback = await checkEditorAccessFromClient();
+            if (fallback === "allowed") {
+              setEditorAllowed(true);
+              setEditorStatusError("");
+            } else if (fallback === "denied") {
+              setEditorAllowed(false);
+              setEditorStatusError("");
+            } else {
+              setEditorAllowed(false);
+              setEditorStatusError("Session token missing. Please sign out and sign in again.");
+            }
           }
           return;
         }
@@ -550,6 +592,17 @@ export default function ParkingMapper({
         const payload = (await response.json().catch(() => null)) as { allowed?: boolean; error?: string } | null;
         if (cancelled) return;
         if (!response.ok) {
+          const fallback = await checkEditorAccessFromClient();
+          if (fallback === "allowed") {
+            setEditorAllowed(true);
+            setEditorStatusError("");
+            return;
+          }
+          if (fallback === "denied") {
+            setEditorAllowed(false);
+            setEditorStatusError("");
+            return;
+          }
           setEditorAllowed(false);
           setEditorStatusError(payload?.error ?? "Unable to verify editor access right now.");
           return;
@@ -557,6 +610,17 @@ export default function ParkingMapper({
         setEditorAllowed(Boolean(payload?.allowed));
       } catch {
         if (!cancelled) {
+          const fallback = await checkEditorAccessFromClient();
+          if (fallback === "allowed") {
+            setEditorAllowed(true);
+            setEditorStatusError("");
+            return;
+          }
+          if (fallback === "denied") {
+            setEditorAllowed(false);
+            setEditorStatusError("");
+            return;
+          }
           setEditorAllowed(false);
           setEditorStatusError("Unable to verify editor access right now.");
         }
@@ -1044,13 +1108,15 @@ export default function ParkingMapper({
                 </p>
               </div>
               <div className="space-y-2.5 p-3">
-                <button
-                  onClick={() => { void requestEditorAccess(); }}
-                  disabled={accessRequestState === "submitting"}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-60"
-                >
-                  {accessRequestState === "submitting" ? "Submitting..." : "Request Editor Access"}
-                </button>
+                {!editorStatusError && (
+                  <button
+                    onClick={() => { void requestEditorAccess(); }}
+                    disabled={accessRequestState === "submitting"}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-60"
+                  >
+                    {accessRequestState === "submitting" ? "Submitting..." : "Request Editor Access"}
+                  </button>
+                )}
                 {accessRequestMessage && (
                   <p className={`text-[11px] leading-relaxed ${
                     accessRequestState === "error" ? "text-red-600" : "text-gray-600"
@@ -1059,7 +1125,9 @@ export default function ParkingMapper({
                   </p>
                 )}
                 {editorStatusError && (
-                  <p className="text-[11px] leading-relaxed text-red-600">{editorStatusError}</p>
+                  <p className="text-[11px] leading-relaxed text-red-600">
+                    {editorStatusError} Request submission is temporarily unavailable.
+                  </p>
                 )}
               </div>
             </div>
