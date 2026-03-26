@@ -493,6 +493,7 @@ export default function ParkingMapper({
   const [loading, setLoading] = useState(true);
   const [listOpen, setListOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
   const listContainerRef = useRef<HTMLUListElement | null>(null);
   const listItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -831,11 +832,48 @@ export default function ParkingMapper({
   }, [captureMode]);
 
   useEffect(() => {
+    if (!captureMode) {
+      setMapTilesReady(true);
+      return;
+    }
+
+    setMapTilesReady(false);
+    if (!mapReady) return;
+
+    const map = gmapRef.current;
+    if (!map) return;
+
+    let cancelled = false;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const settle = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      // Let final raster/label draws settle after tile events fire.
+      settleTimer = setTimeout(() => {
+        if (!cancelled) setMapTilesReady(true);
+      }, 300);
+    };
+
+    const tilesLoadedListener = map.addListener("tilesloaded", settle);
+    const idleListener = map.addListener("idle", settle);
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled) setMapTilesReady(true);
+    }, 8000);
+
+    return () => {
+      cancelled = true;
+      tilesLoadedListener.remove();
+      idleListener.remove();
+      clearTimeout(fallbackTimer);
+      if (settleTimer) clearTimeout(settleTimer);
+    };
+  }, [basemap, captureMode, mapReady, roadLabelBoost, tiltOn]);
+
+  useEffect(() => {
     if (!captureMode) return;
-    const ready = mapReady && !loading;
+    const ready = mapReady && !loading && mapTilesReady;
     (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = ready;
     document.body.dataset.parkingExportReady = ready ? "true" : "false";
-  }, [captureMode, loading, mapReady]);
+  }, [captureMode, loading, mapReady, mapTilesReady]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
