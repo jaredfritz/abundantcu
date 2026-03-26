@@ -14,20 +14,38 @@ function normalizeEmail(email: string): string {
 
 export async function isApprovedEditor(user: Pick<User, "id" | "email">): Promise<boolean> {
   const admin = getSupabaseAdminClient();
+  const userId = user.id?.trim();
   const email = normalizeEmail(user.email ?? "");
 
-  const { data, error } = await admin
-    .from("editor_roles" as never)
-    .select("id")
-    .or(`user_id.eq.${user.id},email.eq.${email}`)
-    .limit(1);
+  if (userId) {
+    const { data: byUserId, error: byUserIdError } = await admin
+      .from("editor_roles" as never)
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1);
 
-  if (error) {
-    console.error("editor role lookup failed", error);
-    return false;
+    if (byUserIdError) {
+      console.error("editor role lookup by user_id failed", byUserIdError);
+    } else if (byUserId && byUserId.length > 0) {
+      return true;
+    }
   }
 
-  return Boolean(data && data.length > 0);
+  if (email) {
+    const { data: byEmail, error: byEmailError } = await admin
+      .from("editor_roles" as never)
+      .select("id")
+      .ilike("email", email)
+      .limit(1);
+
+    if (byEmailError) {
+      console.error("editor role lookup by email failed", byEmailError);
+    } else if (byEmail && byEmail.length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function createEditorAccessRequest(input: {

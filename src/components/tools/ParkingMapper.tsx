@@ -454,9 +454,21 @@ function OverlapModal({ overlaps, features, onClip, onLeave, onCancel }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ParkingMapper({ editMode = false }: { editMode?: boolean }) {
-  const [basemap, setBasemap] = useState<Basemap>("satellite");
-  const [tiltOn, setTiltOn] = useState(false);
+interface ParkingMapperProps {
+  editMode?: boolean;
+  captureMode?: boolean;
+  initialBasemap?: Basemap;
+  initialTilt?: boolean;
+}
+
+export default function ParkingMapper({
+  editMode = false,
+  captureMode = false,
+  initialBasemap = "satellite",
+  initialTilt = false,
+}: ParkingMapperProps) {
+  const [basemap, setBasemap] = useState<Basemap>(initialBasemap);
+  const [tiltOn, setTiltOn] = useState(initialTilt);
   const [drawing, setDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<"polygon" | "rectangle">("polygon");
   const [drawType, setDrawType] = useState<ParkingType>("surface");
@@ -478,6 +490,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   const [pendingDraw, setPendingDraw] = useState(false);
   const [editorAllowed, setEditorAllowed] = useState(!editMode);
   const [editorStatusLoading, setEditorStatusLoading] = useState(editMode);
+  const [editorStatusError, setEditorStatusError] = useState("");
   const [accessRequestState, setAccessRequestState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [accessRequestMessage, setAccessRequestMessage] = useState("");
 
@@ -506,32 +519,47 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
     if (!editMode) {
       setEditorAllowed(true);
       setEditorStatusLoading(false);
+      setEditorStatusError("");
       return;
     }
     if (!user) {
       setEditorAllowed(false);
       setEditorStatusLoading(false);
+      setEditorStatusError("");
       return;
     }
 
     let cancelled = false;
     const checkEditorAccess = async () => {
       setEditorStatusLoading(true);
+      setEditorStatusError("");
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) {
-          if (!cancelled) setEditorAllowed(false);
+          if (!cancelled) {
+            setEditorAllowed(false);
+            setEditorStatusError("Session token missing. Please sign out and sign in again.");
+          }
           return;
         }
         const response = await fetch("/api/editor-access/status", {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         });
-        const payload = (await response.json().catch(() => null)) as { allowed?: boolean } | null;
-        if (!cancelled) setEditorAllowed(Boolean(payload?.allowed));
+        const payload = (await response.json().catch(() => null)) as { allowed?: boolean; error?: string } | null;
+        if (cancelled) return;
+        if (!response.ok) {
+          setEditorAllowed(false);
+          setEditorStatusError(payload?.error ?? "Unable to verify editor access right now.");
+          return;
+        }
+        setEditorAllowed(Boolean(payload?.allowed));
       } catch {
-        if (!cancelled) setEditorAllowed(false);
+        if (!cancelled) {
+          setEditorAllowed(false);
+          setEditorStatusError("Unable to verify editor access right now.");
+        }
       } finally {
         if (!cancelled) setEditorStatusLoading(false);
       }
@@ -662,6 +690,19 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
     }
     setPendingDraw(false);
   }, [editorAllowed, editorStatusLoading, pendingDraw]);
+
+  useEffect(() => {
+    if (!captureMode) return;
+    (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = false;
+    document.body.dataset.parkingExportReady = "false";
+  }, [captureMode]);
+
+  useEffect(() => {
+    if (!captureMode) return;
+    const ready = mapReady && !loading;
+    (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = ready;
+    document.body.dataset.parkingExportReady = ready ? "true" : "false";
+  }, [captureMode, loading, mapReady]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
@@ -918,7 +959,7 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
   const garageCount = features.filter((f) => f.type === "garage").length;
 
   return (
-    <div className="relative overflow-hidden" style={{ height: "calc(100dvh - 69px)" }}>
+    <div className="relative overflow-hidden" style={{ height: captureMode ? "100dvh" : "calc(100dvh - 69px)" }}>
       {showAuthModal && (
         <AuthModal onSuccess={handleAuthSuccess} onClose={() => { setShowAuthModal(false); setPendingDraw(false); }} />
       )}
@@ -997,7 +1038,9 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
               <div className="border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-bold text-gray-900">Editor Access Required</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  Your account is signed in but not approved for map editing yet.
+                  {editorStatusError
+                    ? "We could not verify editor access right now."
+                    : "Your account is signed in but not approved for map editing yet."}
                 </p>
               </div>
               <div className="space-y-2.5 p-3">
@@ -1014,6 +1057,9 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
                   }`}>
                     {accessRequestMessage}
                   </p>
+                )}
+                {editorStatusError && (
+                  <p className="text-[11px] leading-relaxed text-red-600">{editorStatusError}</p>
                 )}
               </div>
             </div>
@@ -1124,107 +1170,111 @@ export default function ParkingMapper({ editMode = false }: { editMode?: boolean
         </div>
       )}
 
-      {/* Basemap toggle */}
-      <div className="absolute right-4 top-4 z-10">
-        <div className="flex gap-0.5 rounded-xl border border-gray-200 bg-white p-0.5 shadow-lg">
-          {([["roadmap", "Map"], ["satellite", "Satellite"]] as const).map(([b, label]) => (
-            <button key={b} onClick={() => setBasemap(b)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                basemap === b ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {b === "roadmap" ? <Layers className="h-3.5 w-3.5" aria-hidden /> : <Satellite className="h-3.5 w-3.5" aria-hidden />}
-              {label}
-            </button>
-          ))}
-          <button
-            onClick={() => setTiltOn((current) => !current)}
-            className={`flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              tiltOn ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"
-            }`}
-            aria-pressed={tiltOn}
-          >
-            Tilt
-          </button>
-        </div>
-      </div>
-
-      {/* Feature legend */}
-      {features.length > 0 && !loading && (
-        <div className="absolute bottom-4 left-4 z-10 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
-            <div className="text-xs text-gray-500">
-              <span className="font-semibold text-gray-900">{surfaceCount}</span> lot{surfaceCount !== 1 ? "s" : ""}{" "}
-              &middot;{" "}
-              <span className="font-semibold text-gray-900">{garageCount}</span> garage{garageCount !== 1 ? "s" : ""}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {canEditMap && (
-                <button
-                  onClick={exportGeoJSON}
-                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+      {!captureMode && (
+        <>
+          {/* Basemap toggle */}
+          <div className="absolute right-4 top-4 z-10">
+            <div className="flex gap-0.5 rounded-xl border border-gray-200 bg-white p-0.5 shadow-lg">
+              {([["roadmap", "Map"], ["satellite", "Satellite"]] as const).map(([b, label]) => (
+                <button key={b} onClick={() => setBasemap(b)}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    basemap === b ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"
+                  }`}
                 >
-                  <Download className="h-3 w-3" aria-hidden />
-                  Export
+                  {b === "roadmap" ? <Layers className="h-3.5 w-3.5" aria-hidden /> : <Satellite className="h-3.5 w-3.5" aria-hidden />}
+                  {label}
                 </button>
-              )}
+              ))}
               <button
-                onClick={() => setListOpen((open) => !open)}
-                className="rounded-lg border border-gray-200 p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                aria-label={listOpen ? "Collapse parking list" : "Expand parking list"}
-                aria-expanded={listOpen}
+                onClick={() => setTiltOn((current) => !current)}
+                className={`flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  tiltOn ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
+                aria-pressed={tiltOn}
               >
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${listOpen ? "rotate-180" : ""}`} />
+                Tilt
               </button>
             </div>
           </div>
-          {listOpen && (
-            <ul ref={listContainerRef} className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
-              {features.map((f, i) => (
-                <li key={f.id}
-                  ref={(node) => { listItemRefs.current[f.id] = node; }}
-                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                    selectedId === f.id ? "bg-gray-100 ring-1 ring-inset ring-gray-300" : "hover:bg-gray-50/60"
-                  }`}
-                  onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
-                >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
-                  {canEditMap && editingId === f.id ? (
-                    <form className="flex flex-1 items-center gap-1 min-w-0"
-                      onSubmit={(e) => { e.preventDefault(); commitRename(); }}
-                      onClick={(e) => e.stopPropagation()}
+
+          {/* Feature legend */}
+          {features.length > 0 && !loading && (
+            <div className="absolute bottom-4 left-4 z-10 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+                <div className="text-xs text-gray-500">
+                  <span className="font-semibold text-gray-900">{surfaceCount}</span> lot{surfaceCount !== 1 ? "s" : ""}{" "}
+                  &middot;{" "}
+                  <span className="font-semibold text-gray-900">{garageCount}</span> garage{garageCount !== 1 ? "s" : ""}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {canEditMap && (
+                    <button
+                      onClick={exportGeoJSON}
+                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
                     >
-                      <input autoFocus value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onBlur={commitRename}
-                        className="min-w-0 flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs outline-none focus:border-gray-400"
-                      />
-                      <button type="submit" className="shrink-0 text-gray-400 hover:text-green-500">
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                    </form>
-                  ) : (
-                    <>
-                      <span className="min-w-0 flex-1 truncate text-xs text-gray-800">{displayName(f, i)}</span>
-                      {canEditMap && user && f.created_by === user.id && (
+                      <Download className="h-3 w-3" aria-hidden />
+                      Export
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setListOpen((open) => !open)}
+                    className="rounded-lg border border-gray-200 p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                    aria-label={listOpen ? "Collapse parking list" : "Expand parking list"}
+                    aria-expanded={listOpen}
+                  >
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${listOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+              </div>
+              {listOpen && (
+                <ul ref={listContainerRef} className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
+                  {features.map((f, i) => (
+                    <li key={f.id}
+                      ref={(node) => { listItemRefs.current[f.id] = node; }}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
+                        selectedId === f.id ? "bg-gray-100 ring-1 ring-inset ring-gray-300" : "hover:bg-gray-50/60"
+                      }`}
+                      onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
+                      {canEditMap && editingId === f.id ? (
+                        <form className="flex flex-1 items-center gap-1 min-w-0"
+                          onSubmit={(e) => { e.preventDefault(); commitRename(); }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input autoFocus value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onBlur={commitRename}
+                            className="min-w-0 flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs outline-none focus:border-gray-400"
+                          />
+                          <button type="submit" className="shrink-0 text-gray-400 hover:text-green-500">
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        </form>
+                      ) : (
                         <>
-                          <button onClick={(e) => { e.stopPropagation(); startRename(f, i); }}
-                            className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Rename">
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteFeature(f.id); }}
-                            className="shrink-0 text-gray-300 hover:text-red-500 transition-colors" aria-label="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <span className="min-w-0 flex-1 truncate text-xs text-gray-800">{displayName(f, i)}</span>
+                          {canEditMap && user && f.created_by === user.id && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); startRename(f, i); }}
+                                className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Rename">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); deleteFeature(f.id); }}
+                                className="shrink-0 text-gray-300 hover:text-red-500 transition-colors" aria-label="Delete">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
                         </>
                       )}
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {loading && (
