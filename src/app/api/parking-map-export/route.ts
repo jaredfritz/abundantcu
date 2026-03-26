@@ -82,6 +82,8 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("parking overlays not ready for capture") ||
     message.includes("satellite basemap tiles not ready") ||
     message.includes("parking screenshot appears incomplete") ||
+    message.includes("waitforselector: timeout 120000ms exceeded") ||
+    message.includes("#parking-print-root .gm-style canvas") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
   );
