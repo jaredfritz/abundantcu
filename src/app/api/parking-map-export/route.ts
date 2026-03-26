@@ -116,7 +116,7 @@ async function captureViewportScreenshot(
       timeout: screenshotTimeoutMs,
     });
 
-  const captureWithCdp = async (fromSurface: boolean) => {
+  const captureWithCdp = async () => {
     const context = page.context() as unknown as {
       newCDPSession?: (target: Page) => Promise<{
         send: (method: string, params?: Record<string, unknown>) => Promise<{ data?: string }>;
@@ -128,7 +128,7 @@ async function captureViewportScreenshot(
     const cdp = await context.newCDPSession(page);
     const payload = await cdp.send("Page.captureScreenshot", {
       format: "png",
-      fromSurface,
+      fromSurface: true,
       captureBeyondViewport: false,
       clip: { ...clip, scale: 1 },
     });
@@ -161,14 +161,7 @@ async function captureViewportScreenshot(
   }
 
   try {
-    return await captureWithCdp(false);
-  } catch (error) {
-    lastError = error;
-    if (!isTransientScreenshotError(error)) throw error;
-  }
-
-  try {
-    return await captureWithCdp(true);
+    return await captureWithCdp();
   } catch (error) {
     lastError = error;
     throw error;
@@ -217,6 +210,26 @@ async function renderParkingScreenshot(
     });
 
     await page.waitForSelector("#parking-print-root .gm-style canvas", { timeout: 120000 });
+    if (basemap === "satellite") {
+      await page.waitForFunction(
+        () => {
+          const mapRoot = document.querySelector("#parking-print-root .gm-style");
+          if (!mapRoot) return false;
+          const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
+          const tileImages = images.filter((img) => {
+            if (!img.src) return false;
+            if (img.src.startsWith("data:")) return false;
+            return img.width > 0 && img.height > 0;
+          });
+          if (tileImages.length === 0) return false;
+          const loaded = tileImages.filter(
+            (img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
+          );
+          return loaded.length >= Math.min(6, tileImages.length);
+        },
+        { timeout: 20000 }
+      );
+    }
     await page.waitForFunction(
       () => {
         const payload = window as {
