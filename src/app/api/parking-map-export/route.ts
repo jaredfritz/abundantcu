@@ -92,7 +92,7 @@ async function captureViewportScreenshot(
   viewportHeight: number,
   preferCdp: boolean
 ): Promise<Buffer> {
-  const screenshotTimeoutMs = 12000;
+  const screenshotTimeoutMs = preferCdp ? 26000 : 12000;
   const clip = {
     x: 0,
     y: 0,
@@ -142,7 +142,7 @@ async function captureViewportScreenshot(
 
   let lastError: unknown = null;
   const attempts: Array<() => Promise<Buffer>> = preferCdp
-    ? [captureWithCdp, captureWithClip, captureWithClip, captureWithoutClip]
+    ? [captureWithCdp, captureWithCdp]
     : [captureWithClip, captureWithClip, captureWithoutClip, captureWithCdp];
 
   for (let attempt = 0; attempt < attempts.length; attempt += 1) {
