@@ -61,6 +61,8 @@ function isTransientScreenshotError(error: unknown): boolean {
   return (
     message.includes("capture screenshot") ||
     message.includes("page.capturescreenshot") ||
+    (message.includes("timeout") && message.includes("screenshot")) ||
+    message.includes("page.screenshot: timeout") ||
     message.includes("target closed") ||
     message.includes("context closed")
   );
@@ -85,6 +87,7 @@ async function captureViewportScreenshot(
   viewportWidth: number,
   viewportHeight: number
 ): Promise<Buffer> {
+  const screenshotTimeoutMs = 12000;
   const clip = {
     x: 0,
     y: 0,
@@ -98,6 +101,7 @@ async function captureViewportScreenshot(
       clip,
       animations: "disabled",
       caret: "hide",
+      timeout: screenshotTimeoutMs,
     });
 
   const captureWithoutClip = async () =>
@@ -106,6 +110,7 @@ async function captureViewportScreenshot(
       fullPage: false,
       animations: "disabled",
       caret: "hide",
+      timeout: screenshotTimeoutMs,
     });
 
   const captureWithCdp = async (fromSurface: boolean) => {
