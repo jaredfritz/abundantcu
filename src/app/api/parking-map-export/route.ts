@@ -92,22 +92,78 @@ async function captureViewportScreenshot(
     height: Math.max(1, Math.round(viewportHeight)),
   };
 
+  const captureWithClip = async () =>
+    page.screenshot({
+      type: "png",
+      clip,
+      animations: "disabled",
+      caret: "hide",
+    });
+
+  const captureWithoutClip = async () =>
+    page.screenshot({
+      type: "png",
+      fullPage: false,
+      animations: "disabled",
+      caret: "hide",
+    });
+
+  const captureWithCdp = async (fromSurface: boolean) => {
+    const context = page.context() as unknown as {
+      newCDPSession?: (target: Page) => Promise<{
+        send: (method: string, params?: Record<string, unknown>) => Promise<{ data?: string }>;
+      }>;
+    };
+    if (typeof context.newCDPSession !== "function") {
+      throw new Error("CDP session unavailable for screenshot fallback.");
+    }
+    const cdp = await context.newCDPSession(page);
+    const payload = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface,
+      captureBeyondViewport: false,
+      clip: { ...clip, scale: 1 },
+    });
+    if (!payload?.data) {
+      throw new Error("CDP screenshot returned no image data.");
+    }
+    return Buffer.from(payload.data, "base64");
+  };
+
   let lastError: unknown = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await page.screenshot({
-        type: "png",
-        clip,
-        animations: "disabled",
-        caret: "hide",
-      });
+      return await captureWithClip();
     } catch (error) {
       lastError = error;
-      if (!isTransientScreenshotError(error) || attempt === 2) {
+      if (!isTransientScreenshotError(error)) {
         throw error;
       }
-      await page.waitForTimeout(250 * (attempt + 1));
+      if (attempt < 1) {
+        await page.waitForTimeout(250 * (attempt + 1));
+      }
     }
+  }
+
+  try {
+    return await captureWithoutClip();
+  } catch (error) {
+    lastError = error;
+    if (!isTransientScreenshotError(error)) throw error;
+  }
+
+  try {
+    return await captureWithCdp(false);
+  } catch (error) {
+    lastError = error;
+    if (!isTransientScreenshotError(error)) throw error;
+  }
+
+  try {
+    return await captureWithCdp(true);
+  } catch (error) {
+    lastError = error;
+    throw error;
   }
 
   throw lastError instanceof Error ? lastError : new Error("Unable to capture screenshot.");
@@ -217,8 +273,10 @@ export async function POST(request: NextRequest) {
     const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
 
     const baseDpr = Number(dpr.toFixed(2));
+    const elevatedDpr = Number(clamp(Math.max(dpr, 2.5), 1, 4).toFixed(2));
     const dprAttempts = basemap === "satellite"
       ? Array.from(new Set([
+          elevatedDpr,
           baseDpr,
           Number(Math.min(dpr, 1.5).toFixed(2)),
           1,
