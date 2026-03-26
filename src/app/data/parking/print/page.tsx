@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ParkingMapper from "@/components/tools/ParkingMapper";
+import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
 
 export const metadata: Metadata = {
   title: "Parking Map Print Export",
@@ -8,8 +9,6 @@ export const metadata: Metadata = {
     follow: false,
   },
 };
-
-type Basemap = "roadmap" | "satellite";
 
 interface PageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -20,7 +19,7 @@ function getFirst(value: string | string[] | undefined): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function getBasemap(value: string | null): Basemap {
+function getBasemap(value: string | null): ParkingBasemap {
   if (value === "roadmap") return "roadmap";
   return "satellite";
 }
@@ -29,14 +28,57 @@ function getTilt(value: string | null): boolean {
   return value === "1" || value === "true";
 }
 
+function getFloat(value: string | null, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function decodeBase64JsonParam<T extends object>(value: string | null): T | undefined {
+  if (!value) return undefined;
+  try {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = Buffer.from(padded, "base64").toString("utf-8");
+    const parsed = JSON.parse(decoded);
+    if (parsed && typeof parsed === "object") {
+      return parsed as T;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export default async function ParkingPrintPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const basemap = getBasemap(getFirst(params.basemap));
   const tiltOn = getTilt(getFirst(params.tilt));
+  const zoom = Math.max(14, Math.min(21, getFloat(getFirst(params.zoom), 17)));
+  const borderRatio = Math.max(0, Math.min(0.18, getFloat(getFirst(params.border), 0)));
+  const roadLabelBoost = Math.max(0, Math.min(8, Math.round(getFloat(getFirst(params.labelBoost), 0))));
+  const styleOverrides = decodeBase64JsonParam<ParkingStyleOverrides>(getFirst(params.style));
+  const legendConfig = decodeBase64JsonParam<ParkingLegendConfig>(getFirst(params.legend));
 
   return (
-    <main id="parking-print-root" className="h-screen w-screen overflow-hidden bg-white">
-      <ParkingMapper editMode={false} captureMode initialBasemap={basemap} initialTilt={tiltOn} />
+    <main
+      id="parking-print-root"
+      className="h-screen w-screen overflow-hidden bg-white"
+      style={{ padding: `${(borderRatio * 100).toFixed(2)}%` }}
+    >
+      <div className="h-full w-full overflow-hidden">
+        <ParkingMapper
+          editMode={false}
+          captureMode
+          captureFillParent
+          initialBasemap={basemap}
+          initialTilt={tiltOn}
+          initialZoom={zoom}
+          roadLabelBoost={roadLabelBoost}
+          styleOverrides={styleOverrides}
+          captureLegendConfig={legendConfig}
+        />
+      </div>
     </main>
   );
 }

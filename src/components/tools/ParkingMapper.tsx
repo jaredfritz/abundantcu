@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   APIProvider,
@@ -17,11 +17,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
+import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ParkingType = "surface" | "garage";
-type Basemap = "roadmap" | "satellite";
+type Basemap = ParkingBasemap;
 type AuthTab = "signin" | "signup";
 
 interface ParkingFeature {
@@ -143,6 +144,7 @@ interface MapContentProps {
   selectedId: string | null;
   drawing: boolean;
   drawMode: "polygon" | "rectangle";
+  typeConfig: Record<ParkingType, { label: string; fill: string; border: string; text: string }>;
   cfg: (typeof TYPE_CONFIG)[ParkingType];
   liveVerts: [number, number][];
   rectPreviewCoords: [number, number][] | null;
@@ -158,7 +160,7 @@ interface MapContentProps {
 }
 
 function MapContent({
-  features, selectedId, drawing, drawMode, cfg, liveVerts, rectPreviewCoords, vertices,
+  features, selectedId, drawing, drawMode, typeConfig, cfg, liveVerts, rectPreviewCoords, vertices,
   selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady,
 }: MapContentProps) {
   const map = useMap();
@@ -190,8 +192,8 @@ function MapContent({
         : null;
       const poly = new Polygon({
         map, paths,
-        fillColor: TYPE_CONFIG[f.type].fill, fillOpacity: 0.4,
-        strokeColor: TYPE_CONFIG[f.type].border, strokeWeight: isSelected ? 2.5 : 2,
+        fillColor: typeConfig[f.type].fill, fillOpacity: 0.4,
+        strokeColor: typeConfig[f.type].border, strokeWeight: isSelected ? 2.5 : 2,
         clickable: !drawing, zIndex: 2,
       });
       poly.addListener("click", () => onFeatureClickRef.current(f.id));
@@ -247,7 +249,7 @@ function MapContent({
           onDragEnd={(e: any) => { const ll = extractLatLng(e); if (ll) onVertexDragEnd(selectedId!, idx, ll.lat, ll.lng); }}
         >
           <div className="h-3.5 w-3.5 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing"
-            style={{ backgroundColor: TYPE_CONFIG[selectedFeature.type].fill }} />
+            style={{ backgroundColor: typeConfig[selectedFeature.type].fill }} />
         </AdvancedMarker>
       ))}
       {drawing && vertices.map((coord, idx) => (
@@ -460,6 +462,10 @@ interface ParkingMapperProps {
   captureFillParent?: boolean;
   initialBasemap?: Basemap;
   initialTilt?: boolean;
+  initialZoom?: number;
+  roadLabelBoost?: number;
+  styleOverrides?: ParkingStyleOverrides;
+  captureLegendConfig?: ParkingLegendConfig;
 }
 
 export default function ParkingMapper({
@@ -468,6 +474,10 @@ export default function ParkingMapper({
   captureFillParent = false,
   initialBasemap = "satellite",
   initialTilt = false,
+  initialZoom = INITIAL_ZOOM,
+  roadLabelBoost = 0,
+  styleOverrides,
+  captureLegendConfig,
 }: ParkingMapperProps) {
   const [basemap, setBasemap] = useState<Basemap>(initialBasemap);
   const [tiltOn, setTiltOn] = useState(initialTilt);
@@ -495,6 +505,63 @@ export default function ParkingMapper({
   const [editorStatusError, setEditorStatusError] = useState("");
   const [accessRequestState, setAccessRequestState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [accessRequestMessage, setAccessRequestMessage] = useState("");
+
+  const typeConfig = useMemo<Record<ParkingType, { label: string; fill: string; border: string; text: string }>>(
+    () => ({
+      surface: {
+        ...TYPE_CONFIG.surface,
+        fill: styleOverrides?.surfaceFill?.trim() || TYPE_CONFIG.surface.fill,
+        border: styleOverrides?.surfaceBorder?.trim() || TYPE_CONFIG.surface.border,
+      },
+      garage: {
+        ...TYPE_CONFIG.garage,
+        fill: styleOverrides?.garageFill?.trim() || TYPE_CONFIG.garage.fill,
+        border: styleOverrides?.garageBorder?.trim() || TYPE_CONFIG.garage.border,
+      },
+    }),
+    [
+      styleOverrides?.garageBorder,
+      styleOverrides?.garageFill,
+      styleOverrides?.surfaceBorder,
+      styleOverrides?.surfaceFill,
+    ]
+  );
+
+  const boostedRoadLabelStyles = useMemo(() => {
+    const boost = Math.max(0, Math.min(8, Math.round(roadLabelBoost)));
+    if (boost === 0) return undefined;
+    return [
+      {
+        featureType: "road",
+        elementType: "labels.text.fill",
+        stylers: [{ lightness: -6 * boost }, { saturation: 18 }],
+      },
+      {
+        featureType: "road",
+        elementType: "labels.text.stroke",
+        stylers: [{ lightness: 10 - 3 * boost }],
+      },
+      {
+        featureType: "road.highway",
+        elementType: "labels.text.fill",
+        stylers: [{ lightness: -8 * boost }],
+      },
+    ] as google.maps.MapTypeStyle[];
+  }, [roadLabelBoost]);
+
+  const captureLegend = useMemo(() => {
+    const enabled = Boolean(captureLegendConfig?.enabled);
+    return {
+      enabled,
+      title: captureLegendConfig?.title?.trim() || "Parking Inventory",
+      xPct: Math.max(0, Math.min(0.95, captureLegendConfig?.xPct ?? 0.03)),
+      yPct: Math.max(0, Math.min(0.95, captureLegendConfig?.yPct ?? 0.74)),
+      widthPct: Math.max(0.12, Math.min(0.95, captureLegendConfig?.widthPct ?? 0.3)),
+      backgroundColor: captureLegendConfig?.backgroundColor?.trim() || "rgba(255,255,255,0.94)",
+      borderColor: captureLegendConfig?.borderColor?.trim() || "rgba(17,24,39,0.16)",
+      textColor: captureLegendConfig?.textColor?.trim() || "#1f2937",
+    };
+  }, [captureLegendConfig]);
 
   // Overlap resolution
   const [pendingFeature, setPendingFeature] = useState<{ coords: [number, number][]; overlaps: OverlapInfo[] } | null>(null);
@@ -1014,7 +1081,7 @@ export default function ParkingMapper({
   };
 
   // Derived
-  const cfg = TYPE_CONFIG[drawType];
+  const cfg = typeConfig[drawType];
   const selectedFeature = features.find((f) => f.id === selectedId);
   const canEditMap = editMode && editorAllowed;
   const canEditSelected = canEditMap && !!user && !!selectedFeature && selectedFeature.created_by === user.id;
@@ -1045,9 +1112,10 @@ export default function ParkingMapper({
       <APIProvider apiKey={API_KEY}>
         <Map
           defaultCenter={DOWNTOWN_CENTER}
-          defaultZoom={INITIAL_ZOOM}
+          defaultZoom={initialZoom}
           mapTypeId={basemap}
-          mapId={MAP_ID}
+          mapId={boostedRoadLabelStyles ? undefined : MAP_ID}
+          styles={boostedRoadLabelStyles}
           mapTypeControl={false}
           cameraControl={false}
           streetViewControl={false}
@@ -1066,6 +1134,7 @@ export default function ParkingMapper({
             selectedId={selectedId}
             drawing={drawing}
             drawMode={drawMode}
+            typeConfig={typeConfig}
             cfg={cfg}
             liveVerts={liveVerts}
             rectPreviewCoords={rectPreviewCoords}
@@ -1243,6 +1312,40 @@ export default function ParkingMapper({
         </div>
       )}
 
+      {captureMode && captureLegend.enabled && (
+        <div
+          className="pointer-events-none absolute z-10"
+          style={{
+            left: `${captureLegend.xPct * 100}%`,
+            top: `${captureLegend.yPct * 100}%`,
+            width: `${captureLegend.widthPct * 100}%`,
+            color: captureLegend.textColor,
+          }}
+        >
+          <div
+            style={{
+              background: captureLegend.backgroundColor,
+              border: `1px solid ${captureLegend.borderColor}`,
+              borderRadius: 10,
+              boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
+              padding: "10px 12px",
+            }}
+          >
+            <div className="text-sm font-semibold">{captureLegend.title}</div>
+            <div className="mt-2 space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: typeConfig.surface.fill }} />
+                <span>Surface lot ({surfaceCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: typeConfig.garage.fill }} />
+                <span>Garage ({garageCount})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!captureMode && (
         <>
           {/* Basemap toggle */}
@@ -1309,7 +1412,7 @@ export default function ParkingMapper({
                       }`}
                       onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
                     >
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TYPE_CONFIG[f.type].fill }} />
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: typeConfig[f.type].fill }} />
                       {canEditMap && editingId === f.id ? (
                         <form className="flex flex-1 items-center gap-1 min-w-0"
                           onSubmit={(e) => { e.preventDefault(); commitRename(); }}

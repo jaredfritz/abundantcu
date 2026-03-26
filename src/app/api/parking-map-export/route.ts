@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Browser } from "playwright-core";
 import { launchExportBrowser } from "@/lib/export/browser";
+import type { ParkingBasemap, ParkingLegendConfig, ParkingStyleOverrides } from "@/lib/parkingExport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type Basemap = "roadmap" | "satellite";
 
 interface ParkingExportRequestBody {
   widthPx?: number;
   heightPx?: number;
   dpr?: number;
-  basemap?: Basemap;
+  basemap?: ParkingBasemap;
   tilt?: boolean;
+  zoom?: number;
+  borderRatio?: number;
+  roadLabelBoost?: number;
+  styleOverrides?: ParkingStyleOverrides;
+  legendConfig?: ParkingLegendConfig;
   filename?: string;
 }
 
@@ -25,6 +29,16 @@ function safeFilename(input: string | undefined): string {
   if (!input) return fallback;
   const cleaned = input.replace(/[^a-zA-Z0-9._-]/g, "_");
   return cleaned.length > 0 ? cleaned : fallback;
+}
+
+function encodeBase64UrlJson(value: object | undefined): string | null {
+  if (!value) return null;
+  const json = JSON.stringify(value);
+  return Buffer.from(json, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 let sharedBrowserPromise: Promise<Browser> | null = null;
@@ -53,15 +67,27 @@ export async function POST(request: NextRequest) {
     const dpr = clamp(typeof body.dpr === "number" ? body.dpr : 2, 1, 4);
     const viewportWidth = Math.round(widthPx / dpr);
     const viewportHeight = Math.round(heightPx / dpr);
-    const basemap: Basemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
+    const basemap: ParkingBasemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
     const tilt = Boolean(body.tilt);
+    const zoom = clamp(typeof body.zoom === "number" ? body.zoom : 17, 14, 21);
+    const borderRatio = clamp(typeof body.borderRatio === "number" ? body.borderRatio : 0, 0, 0.18);
+    const roadLabelBoost = clamp(typeof body.roadLabelBoost === "number" ? body.roadLabelBoost : 0, 0, 8);
     const filename = safeFilename(body.filename);
 
     const params = new URLSearchParams({
       basemap,
       tilt: tilt ? "1" : "0",
+      zoom: zoom.toFixed(2),
+      border: borderRatio.toFixed(4),
+      labelBoost: String(Math.round(roadLabelBoost)),
       capture: "1",
     });
+
+    const styleParam = encodeBase64UrlJson(body.styleOverrides);
+    if (styleParam) params.set("style", styleParam);
+
+    const legendParam = encodeBase64UrlJson(body.legendConfig);
+    if (legendParam) params.set("legend", legendParam);
 
     const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
 
