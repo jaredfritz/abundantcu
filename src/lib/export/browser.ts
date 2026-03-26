@@ -1,9 +1,8 @@
+import chromium from "@sparticuz/chromium";
+import { chromium as playwrightChromium } from "playwright-core";
 import type { Browser, LaunchOptions } from "playwright-core";
 
 async function launchVercelBrowser(): Promise<Browser> {
-  const chromium = (await import("@sparticuz/chromium")).default;
-  const { chromium: playwrightChromium } = await import("playwright-core");
-
   const launchOptions: LaunchOptions = {
     args: chromium.args,
     executablePath: await chromium.executablePath(),

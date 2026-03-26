@@ -15,6 +15,10 @@ const cspReportOnly = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/map-export": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/parking-map-export": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   async headers() {
     return [
       {
