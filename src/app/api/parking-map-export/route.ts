@@ -83,6 +83,7 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("satellite basemap tiles not ready") ||
     message.includes("parking screenshot appears incomplete") ||
     message.includes("waitforselector: timeout 120000ms exceeded") ||
+    message.includes("waitforfunction: timeout 30000ms exceeded") ||
     message.includes("#parking-print-root .gm-style canvas") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
