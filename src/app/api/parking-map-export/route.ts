@@ -76,6 +76,9 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("browser has been closed") ||
     message.includes("contextresult::kfatalfailure") ||
     message.includes("transferbuffer::initialize() failed") ||
+    message.includes("parking features failed to load") ||
+    message.includes("parking features missing from capture") ||
+    message.includes("parking export never reached ready state") ||
     message.includes("parking overlays not ready for capture") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
@@ -215,10 +218,39 @@ async function renderParkingScreenshot(
 
     await page.waitForSelector("#parking-print-root .gm-style canvas", { timeout: 120000 });
     await page.waitForFunction(
-      () => (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY === true,
+      () => {
+        const payload = window as {
+          __PARKING_EXPORT_READY?: boolean;
+          __PARKING_EXPORT_FEATURE_ERROR?: string;
+        };
+        return payload.__PARKING_EXPORT_READY === true || Boolean(payload.__PARKING_EXPORT_FEATURE_ERROR);
+      },
       { timeout: 120000 }
     );
-    if (basemap === "roadmap") {
+    const captureStatus = await page.evaluate(() => {
+      const payload = window as {
+        __PARKING_EXPORT_READY?: boolean;
+        __PARKING_EXPORT_FEATURE_ERROR?: string;
+        __PARKING_EXPORT_FEATURE_COUNT?: number;
+        __PARKING_EXPORT_OVERLAY_COUNT?: number;
+      };
+      return {
+        ready: Boolean(payload.__PARKING_EXPORT_READY),
+        featureError: payload.__PARKING_EXPORT_FEATURE_ERROR ?? "",
+        featureCount: payload.__PARKING_EXPORT_FEATURE_COUNT ?? 0,
+        overlayCount: payload.__PARKING_EXPORT_OVERLAY_COUNT ?? 0,
+      };
+    });
+    if (captureStatus.featureError) {
+      throw new Error(`Parking features failed to load: ${captureStatus.featureError}`);
+    }
+    if (!captureStatus.ready) {
+      throw new Error("Parking export never reached ready state.");
+    }
+    if (captureStatus.featureCount <= 0) {
+      throw new Error("Parking features missing from capture.");
+    }
+    if (captureStatus.overlayCount < captureStatus.featureCount) {
       try {
         await page.waitForFunction(
           () => {
@@ -230,7 +262,7 @@ async function renderParkingScreenshot(
             const overlayCount = payload.__PARKING_EXPORT_OVERLAY_COUNT ?? 0;
             return featureCount > 0 && overlayCount >= featureCount;
           },
-          { timeout: 15000 }
+          { timeout: basemap === "roadmap" ? 15000 : 8000 }
         );
       } catch {
         throw new Error("Parking overlays not ready for capture.");

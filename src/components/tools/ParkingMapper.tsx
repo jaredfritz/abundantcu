@@ -511,6 +511,7 @@ export default function ParkingMapper({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [featureLoadError, setFeatureLoadError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
@@ -785,14 +786,51 @@ export default function ParkingMapper({
 
   // Load features from Supabase
   useEffect(() => {
+    let cancelled = false;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
     async function load() {
       setLoading(true);
-      const { data } = await supabase.from("parking_features").select("*").order("created_at");
-      setFeatures((data ?? []).map(dbToFeature));
+      setFeatureLoadError(null);
+
+      const maxAttempts = captureMode ? 4 : 2;
+      let lastError: string | null = null;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const { data, error } = await supabase.from("parking_features").select("*").order("created_at");
+        if (cancelled) return;
+
+        if (!error) {
+          const mapped = (data ?? []).map(dbToFeature);
+          if (mapped.length > 0 || !captureMode || attempt === maxAttempts - 1) {
+            setFeatures(mapped);
+            if (captureMode && mapped.length === 0) {
+              setFeatureLoadError("No parking features returned for export.");
+            }
+            setLoading(false);
+            return;
+          }
+          lastError = "No parking features returned for export.";
+        } else {
+          lastError = error.message || "Unable to load parking features.";
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await sleep(300 * (attempt + 1));
+        }
+      }
+
+      if (cancelled) return;
+      setFeatures([]);
+      setFeatureLoadError(lastError ?? "Unable to load parking features.");
       setLoading(false);
     }
-    load();
-  }, []);
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [captureMode]);
 
   const handleAuthSuccess = useCallback(async (u: User) => {
     setUser(u);
@@ -966,17 +1004,30 @@ export default function ParkingMapper({
 
   useEffect(() => {
     if (!captureMode) return;
+    (window as { __PARKING_EXPORT_FEATURE_ERROR?: string }).__PARKING_EXPORT_FEATURE_ERROR = featureLoadError ?? "";
+  }, [captureMode, featureLoadError]);
+
+  useEffect(() => {
+    if (!captureMode) return;
     (window as { __PARKING_EXPORT_OVERLAY_COUNT?: number }).__PARKING_EXPORT_OVERLAY_COUNT = captureOverlayCount;
   }, [captureMode, captureOverlayCount]);
 
   useEffect(() => {
     if (!captureMode) return;
-    const fitSettledForCapture = features.length === 0 || captureFitRevision > 0;
-    const overlaysSettledForCapture = features.length === 0 || captureOverlayCount >= features.length;
-    const ready = mapReady && !loading && mapTilesReady && fitSettledForCapture && overlaysSettledForCapture;
+    const hasFeaturesForCapture = features.length > 0;
+    const fitSettledForCapture = hasFeaturesForCapture && captureFitRevision > 0;
+    const overlaysSettledForCapture = hasFeaturesForCapture && captureOverlayCount >= features.length;
+    const ready =
+      mapReady &&
+      !loading &&
+      !featureLoadError &&
+      mapTilesReady &&
+      hasFeaturesForCapture &&
+      fitSettledForCapture &&
+      overlaysSettledForCapture;
     (window as { __PARKING_EXPORT_READY?: boolean }).__PARKING_EXPORT_READY = ready;
     document.body.dataset.parkingExportReady = ready ? "true" : "false";
-  }, [captureFitRevision, captureMode, captureOverlayCount, features.length, loading, mapReady, mapTilesReady]);
+  }, [captureFitRevision, captureMode, captureOverlayCount, featureLoadError, features.length, loading, mapReady, mapTilesReady]);
 
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
