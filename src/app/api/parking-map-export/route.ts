@@ -80,6 +80,7 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("parking features missing from capture") ||
     message.includes("parking export never reached ready state") ||
     message.includes("parking overlays not ready for capture") ||
+    message.includes("satellite basemap tiles not ready") ||
     message.includes("parking screenshot appears incomplete") ||
     message.includes("sharedimage") ||
     message.includes("gpu")
@@ -118,7 +119,7 @@ async function captureViewportScreenshot(
       timeout: screenshotTimeoutMs,
     });
 
-  const captureWithCdp = async () => {
+  const captureWithCdp = async (fromSurface: boolean) => {
     const context = page.context() as unknown as {
       newCDPSession?: (target: Page) => Promise<{
         send: (method: string, params?: Record<string, unknown>) => Promise<{ data?: string }>;
@@ -130,7 +131,7 @@ async function captureViewportScreenshot(
     const cdp = await context.newCDPSession(page);
     const payload = await cdp.send("Page.captureScreenshot", {
       format: "png",
-      fromSurface: true,
+      fromSurface,
       captureBeyondViewport: false,
       clip: { ...clip, scale: 1 },
     });
@@ -142,8 +143,12 @@ async function captureViewportScreenshot(
 
   let lastError: unknown = null;
   const attempts: Array<() => Promise<Buffer>> = preferCdp
-    ? [captureWithCdp, captureWithCdp]
-    : [captureWithClip, captureWithClip, captureWithoutClip, captureWithCdp];
+    ? [
+        () => captureWithCdp(true),
+        () => captureWithCdp(false),
+        () => captureWithCdp(true),
+      ]
+    : [captureWithClip, captureWithClip, captureWithoutClip, () => captureWithCdp(true)];
 
   for (let attempt = 0; attempt < attempts.length; attempt += 1) {
     try {
@@ -173,7 +178,7 @@ function isSuspiciouslySmallScreenshot(
 ): boolean {
   const pixels = viewportWidth * viewportHeight;
   const minBytes = basemap === "satellite"
-    ? Math.max(70000, Math.floor(pixels * 0.03))
+    ? Math.max(170000, Math.floor(pixels * 0.14))
     : Math.max(35000, Math.floor(pixels * 0.015));
   return bytes.byteLength < minBytes;
 }
@@ -235,18 +240,32 @@ async function renderParkingScreenshot(
           if (!mapRoot) return false;
           const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
           const tileImages = images.filter((img) => {
-            if (!img.src) return false;
-            if (img.src.startsWith("data:")) return false;
-            return img.width > 0 && img.height > 0;
+            const src = img.currentSrc || img.src || "";
+            if (!src || src.startsWith("data:")) return false;
+            const naturalWidth = img.naturalWidth || img.width;
+            const naturalHeight = img.naturalHeight || img.height;
+            if (naturalWidth < 96 || naturalHeight < 96) return false;
+            const looksLikeGoogleTile =
+              src.includes("/maps/vt") ||
+              src.includes("khms") ||
+              src.includes("maps-api-v3") ||
+              src.includes("gstatic.com");
+            const isTileLikeSize =
+              naturalWidth <= 1024 &&
+              naturalHeight <= 1024 &&
+              (naturalWidth === naturalHeight || naturalWidth === 512 || naturalHeight === 512);
+            return looksLikeGoogleTile || isTileLikeSize;
           });
-          if (tileImages.length === 0) return false;
+          if (tileImages.length < 6) return false;
           const loaded = tileImages.filter(
             (img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
           );
-          return loaded.length >= Math.min(6, tileImages.length);
+          if (loaded.length < 6) return false;
+          return loaded.length / tileImages.length >= 0.72;
         },
         { timeout: 20000 }
       );
+      await page.waitForTimeout(500);
     }
     await page.waitForFunction(
       () => {
@@ -313,12 +332,39 @@ async function renderParkingScreenshot(
         })
     );
 
-    const screenshot = await captureViewportScreenshot(
+    if (basemap === "satellite") {
+      const tilesReady = await page.evaluate(() => {
+        const mapRoot = document.querySelector("#parking-print-root .gm-style");
+        if (!mapRoot) return false;
+        const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
+        const tileImages = images.filter((img) => {
+          const src = img.currentSrc || img.src || "";
+          if (!src || src.startsWith("data:")) return false;
+          const naturalWidth = img.naturalWidth || img.width;
+          const naturalHeight = img.naturalHeight || img.height;
+          return naturalWidth >= 96 && naturalHeight >= 96;
+        });
+        if (tileImages.length < 6) return false;
+        const loaded = tileImages.filter(
+          (img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
+        );
+        return loaded.length >= 6 && loaded.length / tileImages.length >= 0.72;
+      });
+      if (!tilesReady) {
+        throw new Error("Satellite basemap tiles not ready.");
+      }
+    }
+
+    let screenshot = await captureViewportScreenshot(
       page,
       viewportWidth,
       viewportHeight,
       basemap === "satellite"
     );
+    if (basemap === "satellite" && isSuspiciouslySmallScreenshot(screenshot, viewportWidth, viewportHeight, basemap)) {
+      await page.waitForTimeout(800);
+      screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight, true);
+    }
     if (isSuspiciouslySmallScreenshot(screenshot, viewportWidth, viewportHeight, basemap)) {
       throw new Error("Parking screenshot appears incomplete.");
     }
