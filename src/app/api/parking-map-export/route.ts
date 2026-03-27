@@ -99,9 +99,9 @@ async function captureViewportScreenshot(
   page: Page,
   viewportWidth: number,
   viewportHeight: number,
-  preferCdp: boolean
+  basemap: ParkingBasemap
 ): Promise<Buffer> {
-  const screenshotTimeoutMs = preferCdp ? 26000 : 12000;
+  const screenshotTimeoutMs = basemap === "satellite" ? 30000 : 16000;
   const clip = {
     x: 0,
     y: 0,
@@ -150,13 +150,14 @@ async function captureViewportScreenshot(
   };
 
   let lastError: unknown = null;
-  const attempts: Array<() => Promise<Buffer>> = preferCdp
+  const attempts: Array<() => Promise<Buffer>> = basemap === "satellite"
     ? [
-        () => captureWithCdp(true),
-        () => captureWithCdp(false),
+        captureWithClip,
+        captureWithClip,
+        captureWithoutClip,
         () => captureWithCdp(true),
       ]
-    : [captureWithClip, captureWithClip, captureWithoutClip, () => captureWithCdp(true)];
+    : [captureWithClip, captureWithClip, captureWithoutClip];
 
   for (let attempt = 0; attempt < attempts.length; attempt += 1) {
     try {
@@ -478,11 +479,11 @@ async function renderParkingScreenshot(
       page,
       viewportWidth,
       viewportHeight,
-      basemap === "satellite"
+      basemap
     );
     if (basemap === "satellite" && isSuspiciouslySmallScreenshot(screenshot, viewportWidth, viewportHeight, basemap)) {
       await page.waitForTimeout(800);
-      screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight, true);
+      screenshot = await captureViewportScreenshot(page, viewportWidth, viewportHeight, basemap);
     }
     if (isSuspiciouslySmallScreenshot(screenshot, viewportWidth, viewportHeight, basemap)) {
       throw new Error("Parking screenshot appears incomplete.");
