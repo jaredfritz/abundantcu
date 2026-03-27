@@ -501,8 +501,10 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as ParkingExportRequestBody;
     const widthPx = clamp(typeof body.widthPx === "number" ? body.widthPx : 1600, 800, 6000);
     const heightPx = clamp(typeof body.heightPx === "number" ? body.heightPx : 1200, 800, 6000);
-    const dpr = clamp(typeof body.dpr === "number" ? body.dpr : 2, 1, 4);
     const basemap: ParkingBasemap = body.basemap === "roadmap" ? "roadmap" : "satellite";
+    const requestedDpr = clamp(typeof body.dpr === "number" ? body.dpr : 2, 1, 4);
+    // Satellite exports are far more likely to crash in headless Chromium at higher DPR values.
+    const dpr = basemap === "satellite" ? clamp(requestedDpr, 1, 1.5) : requestedDpr;
     const tilt = Boolean(body.tilt);
     const borderRatio = clamp(typeof body.borderRatio === "number" ? body.borderRatio : 0, 0, 0.18);
     const roadLabelBoost = clamp(typeof body.roadLabelBoost === "number" ? body.roadLabelBoost : 0, 0, 8);
@@ -529,9 +531,7 @@ export async function POST(request: NextRequest) {
     const dprAttempts = basemap === "satellite"
       ? [
           baseDpr,
-          baseDpr,
           fallbackMidDpr,
-          Number(Math.min(dpr, 1.5).toFixed(2)),
           1,
         ]
       : [baseDpr, baseDpr, baseDpr];
@@ -543,9 +543,12 @@ export async function POST(request: NextRequest) {
       const attemptDpr = dprAttempts[attemptIndex];
       const viewportWidth = Math.round(widthPx / attemptDpr);
       const viewportHeight = Math.round(heightPx / attemptDpr);
+      let browser: Browser | null = null;
 
       try {
-        const browser = await getSharedBrowser();
+        browser = basemap === "satellite"
+          ? await launchExportBrowser()
+          : await getSharedBrowser();
         screenshotBytes = await renderParkingScreenshot(
           browser,
           renderUrl,
@@ -563,6 +566,14 @@ export async function POST(request: NextRequest) {
         }
         sharedBrowserPromise = null;
         await new Promise((resolve) => setTimeout(resolve, 450 + attemptIndex * 200));
+      } finally {
+        if (basemap === "satellite" && browser) {
+          try {
+            await browser.close();
+          } catch {
+            // Best effort cleanup.
+          }
+        }
       }
     }
 
