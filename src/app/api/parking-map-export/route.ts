@@ -83,6 +83,10 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("satellite basemap tiles not ready") ||
     message.includes("satellite basemap coverage incomplete") ||
     message.includes("parking screenshot appears incomplete") ||
+    message.includes("err_insufficient_resources") ||
+    message.includes("net::err_insufficient_resources") ||
+    message.includes("page.goto: net::err_insufficient_resources") ||
+    message.includes("page.goto: net::") ||
     message.includes("waitforselector: timeout 120000ms exceeded") ||
     message.includes("waitforfunction: timeout 30000ms exceeded") ||
     message.includes("#parking-print-root .gm-style canvas") ||
@@ -522,12 +526,13 @@ export async function POST(request: NextRequest) {
     const baseDpr = Number(dpr.toFixed(2));
     const fallbackMidDpr = Number(clamp(Math.min(baseDpr, 2), 1, 4).toFixed(2));
     const dprAttempts = basemap === "satellite"
-      ? Array.from(new Set([
+      ? [
+          baseDpr,
           baseDpr,
           fallbackMidDpr,
           Number(Math.min(dpr, 1.5).toFixed(2)),
           1,
-        ]))
+        ]
       : [baseDpr, baseDpr, baseDpr];
 
     let screenshotBytes: Uint8Array | null = null;
@@ -556,7 +561,7 @@ export async function POST(request: NextRequest) {
           throw error;
         }
         sharedBrowserPromise = null;
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await new Promise((resolve) => setTimeout(resolve, 450 + attemptIndex * 200));
       }
     }
 
