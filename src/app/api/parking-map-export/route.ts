@@ -81,6 +81,7 @@ function isRecoverableExportError(error: unknown): boolean {
     message.includes("parking export never reached ready state") ||
     message.includes("parking overlays not ready for capture") ||
     message.includes("satellite basemap tiles not ready") ||
+    message.includes("satellite basemap coverage incomplete") ||
     message.includes("parking screenshot appears incomplete") ||
     message.includes("waitforselector: timeout 120000ms exceeded") ||
     message.includes("waitforfunction: timeout 30000ms exceeded") ||
@@ -239,8 +240,14 @@ async function renderParkingScreenshot(
     if (basemap === "satellite") {
       await page.waitForFunction(
         () => {
-          const mapRoot = document.querySelector("#parking-print-root .gm-style");
+          const win = window as Window & { __PARKING_EXPORT_SAT_READY_SINCE?: number };
+          const mapRoot = document.querySelector("#parking-print-root .gm-style") as HTMLElement | null;
           if (!mapRoot) return false;
+          const rootRect = mapRoot.getBoundingClientRect();
+          if (rootRect.width < 120 || rootRect.height < 120) {
+            win.__PARKING_EXPORT_SAT_READY_SINCE = 0;
+            return false;
+          }
           const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
           const tileImages = images.filter((img) => {
             const src = img.currentSrc || img.src || "";
@@ -259,16 +266,67 @@ async function renderParkingScreenshot(
               (naturalWidth === naturalHeight || naturalWidth === 512 || naturalHeight === 512);
             return looksLikeGoogleTile || isTileLikeSize;
           });
-          if (tileImages.length < 6) return false;
+          if (tileImages.length < 16) {
+            win.__PARKING_EXPORT_SAT_READY_SINCE = 0;
+            return false;
+          }
           const loaded = tileImages.filter(
-            (img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
+            (img) => {
+              if (!img.complete || img.naturalWidth <= 0 || img.naturalHeight <= 0) return false;
+              const style = window.getComputedStyle(img);
+              return style.visibility !== "hidden" && Number.parseFloat(style.opacity || "1") > 0.02;
+            }
           );
-          if (loaded.length < 6) return false;
-          return loaded.length / tileImages.length >= 0.72;
+          if (loaded.length < 16 || loaded.length / tileImages.length < 0.86) {
+            win.__PARKING_EXPORT_SAT_READY_SINCE = 0;
+            return false;
+          }
+
+          const cols = 30;
+          const rows = 30;
+          const totalCells = cols * rows;
+          const covered = new Uint8Array(totalCells);
+
+          for (const img of loaded) {
+            const rect = img.getBoundingClientRect();
+            const left = Math.max(rect.left, rootRect.left);
+            const top = Math.max(rect.top, rootRect.top);
+            const right = Math.min(rect.right, rootRect.right);
+            const bottom = Math.min(rect.bottom, rootRect.bottom);
+            if (right <= left || bottom <= top) continue;
+
+            const x0 = Math.max(0, Math.min(cols - 1, Math.floor(((left - rootRect.left) / rootRect.width) * cols)));
+            const x1 = Math.max(0, Math.min(cols - 1, Math.ceil(((right - rootRect.left) / rootRect.width) * cols) - 1));
+            const y0 = Math.max(0, Math.min(rows - 1, Math.floor(((top - rootRect.top) / rootRect.height) * rows)));
+            const y1 = Math.max(0, Math.min(rows - 1, Math.ceil(((bottom - rootRect.top) / rootRect.height) * rows) - 1));
+
+            for (let y = y0; y <= y1; y += 1) {
+              for (let x = x0; x <= x1; x += 1) {
+                covered[y * cols + x] = 1;
+              }
+            }
+          }
+
+          let coveredCount = 0;
+          for (let i = 0; i < totalCells; i += 1) {
+            coveredCount += covered[i];
+          }
+          const coverage = coveredCount / totalCells;
+          if (coverage < 0.965) {
+            win.__PARKING_EXPORT_SAT_READY_SINCE = 0;
+            return false;
+          }
+
+          const now = Date.now();
+          if (!win.__PARKING_EXPORT_SAT_READY_SINCE || win.__PARKING_EXPORT_SAT_READY_SINCE <= 0) {
+            win.__PARKING_EXPORT_SAT_READY_SINCE = now;
+            return false;
+          }
+          return now - win.__PARKING_EXPORT_SAT_READY_SINCE >= 1500;
         },
-        { timeout: 20000 }
+        { timeout: 45000 }
       );
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(650);
     }
     await page.waitForFunction(
       () => {
@@ -336,25 +394,79 @@ async function renderParkingScreenshot(
     );
 
     if (basemap === "satellite") {
-      const tilesReady = await page.evaluate(() => {
-        const mapRoot = document.querySelector("#parking-print-root .gm-style");
-        if (!mapRoot) return false;
-        const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
-        const tileImages = images.filter((img) => {
-          const src = img.currentSrc || img.src || "";
-          if (!src || src.startsWith("data:")) return false;
-          const naturalWidth = img.naturalWidth || img.width;
-          const naturalHeight = img.naturalHeight || img.height;
-          return naturalWidth >= 96 && naturalHeight >= 96;
-        });
-        if (tileImages.length < 6) return false;
-        const loaded = tileImages.filter(
-          (img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0
+      try {
+        await page.waitForFunction(
+          () => {
+            const mapRoot = document.querySelector("#parking-print-root .gm-style") as HTMLElement | null;
+            if (!mapRoot) return false;
+            const rootRect = mapRoot.getBoundingClientRect();
+            if (rootRect.width < 120 || rootRect.height < 120) return false;
+
+            const images = Array.from(mapRoot.querySelectorAll("img")) as HTMLImageElement[];
+            const tileImages = images.filter((img) => {
+              const src = img.currentSrc || img.src || "";
+              if (!src || src.startsWith("data:")) return false;
+              const naturalWidth = img.naturalWidth || img.width;
+              const naturalHeight = img.naturalHeight || img.height;
+              if (naturalWidth < 96 || naturalHeight < 96) return false;
+              const looksLikeGoogleTile =
+                src.includes("/maps/vt") ||
+                src.includes("khms") ||
+                src.includes("maps-api-v3") ||
+                src.includes("gstatic.com");
+              const isTileLikeSize =
+                naturalWidth <= 1024 &&
+                naturalHeight <= 1024 &&
+                (naturalWidth === naturalHeight || naturalWidth === 512 || naturalHeight === 512);
+              return looksLikeGoogleTile || isTileLikeSize;
+            });
+
+            if (tileImages.length < 16) return false;
+            const loaded = tileImages.filter(
+              (img) => {
+                if (!img.complete || img.naturalWidth <= 0 || img.naturalHeight <= 0) return false;
+                const style = window.getComputedStyle(img);
+                return style.visibility !== "hidden" && Number.parseFloat(style.opacity || "1") > 0.02;
+              }
+            );
+            if (loaded.length < 16 || loaded.length / tileImages.length < 0.86) return false;
+
+            const cols = 30;
+            const rows = 30;
+            const totalCells = cols * rows;
+            const covered = new Uint8Array(totalCells);
+
+            for (const img of loaded) {
+              const rect = img.getBoundingClientRect();
+              const left = Math.max(rect.left, rootRect.left);
+              const top = Math.max(rect.top, rootRect.top);
+              const right = Math.min(rect.right, rootRect.right);
+              const bottom = Math.min(rect.bottom, rootRect.bottom);
+              if (right <= left || bottom <= top) continue;
+
+              const x0 = Math.max(0, Math.min(cols - 1, Math.floor(((left - rootRect.left) / rootRect.width) * cols)));
+              const x1 = Math.max(0, Math.min(cols - 1, Math.ceil(((right - rootRect.left) / rootRect.width) * cols) - 1));
+              const y0 = Math.max(0, Math.min(rows - 1, Math.floor(((top - rootRect.top) / rootRect.height) * rows)));
+              const y1 = Math.max(0, Math.min(rows - 1, Math.ceil(((bottom - rootRect.top) / rootRect.height) * rows) - 1));
+
+              for (let y = y0; y <= y1; y += 1) {
+                for (let x = x0; x <= x1; x += 1) {
+                  covered[y * cols + x] = 1;
+                }
+              }
+            }
+
+            let coveredCount = 0;
+            for (let i = 0; i < totalCells; i += 1) {
+              coveredCount += covered[i];
+            }
+            const coverage = coveredCount / totalCells;
+            return coverage >= 0.97;
+          },
+          { timeout: 25000 }
         );
-        return loaded.length >= 6 && loaded.length / tileImages.length >= 0.72;
-      });
-      if (!tilesReady) {
-        throw new Error("Satellite basemap tiles not ready.");
+      } catch {
+        throw new Error("Satellite basemap coverage incomplete.");
       }
     }
 
@@ -408,11 +520,11 @@ export async function POST(request: NextRequest) {
     const renderUrl = `${request.nextUrl.origin}/data/parking/print?${params.toString()}`;
 
     const baseDpr = Number(dpr.toFixed(2));
-    const elevatedDpr = Number(clamp(Math.max(dpr, 2.5), 1, 4).toFixed(2));
+    const fallbackMidDpr = Number(clamp(Math.min(baseDpr, 2), 1, 4).toFixed(2));
     const dprAttempts = basemap === "satellite"
       ? Array.from(new Set([
-          elevatedDpr,
           baseDpr,
+          fallbackMidDpr,
           Number(Math.min(dpr, 1.5).toFixed(2)),
           1,
         ]))
