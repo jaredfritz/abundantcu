@@ -5,6 +5,7 @@ import {
   Coffee,
   ExternalLink,
   Facebook,
+  Megaphone,
   Mail,
   Map,
   Palette,
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
 const NEWSLETTER_URL = "https://actionnetwork.org/forms/sign-up-for-curbanism-news-updates";
 const FACEBOOK_GROUP_URL = "https://www.facebook.com/groups/curbanismclub";
 const ABUNDANT_CU_URL = "/data";
+const BUILD_PLAN_URL = "https://actionnetwork.org/letters/pass-the-build-plan/?source=abundantcu.com";
 const DONATION_URL = "https://curbanism.org/";
 const ART_INQUIRY_URL = "mailto:info@curbanism.org?subject=Art%20Inquiry";
 
@@ -93,8 +95,11 @@ export default function CUrbanismBoneyardPage() {
             />
           </div>
           <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-slate-700 md:text-base">
-            Thank you for exploring <em>The Policy of Possibility</em>. Better housing choices, more walkable
-            neighborhoods, and a more connected Champaign are all within reach if we choose to make them possible.
+            Thank you for exploring <em>The Policy of Possibility</em> at Boneyard.
+            <br />
+            <br />
+            Better housing choices, more walkable neighborhoods, and a more connected Champaign-Urbana are all within
+            reach if we choose to make them possible.
           </p>
         </header>
 
@@ -135,6 +140,18 @@ export default function CUrbanismBoneyardPage() {
                 description="View our complete visual analysis of local zoning and land use patterns."
                 href={ABUNDANT_CU_URL}
                 buttonText="Visit the Data Hub"
+              />
+            </div>
+          </section>
+
+          <section>
+            <div>
+              <ActionBlock
+                icon={Megaphone}
+                header="Pass the BUILD Plan"
+                description="Illinois cannot solve affordability without building more homes. Send a quick letter urging lawmakers to legalize more housing choices and remove outdated barriers."
+                href={BUILD_PLAN_URL}
+                buttonText="Send a Letter"
               />
             </div>
           </section>
