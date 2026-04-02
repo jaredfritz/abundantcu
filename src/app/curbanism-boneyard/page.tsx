@@ -109,7 +109,7 @@ export default function CUrbanismBoneyardPage() {
               <ActionBlock
                 icon={Palette}
                 header="Inquire About Artwork"
-                description="Interested in purchasing art from the exhibit? Contact CUrbanism for pricing info. Many original works, including pieces by CUrbanism, Fraya Replinger, Ivy Santeler, Abby Kipping, and Christina De Angelo, are available."
+                description="Interested in purchasing art from the exhibit? Contact CUrbanism for pricing info. Many original works, including prints by CUrbanism, renderings by Prof Joseph Altshuler's architecture students, Fraya Replinger, Ivy Santeler, Abby Kipping, and Christina De Angelo, are available."
                 href={ART_INQUIRY_URL}
                 buttonText="Contact CUrbanism"
               />
