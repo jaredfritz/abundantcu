@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import type { ComponentType, ReactNode } from "react";
 import {
+  CalendarDays,
   Coffee,
   ExternalLink,
   Facebook,
@@ -34,6 +35,12 @@ const ABUNDANT_CU_URL = "/data";
 const BUILD_PLAN_URL = "https://actionnetwork.org/letters/pass-the-build-plan/?source=abundantcu.com";
 const DONATION_URL = "https://curbanism.org/";
 const ART_INQUIRY_URL = "mailto:info@curbanism.org?subject=Art%20Inquiry";
+const RSVP_URL = "https://www.facebook.com/events/1944305039512636/";
+const EVENT_TIMES = [
+  "Friday, April 10: 3pm-9pm, Opening Reception 5pm-7pm",
+  "Saturday, April 11: 3pm-9pm",
+  "Sunday, April 12: 3pm-9pm",
+];
 
 function ActionBlock({
   icon: Icon,
@@ -106,6 +113,51 @@ export default function CUrbanismBoneyardPage() {
         <div className="mt-8 space-y-6">
           <section>
             <div className="space-y-4">
+              <article className="rounded-[20px] border border-black/10 bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] md:p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center text-black">
+                    <CalendarDays className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-black">Event Info</h3>
+
+                    <div className="mt-4 space-y-4 text-sm leading-relaxed text-slate-700 md:text-[15px]">
+                      <div>
+                        <p className="font-semibold uppercase tracking-[0.08em] text-black">Schedule</p>
+                        <ul className="mt-2 space-y-1">
+                          {EVENT_TIMES.map((time) => (
+                            <li key={time}>{time}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p>
+                          <span className="font-semibold text-black">Location:</span> Quality - 110 N Neil St,
+                          Champaign, IL 61820
+                        </p>
+                        <p>
+                          <span className="font-semibold text-black">Cost:</span> Free and open to the public.
+                        </p>
+                      </div>
+
+                      <div className="pt-1">
+                        <a
+                          href={RSVP_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-3 text-sm font-semibold !text-white transition hover:bg-slate-800 [&_span]:!text-white [&_svg]:!text-white"
+                          style={{ color: "#ffffff" }}
+                        >
+                          <span>RSVP</span>
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
               <ActionBlock
                 icon={Palette}
                 header="Inquire About Artwork"
