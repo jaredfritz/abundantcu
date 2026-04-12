@@ -3,7 +3,6 @@ import Image from "next/image";
 import type { ComponentType, ReactNode } from "react";
 import {
   CalendarDays,
-  Coffee,
   ExternalLink,
   Facebook,
   Megaphone,
@@ -33,7 +32,6 @@ const NEWSLETTER_URL = "https://actionnetwork.org/forms/sign-up-for-curbanism-ne
 const FACEBOOK_GROUP_URL = "https://www.facebook.com/groups/curbanismclub";
 const ABUNDANT_CU_URL = "/data";
 const BUILD_PLAN_URL = "https://actionnetwork.org/letters/pass-the-build-plan/?source=abundantcu.com";
-const DONATION_URL = "https://curbanism.org/";
 const ART_INQUIRY_URL = "mailto:info@curbanism.org?subject=Art%20Inquiry";
 const RSVP_URL = "https://www.facebook.com/events/1944305039512636/";
 const EVENT_TIMES = [
@@ -204,18 +202,6 @@ export default function CUrbanismBoneyardPage() {
                 description="Illinois cannot solve affordability without building more homes. Send a quick letter urging lawmakers to legalize more housing choices and remove outdated barriers."
                 href={BUILD_PLAN_URL}
                 buttonText="Send a Letter"
-              />
-            </div>
-          </section>
-
-          <section>
-            <div>
-              <ActionBlock
-                icon={Coffee}
-                header="Support Our Work"
-                description="Grassroots, community-driven advocacy. Your donations help fund future research, exhibits, and community events."
-                href={DONATION_URL}
-                buttonText="Buy us a Coffee (Donate)"
               />
             </div>
           </section>
