@@ -5,7 +5,7 @@ export const writingSeed: WritingItem[] = [
     slug: "illinois-statewide-housing-shortage",
     title: "My Turn: Illinois statewide housing shortage needs statewide fix",
     publicationName: "The News-Gazette",
-    publishedAt: "2026-05-21",
+    publishedAt: "2026-04-28",
     summary:
       "Champaign has made real progress on zoning and housing, but local action alone can't close a statewide gap of 227,000 homes. The case for Illinois legislators to pass the BUILD plan.",
     externalUrl:
