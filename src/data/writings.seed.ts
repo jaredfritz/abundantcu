@@ -2,6 +2,18 @@ import { WritingItem } from "@/lib/content/types";
 
 export const writingSeed: WritingItem[] = [
   {
+    slug: "illinois-statewide-housing-shortage",
+    title: "My Turn: Illinois statewide housing shortage needs statewide fix",
+    publicationName: "The News-Gazette",
+    publishedAt: "2026-05-21",
+    summary:
+      "Champaign has made real progress on zoning and housing, but local action alone can't close a statewide gap of 227,000 homes. The case for Illinois legislators to pass the BUILD plan.",
+    externalUrl:
+      "https://www.news-gazette.com/opinion/guest-commentary/my-turn-illinois-statewide-housing-shortage-needs-statewide-fix/article_d6c80fd0-9326-4ba8-b106-0cda01db472c.html",
+    thumbnailSrc: "/writings/illinois-statewide-housing-shortage.png",
+    thumbnailFocus: "50% 50%",
+  },
+  {
     slug: "stronger-champaign-ground-up",
     title: "My Turn: A stronger Champaign, built from the ground up",
     publicationName: "The News-Gazette",
