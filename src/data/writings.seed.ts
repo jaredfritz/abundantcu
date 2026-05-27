@@ -2,6 +2,18 @@ import { WritingItem } from "@/lib/content/types";
 
 export const writingSeed: WritingItem[] = [
   {
+    slug: "urbana-main-st",
+    title: "An outstanding project, an outstanding idea, just not here",
+    publicationName: "Smile Politely",
+    publishedAt: "2026-05-27",
+    summary:
+      "How a well-designed apartment building on Urbana's West Main Street is drawing the same \"neighborhood character\" objections that downzoned this block in 1991, and what that pattern costs a city and its residents.",
+    externalUrl:
+      "https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/",
+    thumbnailSrc: "/writings/urbana-main-st-split-image.png",
+    thumbnailFocus: "50% 50%",
+  },
+  {
     slug: "illinois-statewide-housing-shortage",
     title: "My Turn: Illinois statewide housing shortage needs statewide fix",
     publicationName: "The News-Gazette",
