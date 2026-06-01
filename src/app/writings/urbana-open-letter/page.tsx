@@ -11,7 +11,11 @@ export const metadata: Metadata = {
     description:
       "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
     url: "https://abundantcu.com/writings/urbana-open-letter",
-    images: [{ url: "/writings/urbana-main-st-split-image.png" }],
+    images: [{ url: "/og/open-letter.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/open-letter.png"],
   },
 };
 
