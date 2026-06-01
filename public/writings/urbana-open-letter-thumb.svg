@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#002147"/>
+
+  <!-- Label -->
+  <text
+    x="200" y="148"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="12" font-weight="600" letter-spacing="3"
+    fill="#475569" text-anchor="middle"
+  >OPEN LETTER</text>
+
+  <!-- Title line 1 -->
+  <text
+    x="200" y="202"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="800"
+    fill="#ffffff" text-anchor="middle"
+  >Housing</text>
+
+  <!-- Title line 2 -->
+  <text
+    x="200" y="252"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="800"
+    fill="#ffffff" text-anchor="middle"
+  >Can't Wait</text>
+
+  <!-- Attribution -->
+  <text
+    x="200" y="290"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="12" fill="#475569" text-anchor="middle"
+  >Abundant CU · June 1, 2026</text>
+</svg>

@@ -2,6 +2,17 @@ import { WritingItem } from "@/lib/content/types";
 
 export const writingSeed: WritingItem[] = [
   {
+    slug: "urbana-open-letter",
+    title: "An Open Letter to the Urbana City Council",
+    publicationName: "Abundant CU",
+    publishedAt: "2026-06-01",
+    summary:
+      "A response to the arguments being made against the apartment building proposed for 413–419 W. Main Street, ahead of Urbana's City Council vote.",
+    externalUrl: "/writings/urbana-open-letter",
+    thumbnailSrc: "/writings/urbana-open-letter-thumb.svg",
+    thumbnailFocus: "50% 50%",
+  },
+  {
     slug: "urbana-main-st",
     title: "An outstanding project, an outstanding idea, just not here",
     publicationName: "Smile Politely",

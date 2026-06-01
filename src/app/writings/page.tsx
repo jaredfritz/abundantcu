@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import SiteShell from "@/components/site/SiteShell";
 import { getWritings } from "@/lib/content/writings";
 
@@ -57,44 +58,49 @@ export default async function WritingsPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Featured Publication</p>
               <h2 className="mt-2 text-xl font-bold">{featuredTitle ?? featured.title}</h2>
               <p className="mt-2 text-sm text-slate-700">{featured.summary}</p>
-              <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt).toLocaleDateString()}</p>
+              <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt + "T12:00:00").toLocaleDateString()}</p>
             </div>
           </a>
         ) : null}
 
         <div className="mt-8 grid gap-4">
-          {remaining.map((item) => (
-            <a
-              key={item.slug}
-              href={item.externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
-            >
-              <div className="relative w-56 shrink-0 self-stretch overflow-hidden border-r border-[var(--color-border)] md:w-64">
+          {remaining.map((item) => {
+            const isInternal = item.externalUrl.startsWith("/");
+            const CardWrapper = ({ children }: { children: React.ReactNode }) =>
+              isInternal ? (
+                <Link href={item.externalUrl} className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5">
+                  {children}
+                </Link>
+              ) : (
+                <a href={item.externalUrl} target="_blank" rel="noreferrer" className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5">
+                  {children}
+                </a>
+              );
+            return (
+            <CardWrapper key={item.slug}>
+              <div className="relative w-24 shrink-0 self-stretch overflow-hidden border-r border-[var(--color-border)] sm:w-40 md:w-64">
                 <Image
                   src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
                   alt={`Thumbnail for ${item.title}`}
                   fill
-                  sizes="(max-width: 768px) 224px, 256px"
+                  sizes="(max-width: 640px) 96px, (max-width: 768px) 160px, 256px"
                   className="object-cover"
                   style={{ objectPosition: item.thumbnailFocus ?? "50% 50%" }}
                 />
               </div>
-              <div className="flex flex-1 flex-col justify-between p-5">
+              <div className="flex flex-1 flex-col justify-between p-4 md:p-5">
                 <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-base font-bold leading-tight md:text-lg">{item.title}</h2>
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600 md:text-xs">
-                      {item.publicationName}
-                    </span>
-                  </div>
-                  <p className="mt-2 line-clamp-3 text-sm text-slate-700">{item.summary}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    {item.publicationName}
+                  </p>
+                  <h2 className="mt-1 text-sm font-bold leading-tight sm:text-base md:text-lg">{item.title}</h2>
+                  <p className="mt-1.5 line-clamp-2 text-xs text-slate-700 sm:line-clamp-3 sm:text-sm">{item.summary}</p>
                 </div>
-                <p className="mt-3 text-xs text-slate-600">{new Date(item.publishedAt).toLocaleDateString()}</p>
+                <p className="mt-2 text-xs text-slate-500">{new Date(item.publishedAt + "T12:00:00").toLocaleDateString()}</p>
               </div>
-            </a>
-          ))}
+            </CardWrapper>
+            );
+          })}
         </div>
       </section>
     </SiteShell>
