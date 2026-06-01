@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import SiteShell from "@/components/site/SiteShell";
 import { getWritings } from "@/lib/content/writings";
 
@@ -63,14 +64,20 @@ export default async function WritingsPage() {
         ) : null}
 
         <div className="mt-8 grid gap-4">
-          {remaining.map((item) => (
-            <a
-              key={item.slug}
-              href={item.externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
-            >
+          {remaining.map((item) => {
+            const isInternal = item.externalUrl.startsWith("/");
+            const CardWrapper = ({ children }: { children: React.ReactNode }) =>
+              isInternal ? (
+                <Link href={item.externalUrl} className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5">
+                  {children}
+                </Link>
+              ) : (
+                <a href={item.externalUrl} target="_blank" rel="noreferrer" className="flex min-h-[170px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5">
+                  {children}
+                </a>
+              );
+            return (
+            <CardWrapper key={item.slug}>
               <div className="relative w-56 shrink-0 self-stretch overflow-hidden border-r border-[var(--color-border)] md:w-64">
                 <Image
                   src={item.thumbnailSrc ?? "/logos/abundantcu-full.png"}
@@ -93,8 +100,9 @@ export default async function WritingsPage() {
                 </div>
                 <p className="mt-3 text-xs text-slate-600">{new Date(item.publishedAt).toLocaleDateString()}</p>
               </div>
-            </a>
-          ))}
+            </CardWrapper>
+            );
+          })}
         </div>
       </section>
     </SiteShell>
