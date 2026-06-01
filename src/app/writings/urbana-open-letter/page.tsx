@@ -23,8 +23,8 @@ const claims: { claim: string; response: React.ReactNode[] }[] = [
         They do. New units set off a chain of moves: each person who upgrades into a new apartment
         vacates a slightly older, cheaper one. The research on this is consistent: new market-rate
         apartments reduce rents and free up older, cheaper units for lower-income households
-        {" "}(<a href="https://lewis.ucla.edu/research/market-rate-development-impacts/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:opacity-70">UCLA Lewis Center</a>,{" "}
-        <a href="https://www.americanprogress.org/article/build-baby-build-a-plan-to-lower-housing-costs-for-all/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:opacity-70">American Progress</a>).
+        {" "}(<a href="https://lewis.ucla.edu/research/market-rate-development-impacts/" target="_blank" rel="noreferrer" className="text-[var(--color-accent-secondary)] underline underline-offset-2 hover:opacity-80">UCLA Lewis Center</a>,{" "}
+        <a href="https://www.americanprogress.org/article/build-baby-build-a-plan-to-lower-housing-costs-for-all/" target="_blank" rel="noreferrer" className="text-[var(--color-accent-secondary)] underline underline-offset-2 hover:opacity-80">American Progress</a>).
         {" "}Minneapolis built more housing than any comparable Midwestern city and saw rents fall.
         Cities that restricted supply saw rents rise. This is the mainstream conclusion of housing
         economics research. It is not contested.
@@ -158,7 +158,7 @@ export default function UrbanOpenLetterPage() {
               href="https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/"
               target="_blank"
               rel="noreferrer"
-              className="underline underline-offset-2 hover:opacity-70"
+              className="text-[var(--color-accent-secondary)] underline underline-offset-2 hover:opacity-80"
             >
               Smile Politely
             </a>

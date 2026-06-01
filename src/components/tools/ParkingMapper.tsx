@@ -29,6 +29,8 @@ import type {
 type ParkingType = "surface" | "garage";
 type Basemap = ParkingBasemap;
 type AuthTab = "signin" | "signup";
+type PasswordRecoveryState = "idle" | "submitting" | "success" | "error";
+type BrushSize = "small" | "medium" | "large";
 
 interface ParkingFeature {
   id: string;
@@ -44,6 +46,8 @@ interface OverlapInfo {
   overlapPct: number;
   clippedCoords: [number, number][][] | null;
 }
+
+type MaskFeature = Feature<Polygon | MultiPolygon>;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -72,11 +76,70 @@ const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "DEMO_MAP_ID";
 const LEGACY_STORAGE_KEY = "parking-mapper-gmap-v1";
 const MINOR_OVERLAP_THRESHOLD = 0.05;
+const SQ_METERS_PER_ACRE = 4046.8564224;
+const SQ_FEET_PER_SQ_METER = 10.7639104167;
+const BRUSH_SIZE_CONFIG: Record<BrushSize, { label: string; radiusFeet: number }> = {
+  small: { label: "Small", radiusFeet: 12 },
+  medium: { label: "Medium", radiusFeet: 24 },
+  large: { label: "Large", radiusFeet: 40 },
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeRect(a: [number, number], b: [number, number]): [number, number][] {
   return [a, [b[0], a[1]], b, [a[0], b[1]]];
+}
+
+function closeRing(coords: [number, number][]): [number, number][] {
+  if (coords.length === 0) return [];
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  if (first[0] === last[0] && first[1] === last[1]) {
+    return coords;
+  }
+  return [...coords, first];
+}
+
+function formatArea(areaSqMeters: number): string {
+  const acres = areaSqMeters / SQ_METERS_PER_ACRE;
+  const sqFt = areaSqMeters * SQ_FEET_PER_SQ_METER;
+
+  if (acres >= 0.1) {
+    return `${acres.toFixed(acres >= 10 ? 1 : 2)} acres`;
+  }
+
+  return `${Math.round(sqFt).toLocaleString("en-US")} sq ft`;
+}
+
+function formatAreaDetail(areaSqMeters: number): string {
+  const sqFt = Math.round(areaSqMeters * SQ_FEET_PER_SQ_METER).toLocaleString("en-US");
+  return `${formatArea(areaSqMeters)} (${sqFt} sq ft)`;
+}
+
+function buildBrushMask(points: [number, number][], radiusFeet: number): MaskFeature | null {
+  if (points.length === 0) return null;
+
+  try {
+    const buffered =
+      points.length === 1
+        ? turf.buffer(turf.point(points[0]), radiusFeet, { units: "feet", steps: 12 })
+        : turf.buffer(turf.lineString(points), radiusFeet, { units: "feet", steps: 12 });
+
+    return buffered ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function toPolygonPaths(coords: [number, number][][]): google.maps.LatLngLiteral[][] {
+  return coords.map((ring) => ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng })));
+}
+
+function getMaskPolygons(mask: MaskFeature): [number, number][][][] {
+  if (mask.geometry.type === "Polygon") {
+    return [mask.geometry.coordinates as [number, number][][]];
+  }
+  return mask.geometry.coordinates as [number, number][][][];
 }
 
 function snapToAxis(pos: [number, number], last: [number, number]): [number, number] {
@@ -227,11 +290,17 @@ interface MapContentProps {
   features: ParkingFeature[];
   selectedId: string | null;
   drawing: boolean;
+  analysisDrawing: boolean;
+  brushMode: boolean;
   drawMode: "polygon" | "rectangle";
   typeConfig: Record<ParkingType, { label: string; fill: string; border: string; text: string }>;
   cfg: (typeof TYPE_CONFIG)[ParkingType];
   liveVerts: [number, number][];
   rectPreviewCoords: [number, number][] | null;
+  analysisRectCoords: [number, number][] | null;
+  analysisPreviewCoords: [number, number][] | null;
+  roadMasks: MaskFeature[];
+  brushPreviewMask: MaskFeature | null;
   vertices: [number, number][];
   selectedFeature: ParkingFeature | undefined;
   editableVertices: [number, number][];
@@ -246,7 +315,8 @@ interface MapContentProps {
 
 function MapContent({
   captureMode = false,
-  features, selectedId, drawing, drawMode, typeConfig, cfg, liveVerts, rectPreviewCoords, vertices,
+  features, selectedId, drawing, analysisDrawing, brushMode, drawMode, typeConfig, cfg, liveVerts, rectPreviewCoords,
+  analysisRectCoords, analysisPreviewCoords, roadMasks, brushPreviewMask, vertices,
   selectedFeature, editableVertices, editMode, onFeatureClick, onVertexDrag, onVertexDragEnd, instanceRef, onMapReady, onOverlaysRendered,
 }: MapContentProps) {
   const map = useMap();
@@ -260,8 +330,11 @@ function MapContent({
 
   useEffect(() => {
     if (!map) return;
-    map.setOptions({ draggableCursor: drawing ? "crosshair" : "" });
-  }, [map, drawing]);
+    map.setOptions({
+      draggableCursor: drawing || analysisDrawing || brushMode ? "crosshair" : "",
+      draggable: !(drawing || analysisDrawing || brushMode),
+    });
+  }, [map, drawing, analysisDrawing, brushMode]);
 
   const featureOverlaysRef = useRef<{ id: string; poly: google.maps.Polygon; highlight: google.maps.Polygon | null }[]>([]);
   const dataLayerFeaturesRef = useRef<google.maps.Data.Feature[]>([]);
@@ -335,7 +408,7 @@ function MapContent({
         map, paths,
         fillColor: typeConfig[f.type].fill, fillOpacity: 0.4,
         strokeColor: typeConfig[f.type].border, strokeWeight: isSelected ? 2.5 : 2,
-        clickable: !drawing, zIndex: 2,
+        clickable: !(drawing || analysisDrawing || brushMode), zIndex: 2,
       });
       poly.addListener("click", () => onFeatureClickRef.current(f.id));
       return { id: f.id, poly, highlight };
@@ -347,7 +420,7 @@ function MapContent({
       featureOverlaysRef.current = [];
       onOverlaysRendered?.(0);
     };
-  }, [captureMode, map, mapsLib, features, selectedId, drawing, onOverlaysRendered, typeConfig.garage, typeConfig.surface]);
+  }, [captureMode, map, mapsLib, features, selectedId, drawing, analysisDrawing, brushMode, onOverlaysRendered, typeConfig.garage, typeConfig.surface]);
 
   const previewPolyRef = useRef<google.maps.Polygon | null>(null);
   const previewLineRef = useRef<google.maps.Polyline | null>(null);
@@ -377,6 +450,106 @@ function MapContent({
     }
     return () => { previewPolyRef.current?.setMap(null); previewLineRef.current?.setMap(null); };
   }, [map, mapsLib, drawing, drawMode, liveVerts, rectPreviewCoords, cfg]);
+
+  const analysisRectRef = useRef<google.maps.Polygon | null>(null);
+  const analysisPreviewRef = useRef<google.maps.Polygon | null>(null);
+
+  useEffect(() => {
+    analysisRectRef.current?.setMap(null);
+    analysisPreviewRef.current?.setMap(null);
+    analysisRectRef.current = null;
+    analysisPreviewRef.current = null;
+
+    if (!map || !mapsLib) return;
+
+    const { Polygon } = mapsLib;
+
+    if (analysisRectCoords) {
+      analysisRectRef.current = new Polygon({
+        map,
+        paths: [analysisRectCoords.map(([lng, lat]) => ({ lat, lng }))],
+        fillColor: "#111827",
+        fillOpacity: 0.06,
+        strokeColor: "#111827",
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        clickable: false,
+        zIndex: 3,
+      });
+    }
+
+    if (analysisDrawing && analysisPreviewCoords) {
+      analysisPreviewRef.current = new Polygon({
+        map,
+        paths: [analysisPreviewCoords.map(([lng, lat]) => ({ lat, lng }))],
+        fillColor: "#111827",
+        fillOpacity: 0.08,
+        strokeColor: "#111827",
+        strokeOpacity: 0.7,
+        strokeWeight: 2,
+        clickable: false,
+        zIndex: 4,
+      });
+    }
+
+    return () => {
+      analysisRectRef.current?.setMap(null);
+      analysisPreviewRef.current?.setMap(null);
+    };
+  }, [analysisDrawing, analysisPreviewCoords, analysisRectCoords, map, mapsLib]);
+
+  const roadMaskRefs = useRef<google.maps.Polygon[]>([]);
+  const roadMaskPreviewRefs = useRef<google.maps.Polygon[]>([]);
+
+  useEffect(() => {
+    roadMaskRefs.current.forEach((poly) => poly.setMap(null));
+    roadMaskPreviewRefs.current.forEach((poly) => poly.setMap(null));
+    roadMaskRefs.current = [];
+    roadMaskPreviewRefs.current = [];
+
+    if (!map || !mapsLib) return;
+
+    const { Polygon } = mapsLib;
+
+    roadMaskRefs.current = roadMasks.flatMap((mask) =>
+      getMaskPolygons(mask).map((polygonCoords) =>
+        new Polygon({
+          map,
+          paths: toPolygonPaths(polygonCoords),
+          fillColor: "#475569",
+          fillOpacity: 0.22,
+          strokeColor: "#334155",
+          strokeOpacity: 0.85,
+          strokeWeight: 1.5,
+          clickable: false,
+          zIndex: 3,
+        })
+      )
+    );
+
+    roadMaskPreviewRefs.current = brushPreviewMask
+      ? getMaskPolygons(brushPreviewMask).map((polygonCoords) =>
+          new Polygon({
+            map,
+            paths: toPolygonPaths(polygonCoords),
+            fillColor: "#0f172a",
+            fillOpacity: 0.18,
+            strokeColor: "#0f172a",
+            strokeOpacity: 0.7,
+            strokeWeight: 1.5,
+            clickable: false,
+            zIndex: 4,
+          })
+        )
+      : [];
+
+    return () => {
+      roadMaskRefs.current.forEach((poly) => poly.setMap(null));
+      roadMaskPreviewRefs.current.forEach((poly) => poly.setMap(null));
+      roadMaskRefs.current = [];
+      roadMaskPreviewRefs.current = [];
+    };
+  }, [brushPreviewMask, map, mapsLib, roadMasks]);
 
   const extractLatLng = (e: any): { lat: number; lng: number } | null => {
     const ll = e.latLng ?? e.detail?.latLng;
@@ -421,8 +594,16 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetState, setResetState] = useState<PasswordRecoveryState>("idle");
 
-  const reset = () => { setError(null); setInfo(null); setEmail(""); setPassword(""); setDisplayName(""); };
+  const reset = () => {
+    setError(null);
+    setInfo(null);
+    setEmail("");
+    setPassword("");
+    setDisplayName("");
+    setResetState("idle");
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -461,6 +642,39 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
     }
     setInfo("Account created. Editor access request submitted for review.");
     if (data.user) onSuccess(data.user);
+  };
+
+  const handlePasswordResetRequest = async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Enter your email to reset your password.");
+      return;
+    }
+
+    setResetState("submitting");
+    setError(null);
+    setInfo(null);
+
+    try {
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/data/parking?edit`
+          : undefined;
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo,
+      });
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      setResetState("success");
+      setInfo("Password reset email sent. Open the link in that email to choose a new password.");
+    } catch (resetError) {
+      setResetState("error");
+      setError(resetError instanceof Error ? resetError.message : "Unable to send reset email.");
+    }
   };
 
   return (
@@ -515,6 +729,16 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
               Creating an account also submits an editor access request for approval.
             </p>
           )}
+          {tab === "signin" && (
+            <button
+              type="button"
+              onClick={() => { void handlePasswordResetRequest(); }}
+              disabled={loading || resetState === "submitting"}
+              className="text-left text-[11px] font-semibold text-gray-500 underline-offset-2 transition hover:text-gray-800 hover:underline disabled:opacity-50"
+            >
+              {resetState === "submitting" ? "Sending reset email..." : "Forgot password?"}
+            </button>
+          )}
           {info && <p className="text-xs text-emerald-700">{info}</p>}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <button
@@ -524,6 +748,89 @@ function AuthModal({ onSuccess, onClose }: { onSuccess: (user: User) => void; on
           >
             {tab === "signin" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
             {loading ? "…" : tab === "signin" ? "Sign in" : "Create account"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordModal({ onClose }: { onClose: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedPassword = password.trim();
+
+    if (trimmedPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (trimmedPassword !== confirmPassword.trim()) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: trimmedPassword });
+
+    setLoading(false);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const cleanUrl = `${window.location.pathname}${window.location.search}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+
+    setInfo("Password updated. You can keep editing with your new password.");
+    setPassword("");
+    setConfirmPassword("");
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-base font-bold text-gray-900">Reset password</p>
+            <p className="mt-1 text-xs text-gray-500">Choose a new password for your editor account.</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+          <input
+            type="password"
+            placeholder="New password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(null); }}
+            className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-gray-500"
+          />
+          <input
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
+            className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-gray-500"
+          />
+          {info && <p className="text-xs text-emerald-700">{info}</p>}
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex w-full items-center justify-center rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-50"
+          >
+            {loading ? "Updating..." : "Update password"}
           </button>
         </form>
       </div>
@@ -652,10 +959,19 @@ export default function ParkingMapper({
   const [basemap, setBasemap] = useState<Basemap>(initialBasemap);
   const [tiltOn, setTiltOn] = useState(initialTilt);
   const [drawing, setDrawing] = useState(false);
+  const [analysisDrawing, setAnalysisDrawing] = useState(false);
+  const [brushMode, setBrushMode] = useState(false);
+  const [brushActive, setBrushActive] = useState(false);
+  const [brushSize, setBrushSize] = useState<BrushSize>("medium");
   const [drawMode, setDrawMode] = useState<"polygon" | "rectangle">("polygon");
   const [drawType, setDrawType] = useState<ParkingType>("surface");
   const [vertices, setVertices] = useState<[number, number][]>([]);
   const [mousePos, setMousePos] = useState<[number, number] | null>(null);
+  const [analysisVertices, setAnalysisVertices] = useState<[number, number][]>([]);
+  const [analysisMousePos, setAnalysisMousePos] = useState<[number, number] | null>(null);
+  const [analysisRectCoords, setAnalysisRectCoords] = useState<[number, number][] | null>(null);
+  const [roadMasks, setRoadMasks] = useState<MaskFeature[]>([]);
+  const [brushPoints, setBrushPoints] = useState<[number, number][]>([]);
   const [features, setFeatures] = useState<ParkingFeature[]>(
     hasServerSeededCaptureFeatures ? normalizedInitialCaptureFeatures : []
   );
@@ -677,6 +993,7 @@ export default function ParkingMapper({
   // Auth
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [pendingDraw, setPendingDraw] = useState(false);
   const [editorAllowed, setEditorAllowed] = useState(!editMode);
   const [editorStatusLoading, setEditorStatusLoading] = useState(editMode);
@@ -758,22 +1075,38 @@ export default function ParkingMapper({
   const [pendingFeature, setPendingFeature] = useState<{ coords: [number, number][]; overlaps: OverlapInfo[] } | null>(null);
 
   const drawingRef = useRef(drawing);
+  const analysisDrawingRef = useRef(analysisDrawing);
+  const brushModeRef = useRef(brushMode);
+  const brushActiveRef = useRef(brushActive);
+  const brushSizeRef = useRef(brushSize);
   const drawModeRef = useRef(drawMode);
   const verticesRef = useRef(vertices);
+  const analysisVerticesRef = useRef(analysisVertices);
+  const brushPointsRef = useRef(brushPoints);
   const drawTypeRef = useRef(drawType);
   const featuresRef = useRef(features);
   const userRef = useRef(user);
   const gmapRef = useRef<google.maps.Map | null>(null);
+  const projectionOverlayRef = useRef<google.maps.OverlayView | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dblClickFiredRef = useRef(false);
   const migratedRef = useRef(false);
+  const suppressBrushClickRef = useRef(false);
 
   useEffect(() => { drawingRef.current = drawing; }, [drawing]);
+  useEffect(() => { analysisDrawingRef.current = analysisDrawing; }, [analysisDrawing]);
+  useEffect(() => { brushModeRef.current = brushMode; }, [brushMode]);
+  useEffect(() => { brushActiveRef.current = brushActive; }, [brushActive]);
+  useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
   useEffect(() => { verticesRef.current = vertices; }, [vertices]);
+  useEffect(() => { analysisVerticesRef.current = analysisVertices; }, [analysisVertices]);
+  useEffect(() => { brushPointsRef.current = brushPoints; }, [brushPoints]);
   useEffect(() => { drawTypeRef.current = drawType; }, [drawType]);
   useEffect(() => { featuresRef.current = features; }, [features]);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  const canEditMap = editMode && editorAllowed;
 
   useEffect(() => {
     if (!editMode) {
@@ -928,15 +1261,24 @@ export default function ParkingMapper({
 
   // Auth session listener — also triggers localStorage migration on restore
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
+      setShowPasswordResetModal(true);
+      setShowAuthModal(false);
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       const u = data.session?.user ?? null;
       setUser(u);
       if (u) migrateLocalStorage(u);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) migrateLocalStorage(u);
+      if (event === "PASSWORD_RECOVERY") {
+        setShowPasswordResetModal(true);
+        setShowAuthModal(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, [migrateLocalStorage]);
@@ -1029,7 +1371,49 @@ export default function ParkingMapper({
       return;
     }
     if (!editorAllowed) return;
+    setBrushMode(false);
+    setBrushActive(false);
+    setBrushPoints([]);
+    setAnalysisDrawing(false);
+    setAnalysisVertices([]);
+    setAnalysisMousePos(null);
     setDrawing(true);
+    setSelectedId(null);
+  };
+
+  const startAnalysisDrawing = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!editorAllowed) return;
+    setBrushMode(false);
+    setBrushActive(false);
+    setBrushPoints([]);
+    setDrawing(false);
+    setVertices([]);
+    setMousePos(null);
+    setAnalysisDrawing(true);
+    setAnalysisVertices([]);
+    setAnalysisMousePos(null);
+    setSelectedId(null);
+  };
+
+  const startBrushMode = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!editorAllowed) return;
+    setDrawing(false);
+    setVertices([]);
+    setMousePos(null);
+    setAnalysisDrawing(false);
+    setAnalysisVertices([]);
+    setAnalysisMousePos(null);
+    setBrushMode(true);
+    setBrushActive(false);
+    setBrushPoints([]);
     setSelectedId(null);
   };
 
@@ -1200,6 +1584,23 @@ export default function ParkingMapper({
     document.body.dataset.parkingExportReady = ready ? "true" : "false";
   }, [captureFitRevision, captureMode, captureOverlayCount, featureLoadError, features.length, loading, mapReady, mapTilesReady]);
 
+  useEffect(() => {
+    const map = gmapRef.current;
+    if (!map || typeof google === "undefined") return;
+
+    const overlay = new google.maps.OverlayView();
+    overlay.onAdd = () => {};
+    overlay.draw = () => {};
+    overlay.onRemove = () => {};
+    overlay.setMap(map);
+    projectionOverlayRef.current = overlay;
+
+    return () => {
+      projectionOverlayRef.current = null;
+      overlay.setMap(null);
+    };
+  }, [mapReady]);
+
   const commitFeature = useCallback(async (coords: [number, number][], u: User) => {
     const feature: ParkingFeature = {
       id: crypto.randomUUID(),
@@ -1274,14 +1675,134 @@ export default function ParkingMapper({
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
   };
 
+  const cancelAnalysisDrawing = () => {
+    setAnalysisDrawing(false);
+    setAnalysisVertices([]);
+    setAnalysisMousePos(null);
+  };
+
+  const cancelBrushMode = () => {
+    setBrushMode(false);
+    setBrushActive(false);
+    setBrushPoints([]);
+  };
+
+  const commitBrushMask = useCallback((points: [number, number][]) => {
+    const mask = buildBrushMask(points, BRUSH_SIZE_CONFIG[brushSizeRef.current].radiusFeet);
+    if (!mask) return false;
+    setRoadMasks((prev) => [...prev, mask]);
+    return true;
+  }, []);
+
+  const pointFromPointerEvent = useCallback((event: PointerEvent): [number, number] | null => {
+    const map = gmapRef.current;
+    const overlay = projectionOverlayRef.current;
+    if (!map || !overlay) return null;
+
+    const projection = overlay.getProjection();
+    if (!projection) return null;
+
+    const rect = map.getDiv().getBoundingClientRect();
+    const pixel = new google.maps.Point(event.clientX - rect.left, event.clientY - rect.top);
+    const latLng = projection.fromContainerPixelToLatLng(pixel);
+    if (!latLng) return null;
+
+    return [latLng.lng(), latLng.lat()];
+  }, []);
+
+  useEffect(() => {
+    const map = gmapRef.current;
+    if (!map || !canEditMap) return;
+    const mapDiv = map.getDiv();
+    if (!mapDiv) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!brushModeRef.current || event.button !== 0) return;
+      event.preventDefault();
+      try {
+        mapDiv.setPointerCapture(event.pointerId);
+      } catch {}
+      suppressBrushClickRef.current = false;
+      const point = pointFromPointerEvent(event);
+      setBrushActive(true);
+      setBrushPoints(point ? [point] : []);
+      setSelectedId(null);
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!brushModeRef.current || !brushActiveRef.current) return;
+      event.preventDefault();
+
+      const point = pointFromPointerEvent(event);
+      if (!point) return;
+
+      setBrushPoints((prev) => {
+        if (prev.length === 0) return [point];
+        const last = prev[prev.length - 1];
+        const spacingFeet = Math.max(6, BRUSH_SIZE_CONFIG[brushSizeRef.current].radiusFeet / 3);
+        const distanceFeet = turf.distance(turf.point(last), turf.point(point), { units: "feet" });
+        if (distanceFeet < spacingFeet) return prev;
+        return [...prev, point];
+      });
+    };
+
+    const finishBrush = (event?: PointerEvent) => {
+      if (!brushActiveRef.current) return;
+      if (event) {
+        try {
+          mapDiv.releasePointerCapture(event.pointerId);
+        } catch {}
+      }
+      const committed = commitBrushMask(brushPointsRef.current);
+      suppressBrushClickRef.current = committed;
+      setBrushActive(false);
+      setBrushPoints([]);
+    };
+
+    mapDiv.addEventListener("pointerdown", handlePointerDown);
+    mapDiv.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", finishBrush);
+    window.addEventListener("pointercancel", finishBrush);
+
+    return () => {
+      mapDiv.removeEventListener("pointerdown", handlePointerDown);
+      mapDiv.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishBrush);
+      window.removeEventListener("pointercancel", finishBrush);
+    };
+  }, [canEditMap, commitBrushMask, pointFromPointerEvent]);
+
   // Map event handlers
   const handleMapClick = useCallback((e: MapMouseEvent) => {
-    if (!drawingRef.current) { setSelectedId(null); return; }
-    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     const latLng = e.detail.latLng;
     if (!latLng) return;
-    const shiftHeld = (e.domEvent as MouseEvent).shiftKey ?? false;
     const raw: [number, number] = [latLng.lng, latLng.lat];
+
+    if (brushModeRef.current) {
+      if (suppressBrushClickRef.current) {
+        suppressBrushClickRef.current = false;
+        return;
+      }
+      commitBrushMask([raw]);
+      return;
+    }
+
+    if (analysisDrawingRef.current) {
+      const verts = analysisVerticesRef.current;
+      if (verts.length === 0) {
+        setAnalysisVertices([raw]);
+      } else {
+        setAnalysisRectCoords(makeRect(verts[0], raw));
+        setAnalysisVertices([]);
+        setAnalysisMousePos(null);
+        setAnalysisDrawing(false);
+      }
+      return;
+    }
+
+    if (!drawingRef.current) { setSelectedId(null); return; }
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    const shiftHeld = (e.domEvent as MouseEvent).shiftKey ?? false;
 
     clickTimerRef.current = setTimeout(() => {
       if (dblClickFiredRef.current) { dblClickFiredRef.current = false; return; }
@@ -1312,6 +1833,14 @@ export default function ParkingMapper({
   }, [completePolygon]);
 
   const handleMapDblClick = useCallback((e: MapMouseEvent) => {
+    if (brushModeRef.current) {
+      e.stop();
+      return;
+    }
+    if (analysisDrawingRef.current) {
+      e.stop();
+      return;
+    }
     if (!drawingRef.current || drawModeRef.current === "rectangle") return;
     e.stop();
     dblClickFiredRef.current = true;
@@ -1320,11 +1849,17 @@ export default function ParkingMapper({
   }, [completePolygon]);
 
   const handleMouseMove = useCallback((e: MapMouseEvent) => {
-    if (!drawingRef.current) return;
     const latLng = e.detail.latLng;
     if (!latLng) return;
-    const shiftHeld = (e.domEvent as MouseEvent).shiftKey ?? false;
     const raw: [number, number] = [latLng.lng, latLng.lat];
+
+    if (analysisDrawingRef.current) {
+      setAnalysisMousePos(raw);
+      return;
+    }
+
+    if (!drawingRef.current) return;
+    const shiftHeld = (e.domEvent as MouseEvent).shiftKey ?? false;
     const verts = verticesRef.current;
     setMousePos(shiftHeld && verts.length > 0 ? snapToAxis(raw, verts[verts.length - 1]) : raw);
   }, []);
@@ -1441,18 +1976,86 @@ export default function ParkingMapper({
     setDrawing(false);
     setVertices([]);
     setMousePos(null);
+    setAnalysisDrawing(false);
+    setAnalysisVertices([]);
+    setAnalysisMousePos(null);
+    setBrushMode(false);
+    setBrushActive(false);
+    setBrushPoints([]);
+    setRoadMasks([]);
+    setAnalysisRectCoords(null);
   };
 
   // Derived
   const cfg = typeConfig[drawType];
   const selectedFeature = features.find((f) => f.id === selectedId);
-  const canEditMap = editMode && editorAllowed;
   const canEditSelected = canEditMap && !!user && !!selectedFeature && selectedFeature.created_by === user.id;
   const editableVertices = canEditSelected ? selectedFeature!.coordinates[0].slice(0, -1) : [];
   const rectPreviewCoords = drawMode === "rectangle" && vertices.length === 1 && mousePos ? makeRect(vertices[0], mousePos) : null;
+  const analysisPreviewCoords =
+    analysisVertices.length === 1 && analysisMousePos ? makeRect(analysisVertices[0], analysisMousePos) : null;
+  const brushPreviewMask = useMemo(() => {
+    if (!brushMode || brushPoints.length === 0) return null;
+    return buildBrushMask(brushPoints, BRUSH_SIZE_CONFIG[brushSize].radiusFeet);
+  }, [brushMode, brushPoints, brushSize]);
   const liveVerts = drawMode === "rectangle" ? (rectPreviewCoords ?? vertices) : (mousePos ? [...vertices, mousePos] : vertices);
   const surfaceCount = features.filter((f) => f.type === "surface").length;
   const garageCount = features.filter((f) => f.type === "garage").length;
+  const analysisStats = useMemo(() => {
+    if (!analysisRectCoords) return null;
+
+    let rectFeature: Feature<Polygon>;
+    try {
+      rectFeature = turf.polygon([closeRing(analysisRectCoords) as Position[]]);
+    } catch {
+      return null;
+    }
+
+    const rectangleAreaSqMeters = turf.area(rectFeature);
+    if (rectangleAreaSqMeters <= 0) return null;
+
+    let effectiveArea: MaskFeature | null = rectFeature;
+    for (const roadMask of roadMasks) {
+      if (!effectiveArea) break;
+      try {
+        const diff = turf.difference(turf.featureCollection([effectiveArea, roadMask]));
+        effectiveArea = diff;
+      } catch {
+        continue;
+      }
+    }
+
+    const effectiveAreaSqMeters = effectiveArea ? turf.area(effectiveArea) : 0;
+    const excludedAreaSqMeters = Math.max(0, rectangleAreaSqMeters - effectiveAreaSqMeters);
+
+    let parkingAreaSqMeters = 0;
+    for (const feature of features) {
+      let parkingPoly: Feature<Polygon>;
+      try {
+        parkingPoly = turf.polygon(feature.coordinates as Position[][]);
+      } catch {
+        continue;
+      }
+
+      try {
+        if (!effectiveArea) continue;
+        const intersection = turf.intersect(turf.featureCollection([effectiveArea, parkingPoly]));
+        if (intersection) {
+          parkingAreaSqMeters += turf.area(intersection);
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return {
+      rectangleAreaSqMeters,
+      excludedAreaSqMeters,
+      effectiveAreaSqMeters,
+      parkingAreaSqMeters,
+      coverageRatio: effectiveAreaSqMeters > 0 ? parkingAreaSqMeters / effectiveAreaSqMeters : 0,
+    };
+  }, [analysisRectCoords, features, roadMasks]);
 
   return (
     <div
@@ -1461,6 +2064,9 @@ export default function ParkingMapper({
     >
       {showAuthModal && (
         <AuthModal onSuccess={handleAuthSuccess} onClose={() => { setShowAuthModal(false); setPendingDraw(false); }} />
+      )}
+      {showPasswordResetModal && (
+        <ResetPasswordModal onClose={() => setShowPasswordResetModal(false)} />
       )}
       {pendingFeature && (
         <OverlapModal
@@ -1497,11 +2103,17 @@ export default function ParkingMapper({
             features={features}
             selectedId={selectedId}
             drawing={drawing}
+            analysisDrawing={analysisDrawing}
+            brushMode={brushMode}
             drawMode={drawMode}
             typeConfig={typeConfig}
             cfg={cfg}
             liveVerts={liveVerts}
             rectPreviewCoords={rectPreviewCoords}
+            analysisRectCoords={analysisRectCoords}
+            analysisPreviewCoords={analysisPreviewCoords}
+            roadMasks={roadMasks}
+            brushPreviewMask={brushPreviewMask}
             vertices={vertices}
             selectedFeature={canEditSelected ? selectedFeature : undefined}
             editableVertices={editableVertices}
@@ -1576,7 +2188,7 @@ export default function ParkingMapper({
               <p className="text-xs text-gray-500">Checking editor access...</p>
             </div>
           )}
-          {canEditMap && (!drawing ? (
+          {canEditMap && (!drawing && !analysisDrawing && !brushMode ? (
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
@@ -1620,6 +2232,98 @@ export default function ParkingMapper({
                   <Plus className="h-4 w-4" aria-hidden />
                   {drawMode === "rectangle" ? "Draw Rectangle" : "Draw Polygon"}
                 </button>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                        Area analysis
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
+                        Overlay a rectangle to measure parking coverage within a selected area.
+                      </p>
+                    </div>
+                    {analysisRectCoords && (
+                      <button
+                        onClick={() => {
+                          setAnalysisRectCoords(null);
+                          cancelAnalysisDrawing();
+                        }}
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-100"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={startAnalysisDrawing}
+                    className="mt-2 flex w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-100"
+                  >
+                    {analysisRectCoords ? "Redraw Analysis Rectangle" : "Draw Analysis Rectangle"}
+                  </button>
+                  {analysisStats ? (
+                    <div className="mt-2 rounded-xl bg-white px-3 py-2.5 text-[11px] leading-relaxed text-gray-600 shadow-sm">
+                      <p><span className="font-semibold text-gray-900">Rectangle area:</span> {formatAreaDetail(analysisStats.rectangleAreaSqMeters)}</p>
+                      <p className="mt-1"><span className="font-semibold text-gray-900">Road area excluded:</span> {formatAreaDetail(analysisStats.excludedAreaSqMeters)}</p>
+                      <p className="mt-1"><span className="font-semibold text-gray-900">Net analysis area:</span> {formatAreaDetail(analysisStats.effectiveAreaSqMeters)}</p>
+                      <p className="mt-1"><span className="font-semibold text-gray-900">Parking area:</span> {formatAreaDetail(analysisStats.parkingAreaSqMeters)}</p>
+                      <p className="mt-1">
+                        <span className="font-semibold text-gray-900">Parking share:</span>{" "}
+                        {(analysisStats.coverageRatio * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                      {analysisRectCoords
+                        ? "Unable to calculate coverage for this rectangle."
+                        : "Draw a rectangle to see total area, parking area, and the parking coverage ratio."}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                        Road mask
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
+                        Paint streets and other non-buildable areas to exclude them from the analysis rectangle.
+                      </p>
+                    </div>
+                    {roadMasks.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setRoadMasks([]);
+                          cancelBrushMode();
+                        }}
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-100"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-2 flex rounded-lg bg-gray-100 p-0.5 gap-0.5">
+                    {(["small", "medium", "large"] as const).map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setBrushSize(size)}
+                        className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-all ${
+                          brushSize === size ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {BRUSH_SIZE_CONFIG[size].label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={startBrushMode}
+                    className="mt-2 flex w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-100"
+                  >
+                    {roadMasks.length > 0 ? "Paint More Roads" : "Paint Roads"}
+                  </button>
+                  <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                    Click for a stamp, or click and drag to paint continuously.
+                  </p>
+                </div>
                 <p className="text-center text-[11px] text-gray-400">
                   {canEditSelected
                     ? "Drag nodes to edit vertices."
@@ -1635,21 +2339,59 @@ export default function ParkingMapper({
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
-                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.text}`}>
-                    {drawMode === "rectangle" ? "Rectangle" : "Polygon"}: {cfg.label}
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${
+                    analysisDrawing || brushMode ? "text-gray-600" : cfg.text
+                  }`}>
+                    {analysisDrawing
+                      ? "Area analysis"
+                      : brushMode
+                      ? "Road mask"
+                      : `${drawMode === "rectangle" ? "Rectangle" : "Polygon"}: ${cfg.label}`}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {drawMode === "rectangle"
+                    {analysisDrawing
+                      ? analysisVertices.length === 0 ? "Click first corner" : "Click opposite corner"
+                      : brushMode
+                      ? brushActive ? "Drag to paint roads" : "Click or drag to paint"
+                      : drawMode === "rectangle"
                       ? vertices.length === 0 ? "Click first corner" : "Click opposite corner"
                       : vertices.length === 0 ? "Click to start" : `${vertices.length} point${vertices.length !== 1 ? "s" : ""}`}
                   </p>
                 </div>
-                <button onClick={cancelDrawing} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <button
+                  onClick={analysisDrawing ? cancelAnalysisDrawing : brushMode ? cancelBrushMode : cancelDrawing}
+                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="p-3 space-y-2">
-                {drawMode === "rectangle" ? (
+                {analysisDrawing ? (
+                  <p className="text-[11px] leading-relaxed text-gray-500">
+                    Click two opposite corners to place an analysis rectangle. We&apos;ll calculate the rectangle area,
+                    parking area inside it, and the parking coverage percentage.
+                  </p>
+                ) : brushMode ? (
+                  <>
+                    <div className="flex rounded-lg bg-gray-100 p-0.5 gap-0.5">
+                      {(["small", "medium", "large"] as const).map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setBrushSize(size)}
+                          className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-all ${
+                            brushSize === size ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                          }`}
+                        >
+                          {BRUSH_SIZE_CONFIG[size].label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-gray-500">
+                      Paint over roads and other areas you want excluded from the rectangle total. The parking share will
+                      use the remaining net area after the road mask is subtracted.
+                    </p>
+                  </>
+                ) : drawMode === "rectangle" ? (
                   <p className="text-[11px] leading-relaxed text-gray-500">Click two opposite corners to draw a rectangle.</p>
                 ) : (
                   <p className="text-[11px] leading-relaxed text-gray-500">
@@ -1658,7 +2400,7 @@ export default function ParkingMapper({
                     Click first node or double-click to close.
                   </p>
                 )}
-                {drawMode === "polygon" && vertices.length >= 3 && (
+                {!analysisDrawing && !brushMode && drawMode === "polygon" && vertices.length >= 3 && (
                   <button onClick={() => completePolygon(vertices)}
                     className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white"
                     style={{ backgroundColor: cfg.fill }}
@@ -1666,7 +2408,7 @@ export default function ParkingMapper({
                     Complete Polygon
                   </button>
                 )}
-                <button onClick={cancelDrawing}
+                <button onClick={analysisDrawing ? cancelAnalysisDrawing : brushMode ? cancelBrushMode : cancelDrawing}
                   className="flex w-full items-center justify-center rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
                 >
                   Cancel

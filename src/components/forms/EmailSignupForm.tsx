@@ -5,13 +5,20 @@ import { FormEvent, useState } from "react";
 interface EmailSignupFormProps {
   sourcePage: string;
   compact?: boolean;
+  submitLabel?: string;
+  curbanismOptIn?: boolean;
 }
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 type TurnstileApi = { reset: () => void };
 
-export default function EmailSignupForm({ sourcePage, compact = false }: EmailSignupFormProps) {
+export default function EmailSignupForm({
+  sourcePage,
+  compact = false,
+  submitLabel = "Sign Up",
+  curbanismOptIn = false,
+}: EmailSignupFormProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -34,7 +41,7 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          curbanismOptIn: false,
+          curbanismOptIn,
           sourcePage,
           honeypot,
           turnstileToken,
@@ -90,7 +97,7 @@ export default function EmailSignupForm({ sourcePage, compact = false }: EmailSi
             compact ? "px-4 py-2.5" : "px-5 py-3"
           }`}
         >
-          {status === "submitting" ? "Submitting..." : "Sign Up"}
+          {status === "submitting" ? "Submitting..." : submitLabel}
         </button>
       </div>
       {TURNSTILE_SITE_KEY ? (
