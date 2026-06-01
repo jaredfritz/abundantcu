@@ -1,27 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="480" height="320">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
   <!-- Background -->
-  <rect width="480" height="320" fill="#002147"/>
-
-  <!-- Subtle grid lines for texture -->
-  <line x1="0" y1="80" x2="480" y2="80" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-  <line x1="0" y1="160" x2="480" y2="160" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-  <line x1="0" y1="240" x2="480" y2="240" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-  <line x1="120" y1="0" x2="120" y2="320" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-  <line x1="240" y1="0" x2="240" y2="320" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-  <line x1="360" y1="0" x2="360" y2="320" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+  <rect width="400" height="400" fill="#002147"/>
 
   <!-- Label -->
-  <text x="36" y="96" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" letter-spacing="2.5" fill="#64748b">OPEN LETTER</text>
+  <text
+    x="200" y="148"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="12" font-weight="600" letter-spacing="3"
+    fill="#475569" text-anchor="middle"
+  >OPEN LETTER</text>
 
   <!-- Title line 1 -->
-  <text x="36" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="40" font-weight="800" fill="#ffffff">Housing</text>
+  <text
+    x="200" y="202"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="800"
+    fill="#ffffff" text-anchor="middle"
+  >Housing</text>
 
   <!-- Title line 2 -->
-  <text x="36" y="200" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="40" font-weight="800" fill="#ffffff">Can't Wait</text>
-
-  <!-- Divider line -->
-  <line x1="36" y1="226" x2="160" y2="226" stroke="#1e3a5f" stroke-width="1"/>
+  <text
+    x="200" y="252"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="800"
+    fill="#ffffff" text-anchor="middle"
+  >Can't Wait</text>
 
   <!-- Attribution -->
-  <text x="36" y="254" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#475569">Abundant CU · June 1, 2026</text>
+  <text
+    x="200" y="290"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="12" fill="#475569" text-anchor="middle"
+  >Abundant CU · June 1, 2026</text>
 </svg>

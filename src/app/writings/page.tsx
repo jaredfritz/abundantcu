@@ -58,7 +58,7 @@ export default async function WritingsPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Featured Publication</p>
               <h2 className="mt-2 text-xl font-bold">{featuredTitle ?? featured.title}</h2>
               <p className="mt-2 text-sm text-slate-700">{featured.summary}</p>
-              <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt).toLocaleDateString()}</p>
+              <p className="mt-3 text-xs text-slate-600">{new Date(featured.publishedAt + "T12:00:00").toLocaleDateString()}</p>
             </div>
           </a>
         ) : null}
@@ -96,7 +96,7 @@ export default async function WritingsPage() {
                   <h2 className="mt-1 text-sm font-bold leading-tight sm:text-base md:text-lg">{item.title}</h2>
                   <p className="mt-1.5 line-clamp-2 text-xs text-slate-700 sm:line-clamp-3 sm:text-sm">{item.summary}</p>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">{new Date(item.publishedAt).toLocaleDateString()}</p>
+                <p className="mt-2 text-xs text-slate-500">{new Date(item.publishedAt + "T12:00:00").toLocaleDateString()}</p>
               </div>
             </CardWrapper>
             );
