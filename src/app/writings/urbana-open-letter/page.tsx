@@ -3,11 +3,11 @@ import Link from "next/link";
 import SiteShell from "@/components/site/SiteShell";
 
 export const metadata: Metadata = {
-  title: "An Open Letter to the Urbana City Council",
+  title: "Housing Can't Wait",
   description:
     "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
   openGraph: {
-    title: "An Open Letter to the Urbana City Council | Abundant CU",
+    title: "Housing Can't Wait | Abundant CU",
     description:
       "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
     url: "https://abundantcu.com/writings/urbana-open-letter",
@@ -15,11 +15,20 @@ export const metadata: Metadata = {
   },
 };
 
-const claims: { claim: string; response: string[] }[] = [
+const claims: { claim: string; response: React.ReactNode[] }[] = [
   {
     claim: "New market-rate apartments don't help affordability.",
     response: [
-      "They do. New units set off a chain of moves — each person who upgrades into a new apartment vacates a slightly older, cheaper one. The research on this is consistent: new market-rate apartments reduce rents and free up older, cheaper units for lower-income households. Minneapolis built more housing than any comparable Midwestern city and saw rents fall. Cities that restricted supply saw rents rise. This is the mainstream conclusion of housing economics research. It is not contested.",
+      <>
+        They do. New units set off a chain of moves: each person who upgrades into a new apartment
+        vacates a slightly older, cheaper one. The research on this is consistent: new market-rate
+        apartments reduce rents and free up older, cheaper units for lower-income households
+        {" "}(<a href="https://lewis.ucla.edu/research/market-rate-development-impacts/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:opacity-70">UCLA Lewis Center</a>,{" "}
+        <a href="https://www.americanprogress.org/article/build-baby-build-a-plan-to-lower-housing-costs-for-all/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:opacity-70">American Progress</a>).
+        {" "}Minneapolis built more housing than any comparable Midwestern city and saw rents fall.
+        Cities that restricted supply saw rents rise. This is the mainstream conclusion of housing
+        economics research. It is not contested.
+      </>,
     ],
   },
   {
@@ -39,12 +48,12 @@ const claims: { claim: string; response: string[] }[] = [
   {
     claim: "This will cause traffic problems, parking issues, and delivery vehicle congestion.",
     response: [
-      "This building adds roughly 30 units of demand to a corridor that already handles hundreds of units of residential traffic. The marginal impact is small. More importantly, blocking housing is not a proportionate response to traffic enforcement concerns — those can be addressed through enforcing the rules of the road and city ordinances already on the books.",
+      "This building adds roughly 30 units of demand to a corridor that already handles hundreds of units of residential traffic. The marginal impact is small. More importantly, blocking housing is not a proportionate response to traffic enforcement concerns; those can be addressed through enforcing the rules of the road and city ordinances already on the books.",
       "It's also worth noting that pushing development to the suburban edge, which is what happens when infill projects like this are blocked, generates far more vehicle miles traveled than compact, walkable, near-downtown housing like this project.",
     ],
   },
   {
-    claim: "It's an outstanding project, an outstanding idea — it should just go somewhere else, like 211 N. Race Street.",
+    claim: "It's an outstanding project, an outstanding idea. It should just go somewhere else, like 211 N. Race Street.",
     response: [
       "That also sounds like a good location for housing. Why not both? Our community needs far more than one development.",
       "But the 211 N. Race Street site has been publicly owned for over three years. The city has spent $1.1 million acquiring and clearing it. Has the city issued an RFP? Have they engaged developers on what could be built there? If that site were a genuine priority, there would be evidence of urgency. There isn't.",
@@ -53,7 +62,7 @@ const claims: { claim: string; response: string[] }[] = [
     ],
   },
   {
-    claim: "The building is out of character with the area — wrong colors, wrong design, too big.",
+    claim: "The building is out of character with the area: wrong colors, wrong design, too big.",
     response: [
       "This is the most subjective argument on this list, and it deserves the most direct challenge.",
       "If you want to prioritize neighborhood character, you need to be honest about what you're trading away to do it. We have a sub-2% vacancy rate. We have 4,000 families on the county housing waiting list. We have lost roughly 550 affordable units in recent years to condemnations. We are not in a situation where aesthetic preferences are a costless priority. Every time we say \"just not here,\" someone who needs housing doesn't get it.",
@@ -73,20 +82,20 @@ const claims: { claim: string; response: string[] }[] = [
     claim: "This won't be affordable for low-income residents. SSI recipients can't afford it.",
     response: [
       "This concern is real, and it calls for real solutions: more housing vouchers, more subsidized units, stronger enforcement of the source-of-income protections Urbana already has on the books but has struggled to enforce.",
-      "But the vote before the council is not a vote on any of those programs. Rejecting this project does not produce a single subsidized apartment. It maintains the status quo of two vacant lots. Market-rate supply and subsidized housing are complementary priorities, not competing ones. Restrictive zoning makes subsidized housing harder to build too — when land costs more and every project requires years of process, public dollars for affordable units go less far.",
+      "But the vote before the council is not a vote on any of those programs. Rejecting this project does not produce a single subsidized apartment. It maintains the status quo of two vacant lots. Market-rate supply and subsidized housing are complementary priorities, not competing ones. Restrictive zoning makes subsidized housing harder to build too. When land costs more and every project requires years of process, public dollars for affordable units go less far.",
       "Saying no to this project doesn't create more subsidized housing. It just blocks 32 new homes.",
     ],
   },
   {
     claim: "We need owner-occupied housing, not more rentals.",
     response: [
-      "Urbana is a university city. Rental demand is structural — it is a function of who lives here and why, not a symptom of bad policy. The answer to \"we need more ownership opportunities\" is to build more housing of all types, which a healthier, less constrained market makes possible over time. Blocking rental supply does not produce ownership opportunities. It produces vacancy rates under 2% and competition for the units that do exist.",
+      "Urbana is a university city. Rental demand is structural: it is a function of who lives here and why, not a symptom of bad policy. The answer to \"we need more ownership opportunities\" is to build more housing of all types, which a healthier, less constrained market makes possible over time. Blocking rental supply does not produce ownership opportunities. It produces vacancy rates under 2% and competition for the units that do exist.",
     ],
   },
   {
     claim: "Four stories is too tall for this neighborhood.",
     response: [
-      "The height is not a preference — it is a function of the site. Flood constraints require increased density to make the project financially viable. A shorter building is not a compromise. It is a rejection with better manners. See also: three previous developers who tried to build here at lower densities and couldn't make it work.",
+      "The height is not a preference: it is a function of the site. Flood constraints require increased density to make the project financially viable. A shorter building is not a compromise. It is a rejection with better manners. See also: three previous developers who tried to build here at lower densities and couldn't make it work.",
     ],
   },
   {
@@ -108,11 +117,13 @@ export default function UrbanOpenLetterPage() {
           Open Letter &nbsp;·&nbsp; June 1, 2026
         </p>
         <h1 className="mt-3 text-3xl font-extrabold leading-tight md:text-4xl">
-          An Open Letter to the Urbana City Council
+          Housing Can't Wait
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-3 text-base font-semibold text-slate-600">
+          An Open Letter to the Urbana City Council
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
           By <span className="font-semibold text-[var(--color-primary)]">Jared Fritz</span>
-          {" "}— longtime C-U resident, lead member of CUrbanism Club, Champaign Zoning Board of Appeals
         </p>
 
         <div className="mt-5 flex flex-wrap gap-3">
@@ -142,14 +153,14 @@ export default function UrbanOpenLetterPage() {
         <div className="mt-8 border-t border-[var(--color-border)] pt-6 space-y-3 text-sm leading-relaxed text-slate-700 md:text-base">
           <p>
             Tonight, the Urbana City Council will vote on a new apartment building on the 400 block of W. Main Street.
-            I wrote about the history and stakes of this decision{" "}
+            I wrote about the history and stakes of this decision in{" "}
             <a
               href="https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/"
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2 hover:opacity-70"
             >
-              here
+              Smile Politely
             </a>
             . The short version: Urbana has been here before, made the wrong call, and is still living with the consequences. We have a chance to make a different one.
           </p>
@@ -165,9 +176,9 @@ export default function UrbanOpenLetterPage() {
         <div className="mt-8 space-y-0">
           {claims.map(({ claim, response }, i) => (
             <section key={i} className="border-t border-[var(--color-border)] py-6">
-              <p className="rounded-[4px] border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold italic text-slate-600">
-                "{claim}"
-              </p>
+              <div className="flex min-h-[48px] items-center rounded-[4px] border border-[var(--color-border)] bg-slate-50 px-4 py-3">
+                <span className="text-sm font-semibold italic text-slate-600">"{claim}"</span>
+              </div>
               <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700 md:text-base">
                 {response.map((para, j) => (
                   <p key={j}>{para}</p>
