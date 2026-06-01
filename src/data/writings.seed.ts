@@ -7,7 +7,7 @@ export const writingSeed: WritingItem[] = [
     publicationName: "Abundant CU",
     publishedAt: "2026-06-01",
     summary:
-      "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
+      "A response to the arguments being made against the apartment building proposed for 413–419 W. Main Street, ahead of Urbana's City Council vote.",
     externalUrl: "/writings/urbana-open-letter",
     thumbnailSrc: "/writings/urbana-open-letter-thumb.svg",
     thumbnailFocus: "50% 50%",
