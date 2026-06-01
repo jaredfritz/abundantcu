@@ -9,8 +9,8 @@ export const writingSeed: WritingItem[] = [
     summary:
       "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
     externalUrl: "/writings/urbana-open-letter",
-    thumbnailSrc: "/writings/urbana-main-st-split-image.png",
-    thumbnailFocus: "50% 60%",
+    thumbnailSrc: "/writings/urbana-open-letter-thumb.svg",
+    thumbnailFocus: "50% 50%",
   },
   {
     slug: "urbana-main-st",
