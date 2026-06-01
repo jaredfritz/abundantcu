@@ -5,11 +5,11 @@ import SiteShell from "@/components/site/SiteShell";
 export const metadata: Metadata = {
   title: "An Open Letter to the Urbana City Council",
   description:
-    "Before tonight's vote, a point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street.",
+    "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
   openGraph: {
     title: "An Open Letter to the Urbana City Council | Abundant CU",
     description:
-      "Before tonight's vote, a point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street.",
+      "A point-by-point response to the arguments being made against the 32-unit apartment building proposed for 413–419 W. Main Street, ahead of tonight's council vote.",
     url: "https://abundantcu.com/writings/urbana-open-letter",
     images: [{ url: "/writings/urbana-main-st-split-image.png" }],
   },
@@ -101,45 +101,45 @@ const claims: { claim: string; response: string[] }[] = [
 export default function UrbanOpenLetterPage() {
   return (
     <SiteShell>
-      <article className="mx-auto w-full max-w-2xl px-5 py-10 md:px-8 md:py-16">
+      <section className="mx-auto w-full max-w-3xl px-5 py-10 md:px-8 md:py-14">
 
         {/* Header */}
-        <header className="mb-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 mb-3">
-            Open Letter · June 1, 2026
-          </p>
-          <h1 className="text-3xl font-extrabold leading-tight md:text-4xl">
-            An Open Letter to the Urbana City Council
-          </h1>
-          <p className="mt-3 text-sm text-slate-600">
-            By <span className="font-semibold">Jared Fritz</span> — longtime C-U resident, lead member of CUrbanism Club, Champaign Zoning Board of Appeals
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <a
-              href="/writings/urbana-open-letter.pdf"
-              download
-              className="inline-flex items-center gap-2 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Download PDF
-            </a>
-            <a
-              href="https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-[4px] border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50"
-            >
-              Related: Smile Politely op-ed ↗
-            </a>
-          </div>
-        </header>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          Open Letter &nbsp;·&nbsp; June 1, 2026
+        </p>
+        <h1 className="mt-3 text-3xl font-extrabold leading-tight md:text-4xl">
+          An Open Letter to the Urbana City Council
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">
+          By <span className="font-semibold text-[var(--color-primary)]">Jared Fritz</span>
+          {" "}— longtime C-U resident, lead member of CUrbanism Club, Champaign Zoning Board of Appeals
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <a
+            href="/writings/urbana-open-letter.pdf"
+            download
+            className="cta-primary inline-flex items-center gap-2 rounded-[4px] px-5 py-2.5 text-sm font-semibold"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download PDF
+          </a>
+          <a
+            href="https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex rounded-[4px] border border-[var(--color-border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-slate-50"
+          >
+            Related op-ed in Smile Politely ↗
+          </a>
+        </div>
 
         {/* Intro */}
-        <div className="prose-section space-y-4 text-base leading-relaxed text-[var(--color-primary)]">
+        <div className="mt-8 border-t border-[var(--color-border)] pt-6 space-y-3 text-sm leading-relaxed text-slate-700 md:text-base">
           <p>
             Tonight, the Urbana City Council will vote on a new apartment building on the 400 block of W. Main Street.
             I wrote about the history and stakes of this decision{" "}
@@ -147,7 +147,7 @@ export default function UrbanOpenLetterPage() {
               href="https://www.smilepolitely.com/opinion/an-outstanding-project-an-outstanding-idea-just-not-here/"
               target="_blank"
               rel="noreferrer"
-              className="underline underline-offset-2"
+              className="underline underline-offset-2 hover:opacity-70"
             >
               here
             </a>
@@ -156,19 +156,19 @@ export default function UrbanOpenLetterPage() {
           <p>
             Opponents will make arguments against this project. Some of these arguments may sound reasonable. None of them hold up.
           </p>
-          <p className="font-semibold">
+          <p className="font-semibold text-[var(--color-primary)]">
             Here is what you will likely hear, and why it doesn't change the math.
           </p>
         </div>
 
         {/* Claims */}
-        <div className="mt-10 space-y-10">
+        <div className="mt-8 space-y-0">
           {claims.map(({ claim, response }, i) => (
-            <section key={i}>
-              <div className="rounded-[4px] border-l-4 border-[var(--color-primary)] bg-white px-5 py-4 shadow-sm">
-                <p className="text-sm font-bold italic text-slate-700">"{claim}"</p>
-              </div>
-              <div className="mt-4 space-y-3 text-base leading-relaxed">
+            <section key={i} className="border-t border-[var(--color-border)] py-6">
+              <p className="rounded-[4px] border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold italic text-slate-600">
+                "{claim}"
+              </p>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700 md:text-base">
                 {response.map((para, j) => (
                   <p key={j}>{para}</p>
                 ))}
@@ -178,9 +178,9 @@ export default function UrbanOpenLetterPage() {
         </div>
 
         {/* Conclusion */}
-        <section className="mt-12 rounded-[4px] border border-[var(--color-border)] bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-extrabold">What this vote actually is</h2>
-          <div className="mt-4 space-y-4 text-base leading-relaxed">
+        <section className="mt-2 border-t border-[var(--color-border)] pt-6">
+          <h2 className="text-xl font-bold">What this vote actually is</h2>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 md:text-base">
             <p>
               Every argument above has a surface logic to it. Taken individually, each one sounds like a reasonable concern raised by a reasonable neighbor.
             </p>
@@ -193,28 +193,26 @@ export default function UrbanOpenLetterPage() {
             <p>
               The council is not choosing between 32 apartments and some ideal development that satisfies every neighbor's aesthetic preferences. It is choosing between 32 new homes and the status quo, which we know isn't working.
             </p>
-            <p className="font-semibold">
+            <p className="font-semibold text-[var(--color-primary)]">
               That is the choice. Tonight, Urbana can make a different one.
             </p>
           </div>
         </section>
 
-        {/* Bio */}
-        <footer className="mt-10 border-t border-[var(--color-border)] pt-6">
+        {/* Bio + back link */}
+        <div className="mt-8 border-t border-[var(--color-border)] pt-6 space-y-4">
           <p className="text-sm italic text-slate-600">
             Jared Fritz is a longtime Champaign-Urbana resident, a lead member of CUrbanism Club, and serves on the Champaign Zoning Board of Appeals.
           </p>
-          <div className="mt-4">
-            <Link
-              href="/writings"
-              className="text-sm font-semibold underline underline-offset-2 hover:opacity-70"
-            >
-              ← Back to Writings
-            </Link>
-          </div>
-        </footer>
+          <Link
+            href="/writings"
+            className="block text-sm font-semibold underline underline-offset-2 hover:opacity-70"
+          >
+            ← Back to Writings
+          </Link>
+        </div>
 
-      </article>
+      </section>
     </SiteShell>
   );
 }
