@@ -2,6 +2,18 @@ import { WritingItem } from "@/lib/content/types";
 
 export const writingSeed: WritingItem[] = [
   {
+    slug: "not-as-glorious",
+    title: "Are our neighborhoods not as glorious?",
+    publicationName: "Smile Politely",
+    publishedAt: "2026-06-08",
+    summary:
+      "Testimony from two Urbana City Council meetings on the West Main Street apartment proposal exposes a pattern in which neighborhoods get asked to absorb housing growth and which ones get shielded from it.",
+    externalUrl:
+      "https://www.smilepolitely.com/opinion/are-our-neighborhoods-not-as-glorious/",
+    thumbnailSrc: "/writings/are-our-neighborhoods-cover-image.jpg",
+    thumbnailFocus: "50% 42%",
+  },
+  {
     slug: "urbana-open-letter",
     title: "An Open Letter to the Urbana City Council",
     publicationName: "Abundant CU",
