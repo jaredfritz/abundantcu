@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ predictions: [], source: "nominatim", error: "Query too long" }, { status: 400 });
   }
 
-  const fallbackQuery = /champaign|urbana/i.test(q) ? q : `${q}, Champaign, IL`;
+  const fallbackQuery = /champaign|urbana|savoy/i.test(q) ? q : `${q}, Champaign, IL`;
   const url =
     `${ENDPOINT}?q=${encodeURIComponent(fallbackQuery)}` +
     "&format=json&addressdetails=1&limit=6&countrycodes=us";

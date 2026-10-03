@@ -150,7 +150,7 @@ export async function autocompleteAddress(query: string): Promise<AddressSuggest
   }
 
   try {
-    const fallbackQuery = /champaign|urbana/i.test(q) ? q : `${q}, Champaign, IL`;
+    const fallbackQuery = /champaign|urbana|savoy/i.test(q) ? q : `${q}, Champaign, IL`;
     const fallbackRes = await fetch(`/api/nominatim/autocomplete?q=${encodeURIComponent(fallbackQuery)}`);
     if (!fallbackRes.ok) return [];
     const payload = await fallbackRes.json();
@@ -183,7 +183,7 @@ export async function geocodeAddress(
 
   /** Fallback: Geocodes an address string using Nominatim, biased toward Champaign IL. */
   // Append city/state if not already present to bias results
-  const fullQuery = /champaign|urbana/i.test(query)
+  const fullQuery = /champaign|urbana|savoy/i.test(query)
     ? query
     : `${query}, Champaign, IL`;
 

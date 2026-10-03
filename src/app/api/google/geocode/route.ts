@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (placeId) {
     params.set("place_id", placeId);
   } else if (query) {
-    const fullQuery = /champaign|urbana/i.test(query) ? query : `${query}, Champaign, IL`;
+    const fullQuery = /champaign|urbana|savoy/i.test(query) ? query : `${query}, Champaign, IL`;
     params.set("address", fullQuery);
     params.set("components", "country:US|locality:Champaign");
   } else {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { booleanPointInPolygon, circle, point } from "@turf/turf";
+import AddressSearch from "@/components/AddressSearch";
 import type { Crash, Crashes, DateRange, LocationReport as Report } from "@/lib/crashes";
 import { datePresets, inDateRange, loadCrashes, loadPlaceBoundaries, locationReport, toCsv } from "@/lib/crashes";
 import { CausesTable } from "./CausesTable";
@@ -50,6 +51,7 @@ export default function LocationReport() {
   const [mode, setMode] = useState<SelectionMode>("place");
   const [range, setRange] = useState<DateRange>({ start: "", end: "" });
   const [center, setCenter] = useState<[number, number] | null>(null);
+  const [centerFocusKey, setCenterFocusKey] = useState(0);
   const [radius, setRadius] = useState(200);
   const [polygon, setPolygon] = useState<[number, number][] | null>(null);
   const [place, setPlace] = useState<string>(DEFAULT_PLACE);
@@ -270,9 +272,26 @@ export default function LocationReport() {
               </div>
             </div>
 
+            {mode === "radius" && (
+              <div className="mt-4 max-w-xl">
+                <p className="mb-2 block text-sm font-medium text-slate-700">Center point</p>
+                <AddressSearch
+                  onResult={(result) => {
+                    setCenter([result.lng, result.lat]);
+                    setCenterFocusKey((key) => key + 1);
+                    clearReport();
+                  }}
+                  onClear={() => {
+                    setCenter(null);
+                    clearReport();
+                  }}
+                />
+              </div>
+            )}
+
             <p className="mt-3 text-xs text-slate-500">
               {mode === "radius"
-                ? "Click on the map to place a center point."
+                ? "Search for an address, or click on the map to place a center point."
                 : mode === "polygon"
                   ? "Click to draw vertices. Double-click to finish."
                   : "Cities use the municipality IDOT records for each crash. Radius and polygon reports include crashes in Champaign, Urbana, and Savoy only."}
@@ -304,6 +323,7 @@ export default function LocationReport() {
                 setPolygon(next);
                 clearReport();
               }}
+              centerFocusKey={centerFocusKey}
               report={report}
               reportRange={reportRange}
             />
