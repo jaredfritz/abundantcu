@@ -164,7 +164,7 @@ export default function DataHubPage() {
         </div>
 
         <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
-          Champaign County
+          Champaign-Urbana
         </h2>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -176,8 +176,8 @@ export default function DataHubPage() {
               <h3 className="text-xl font-bold">Crash Dashboard</h3>
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every reported
-                traffic crash in Champaign County since 2014, mapped, with a report builder for any town, street, or
-                intersection.
+                traffic crash in Champaign, Urbana, and Savoy since 2014, mapped, with a report builder for any city,
+                street, or intersection.
               </p>
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Street design

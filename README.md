@@ -112,7 +112,7 @@ Vercel automatically attaches that authorization header to cron invocations when
 
 ## Crash Dashboard Data
 
-`/data/crashes` (dashboard) and `/data/crashes/location-report` load a static file of Champaign County crashes
+`/data/crashes` (dashboard) and `/data/crashes/location-report` load a static file of crashes in Champaign, Urbana, and Savoy
 built from IDOT's yearly statewide crash layers (https://gis-idot.opendata.arcgis.com), plus Census municipal
 boundaries. Refresh it after IDOT publishes a new year:
 

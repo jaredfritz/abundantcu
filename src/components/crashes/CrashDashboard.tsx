@@ -8,7 +8,9 @@ import { CrashMap } from "./CrashMap";
 import { MetricCards } from "./MetricCards";
 import { TrendChart } from "./TrendChart";
 import {
+  ALL_CITIES,
   cardClass,
+  CityFilter,
   CrashPageHeader,
   DataSourceNote,
   DateRangeControls,
@@ -37,15 +39,25 @@ export default function CrashDashboard() {
       end: searchParams.get("end") ?? fallback.end,
     };
   }, [data, searchParams]);
+  const city = searchParams.get("city") ?? ALL_CITIES;
 
-  const setRange = (next: DateRange) => {
+  const updateParams = (next: { range?: DateRange; city?: string }) => {
+    const nextRange = next.range ?? range;
+    const nextCity = next.city ?? city;
     const params = new URLSearchParams();
-    if (next.start) params.set("start", next.start);
-    if (next.end) params.set("end", next.end);
+    if (nextRange.start) params.set("start", nextRange.start);
+    if (nextRange.end) params.set("end", nextRange.end);
+    if (nextCity !== ALL_CITIES) params.set("city", nextCity);
     router.replace(`${pathname}?${params}`, { scroll: false });
   };
 
-  const filtered = useMemo(() => (data ? data.crashes.filter((crash) => inDateRange(crash, range)) : []), [data, range]);
+  const filtered = useMemo(
+    () =>
+      data
+        ? data.crashes.filter((crash) => inDateRange(crash, range) && (city === ALL_CITIES || crash.city === city))
+        : [],
+    [data, range, city],
+  );
   const stats = useMemo(() => summarize(filtered), [filtered]);
   const interval =
     range.start && range.end && Date.parse(range.end) - Date.parse(range.start) > TWO_YEARS_MS ? "month" : "week";
@@ -54,8 +66,8 @@ export default function CrashDashboard() {
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
       <CrashPageHeader
-        title="Champaign County Crash Dashboard"
-        description="Every reported traffic crash in Champaign County, mapped. Filter by date to see patterns, trends, and where our streets are failing people."
+        title="Champaign-Urbana Crash Dashboard"
+        description="Every reported traffic crash in Champaign, Urbana, and Savoy, mapped. Filter by city and date to see patterns, trends, and where our streets are failing people."
       />
 
       {error && <ErrorBlock message={error} />}
@@ -64,8 +76,9 @@ export default function CrashDashboard() {
 
       {data && (
         <>
-          <div className="mb-6">
-            <DateRangeControls data={data} range={range} onChange={setRange} />
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <CityFilter data={data} value={city} onChange={(next) => updateParams({ city: next })} id="crash-city" />
+            <DateRangeControls data={data} range={range} onChange={(next) => updateParams({ range: next })} />
           </div>
 
           <MetricCards stats={stats} />

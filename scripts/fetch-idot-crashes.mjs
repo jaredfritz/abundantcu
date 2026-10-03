@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Downloads Champaign County crash records from IDOT's statewide crash layers
+// Downloads Champaign, Urbana, and Savoy crash records from IDOT's statewide crash layers
 // (https://gis-idot.opendata.arcgis.com) and writes a compact, columnar JSON
 // file the /data/crashes pages load client-side. Also pulls Census municipal
 // boundaries so the location report can outline the selected place.
@@ -11,6 +11,7 @@ import path from "node:path";
 
 const OUT_DIR = path.join(process.cwd(), "public", "data", "crashes");
 const COUNTY = "Champaign";
+export const CITIES = ["Champaign", "Urbana", "Savoy"];
 const PAGE_SIZE = 2000;
 
 const PORTAL_SEARCH = "https://gis-idot.opendata.arcgis.com/api/search/v1/collections/all/items";
@@ -112,7 +113,7 @@ async function fetchYear(layerUrl) {
   const records = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const params = new URLSearchParams({
-      where: `CrashReportCounty='${COUNTY}'`,
+      where: `CrashReportCounty='${COUNTY}' AND CityName IN (${CITIES.map((city) => `'${city}'`).join(",")})`,
       outFields: Object.values(fields).join(","),
       returnGeometry: "false",
       orderByFields: "OBJECTID",
@@ -267,6 +268,7 @@ async function main() {
       source: "Illinois Department of Transportation, Crashes (statewide crash layers)",
       sourceUrl: "https://gis-idot.opendata.arcgis.com/",
       county: COUNTY,
+      cities: CITIES,
       years,
       perYear,
       generatedAt: new Date().toISOString(),
@@ -274,7 +276,7 @@ async function main() {
     dict,
     cols,
   };
-  await writeFile(path.join(OUT_DIR, "champaign-county-idot.json"), JSON.stringify(dataset));
+  await writeFile(path.join(OUT_DIR, "champaign-urbana-savoy-idot.json"), JSON.stringify(dataset));
   console.log(`Wrote ${all.length.toLocaleString()} crashes for ${years[0]}-${years.at(-1)}.`);
 
   try {

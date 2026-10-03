@@ -9,7 +9,9 @@ import { LocationReportMap, type SelectionMode } from "./LocationReportMap";
 import { ReportStats } from "./ReportStats";
 import { TrendSparklines } from "./TrendSparklines";
 import {
+  ALL_CITIES,
   cardClass,
+  cityLabel,
   CrashPageHeader,
   DataSourceNote,
   DateRangeControls,
@@ -20,8 +22,7 @@ import {
 const MIN_RADIUS = 25;
 const MAX_RADIUS = 10560; // 2 miles
 const FEET_PER_KM = 3280.84;
-const ALL_COUNTY = "__county__";
-const DEFAULT_PLACE = "Champaign";
+const DEFAULT_PLACE = ALL_CITIES;
 
 // Logarithmic slider so small radii around an intersection are easy to pick.
 function sliderToRadius(value: number): number {
@@ -69,17 +70,28 @@ export default function LocationReport() {
     loadPlaceBoundaries().then(setBoundaries);
   }, []);
 
-  const places = useMemo(() => {
-    if (!data) return [];
+  const placeCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const crash of data.crashes) counts.set(crash.city, (counts.get(crash.city) ?? 0) + 1);
-    return [...counts.entries()].filter(([name]) => name).sort((a, b) => b[1] - a[1]);
+    for (const crash of data?.crashes ?? []) counts.set(crash.city, (counts.get(crash.city) ?? 0) + 1);
+    return counts;
   }, [data]);
 
-  const placeBoundary = useMemo(
-    () => boundaries?.features.find((feature) => feature.properties?.name === place) ?? null,
-    [boundaries, place],
-  );
+  // "All" outlines all three cities together.
+  const placeBoundary: GeoJSON.Feature | null = useMemo(() => {
+    const features = (boundaries?.features ?? []).filter(
+      (feature) => place === ALL_CITIES || feature.properties?.name === place,
+    );
+    if (features.length === 0) return null;
+    if (features.length === 1) return features[0];
+    const coordinates = features.flatMap((feature) =>
+      feature.geometry.type === "Polygon"
+        ? [feature.geometry.coordinates]
+        : feature.geometry.type === "MultiPolygon"
+          ? feature.geometry.coordinates
+          : [],
+    );
+    return { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates } };
+  }, [boundaries, place]);
 
   const selectionArea: GeoJSON.Feature | null = useMemo(() => {
     if (mode === "radius" && center) return circle(center, radius / FEET_PER_KM, { steps: 64, units: "kilometers" });
@@ -97,8 +109,8 @@ export default function LocationReport() {
     let matches: (crash: Crash) => boolean;
     let label: string;
     if (mode === "place") {
-      matches = place === ALL_COUNTY ? () => true : (crash) => crash.city === place;
-      label = place === ALL_COUNTY ? "Champaign County" : place;
+      matches = place === ALL_CITIES ? () => true : (crash) => crash.city === place;
+      label = cityLabel(place);
     } else if (selectionArea && selectionArea.geometry.type === "Polygon") {
       const area = selectionArea as GeoJSON.Feature<GeoJSON.Polygon>;
       matches = (crash) =>
@@ -113,7 +125,7 @@ export default function LocationReport() {
     setReportLabel(label);
   }, [data, mode, place, selectionArea, radius, range]);
 
-  // Generate the default report (City of Champaign, latest year) once data has loaded.
+  // Generate the default report (all three cities, latest year) once data has loaded.
   useEffect(() => {
     if (data && range.start && !autoLoaded.current) {
       autoLoaded.current = true;
@@ -153,7 +165,7 @@ export default function LocationReport() {
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
       <CrashPageHeader
         title="Location Crash Report"
-        description="Pick a town, draw an area, or drop a radius around an intersection to get a crash report with estimated costs, causes, and trends."
+        description="Pick a city, draw an area, or drop a radius around an intersection to get a crash report with estimated costs, causes, and trends."
       />
 
       {error && <ErrorBlock message={error} />}
@@ -214,10 +226,12 @@ export default function LocationReport() {
                     }}
                     className="w-full rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-2 text-sm"
                   >
-                    <option value={ALL_COUNTY}>All of Champaign County ({data.crashes.length.toLocaleString()})</option>
-                    {places.map(([name, count]) => (
+                    <option value={ALL_CITIES}>
+                      {cityLabel(ALL_CITIES)} ({data.crashes.length.toLocaleString()})
+                    </option>
+                    {data.meta.cities.map((name) => (
                       <option key={name} value={name}>
-                        {name} ({count.toLocaleString()})
+                        {name} ({(placeCounts.get(name) ?? 0).toLocaleString()})
                       </option>
                     ))}
                   </select>
@@ -261,7 +275,7 @@ export default function LocationReport() {
                 ? "Click on the map to place a center point."
                 : mode === "polygon"
                   ? "Click to draw vertices. Double-click to finish."
-                  : "Places use the municipality IDOT records for each crash."}
+                  : "Cities use the municipality IDOT records for each crash. Radius and polygon reports include crashes in Champaign, Urbana, and Savoy only."}
             </p>
           </div>
 

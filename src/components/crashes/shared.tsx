@@ -104,6 +104,47 @@ export function DateRangeControls({
   );
 }
 
+export const ALL_CITIES = "all";
+
+export function cityLabel(city: string): string {
+  return city === ALL_CITIES ? "Champaign, Urbana & Savoy" : city;
+}
+
+export function CityFilter({
+  data,
+  value,
+  onChange,
+  id,
+  className = "",
+}: {
+  data: Crashes;
+  value: string;
+  onChange: (city: string) => void;
+  id: string;
+  className?: string;
+}) {
+  return (
+    <>
+      <label htmlFor={id} className="sr-only">
+        City
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={`rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm ${className}`}
+      >
+        <option value={ALL_CITIES}>{cityLabel(ALL_CITIES)}</option>
+        {data.meta.cities.map((city) => (
+          <option key={city} value={city}>
+            {city}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+}
+
 export function CrashPopup({ crash }: { crash: Crash }) {
   const location = [crash.street, crash.crossStreet].filter(Boolean).join(" & ");
   return (
@@ -138,7 +179,8 @@ export function DataSourceNote({ data }: { data: Crashes }) {
         <a href={data.meta.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
           Illinois Department of Transportation crash data
         </a>
-        , Champaign County, {years[0]}–{years.at(-1)}. IDOT publishes each year once it is complete, so recent months
+        , City of Champaign, City of Urbana, and Village of Savoy, {years[0]}–{years.at(-1)}. Crashes are assigned to a
+        city using the municipality IDOT records for each crash. IDOT publishes each year once it is complete, so recent months
         may be missing. Pedestrian and bicycle counts use IDOT&apos;s &ldquo;type of first crash&rdquo;. Street names are
         only included in IDOT&apos;s data from 2025 on. Crashes are only reported above Illinois&apos; property-damage
         threshold, so minor crashes may not be included.

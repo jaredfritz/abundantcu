@@ -2,7 +2,7 @@
 // Aggregations mirror the Chicago Crash Dashboard API (github.com/MisterClean/chicago-crashes-pipeline),
 // limited to what IDOT's public crash records contain.
 
-export const CRASH_DATA_URL = "/data/crashes/champaign-county-idot.json";
+export const CRASH_DATA_URL = "/data/crashes/champaign-urbana-savoy-idot.json";
 export const CRASH_PLACES_URL = "/data/crashes/places.geojson";
 
 export type Severity = "K" | "A" | "B" | "C" | "O";
@@ -12,6 +12,7 @@ export interface CrashDataset {
     source: string;
     sourceUrl: string;
     county: string;
+    cities: string[];
     years: number[];
     perYear: Record<string, number>;
     generatedAt: string;
