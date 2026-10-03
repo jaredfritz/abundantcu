@@ -109,3 +109,18 @@ Vercel automatically attaches that authorization header to cron invocations when
 
 - The original map app is preserved separately and reused here.
 - This launch intentionally keeps analytics and lead infrastructure light.
+
+## Crash Dashboard Data
+
+`/data/crashes` (dashboard) and `/data/crashes/location-report` load a static file of crashes in Champaign, Urbana, and Savoy
+built from IDOT's yearly statewide crash layers (https://gis-idot.opendata.arcgis.com), plus Census municipal
+boundaries. Refresh it after IDOT publishes a new year:
+
+```bash
+npm run data:crashes            # all available years, 2014 on
+npm run data:crashes -- --from=2020 --to=2025
+```
+
+Output goes to `public/data/crashes/`. The pages are adapted from the MIT-licensed
+[Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline); see
+`src/components/crashes/LICENSE-chicago-crash-dashboard.txt`.
