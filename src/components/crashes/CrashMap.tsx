@@ -99,6 +99,9 @@ export function CrashMap({ crashes }: { crashes: Crash[] }) {
       </div>
 
       <div className="absolute bottom-8 left-3 rounded-[4px] bg-white/90 p-3 shadow-md backdrop-blur-sm">
+        <p className="mb-1.5 border-b border-slate-200 pb-1.5 text-[11px] text-slate-500">
+          {geojson.features.length.toLocaleString()} crashes mapped
+        </p>
         <p className="mb-2 text-xs font-semibold">{config.label}</p>
         <div className="space-y-1">
           {config.legend.map((item) => {
@@ -122,9 +125,6 @@ export function CrashMap({ crashes }: { crashes: Crash[] }) {
         </div>
       </div>
 
-      <div className="absolute left-3 top-3 rounded-[4px] bg-white/90 px-3 py-2 shadow-md backdrop-blur-sm">
-        <span className="text-sm font-medium">{geojson.features.length.toLocaleString()} crashes mapped</span>
-      </div>
     </div>
   );
 }
