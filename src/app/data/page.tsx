@@ -172,6 +172,15 @@ export default function DataHubPage() {
             href="/data/crashes"
             className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/crash-dashboard-thumbnail.png"
+                alt="Map of 2025 traffic crashes in Champaign and Urbana, colored by severity"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Crash Dashboard</h3>
               <p className="mt-3 text-sm text-slate-700">
