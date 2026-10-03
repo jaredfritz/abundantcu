@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export:maps": "node scripts/export-print-maps.mjs"
+    "export:maps": "node scripts/export-print-maps.mjs",
+    "data:crashes": "node scripts/fetch-idot-crashes.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",
@@ -23,6 +24,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-map-gl": "^8.1.0",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {

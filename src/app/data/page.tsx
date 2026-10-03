@@ -162,6 +162,34 @@ export default function DataHubPage() {
             </div>
           </Link>
         </div>
+
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
+          Champaign County
+        </h2>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <Link
+            href="/data/crashes"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Crash Dashboard</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every reported
+                traffic crash in Champaign County since 2014, mapped, with a report builder for any town, street, or
+                intersection.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Street design
+                decides who gets hurt. Knowing where people are injured and killed is the first step to fixing those
+                streets.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Crash Data
+              </span>
+            </div>
+          </Link>
+        </div>
       </section>
     </SiteShell>
   );
