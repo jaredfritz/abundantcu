@@ -82,6 +82,25 @@ export function LocationReportMap({
     );
   }, [centerFocusKey]);
 
+  // When a radius or polygon report is generated, fit the map to the area, leaving room for the stats panel.
+  useEffect(() => {
+    const map = mapRef.current;
+    const area = selectionAreaRef.current;
+    if (!map || !report || mode === "place" || !area) return;
+    const [minX, minY, maxX, maxY] = bbox(area);
+    map.fitBounds(
+      [
+        [minX, minY],
+        [maxX, maxY],
+      ],
+      {
+        padding: { top: 40, bottom: 40, right: 50, left: window.innerWidth >= 640 ? 250 : 40 },
+        duration: 1000,
+        maxZoom: 18,
+      },
+    );
+  }, [report, mode]);
+
   // Zoom to a place when it is picked from the dropdown, or to the report's crashes when it has no boundary.
   useEffect(() => {
     const map = mapRef.current;
