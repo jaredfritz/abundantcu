@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ result: null, error: "Query too long" }, { status: 400 });
   }
 
-  const fullQuery = /champaign|urbana/i.test(query) ? query : `${query}, Champaign, IL`;
+  const fullQuery = /champaign|urbana|savoy/i.test(query) ? query : `${query}, Champaign, IL`;
   const url =
     `${ENDPOINT}?q=${encodeURIComponent(fullQuery)}` +
     "&format=json&limit=1&countrycodes=us&viewbox=-88.4,40.0,-88.1,40.25&bounded=0";

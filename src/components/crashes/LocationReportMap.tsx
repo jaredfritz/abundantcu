@@ -34,6 +34,8 @@ interface LocationReportMapProps {
   selectedCenter: [number, number] | null;
   onCenterSelect: (center: [number, number]) => void;
   onPolygonComplete: (polygon: [number, number][]) => void;
+  /** Increments when the radius center is set from an address search, so the map zooms to it. */
+  centerFocusKey: number;
   report: LocationReport | null;
   reportRange: DateRange | null;
 }
@@ -44,6 +46,7 @@ export function LocationReportMap({
   selectedCenter,
   onCenterSelect,
   onPolygonComplete,
+  centerFocusKey,
   report,
   reportRange,
 }: LocationReportMapProps) {
@@ -60,6 +63,24 @@ export function LocationReportMap({
   }, [report]);
 
   const crashes = useMemo(() => (report ? toGeoJSON(report.crashes) : EMPTY), [report]);
+
+  const selectionAreaRef = useRef(selectionArea);
+  selectionAreaRef.current = selectionArea;
+
+  // Zoom to the radius circle when its center comes from an address search (map clicks don't move the map).
+  useEffect(() => {
+    const map = mapRef.current;
+    const area = selectionAreaRef.current;
+    if (!map || centerFocusKey === 0 || !area) return;
+    const [minX, minY, maxX, maxY] = bbox(area);
+    map.fitBounds(
+      [
+        [minX, minY],
+        [maxX, maxY],
+      ],
+      { padding: 60, duration: 1000, maxZoom: 17 },
+    );
+  }, [centerFocusKey]);
 
   // Zoom to a place when it is picked from the dropdown, or to the report's crashes when it has no boundary.
   useEffect(() => {
