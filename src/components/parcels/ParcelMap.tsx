@@ -13,38 +13,51 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { Parcel, Parcels } from "@/lib/parcels";
 import {
   areaFilter,
+  binsFor,
   colorExpression,
   CU_VIEW_STATE,
   heightExpression,
   MAX_ZOOM,
   metricConfig,
   MIN_ZOOM,
-  NO_DATA_COLOR,
+  NO_DATA_PATTERN,
+  NO_DATA_SWATCH,
+  noDataHatchImage,
   PARCEL_BASEMAP,
   VACANT_OUTLINE_COLOR,
   VIEW_3D,
+  type ColorScale,
   type ParcelMetric,
 } from "@/lib/parcelMapStyles";
+import { formatMoney } from "@/lib/parcels";
 import { ParcelPopup } from "./ParcelPopup";
 
 interface ParcelMapProps {
   data: Parcels;
   metric: ParcelMetric;
+  scale: ColorScale;
+  /** Area average of the metric (per taxable acre), used by the "vs. area average" scale */
+  average: number | null;
   cities: string[] | null;
   bounds: [number, number, number, number] | null;
   is3D: boolean;
   showVacant: boolean;
 }
 
-const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion"];
+const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-data"];
 
-export function ParcelMap({ data, metric, cities, bounds, is3D, showVacant }: ParcelMapProps) {
+export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, showVacant }: ParcelMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<{ parcel: Parcel; lngLat: [number, number] } | null>(null);
   const config = metricConfig(metric);
   const filter = useMemo(() => areaFilter(cities), [cities]);
-  const color = useMemo(() => colorExpression(config), [config]);
+  const bins = useMemo(() => binsFor(config, scale, average), [config, scale, average]);
+  const isAverageScale = bins !== config.bins;
+  const color = useMemo(() => colorExpression(config, bins), [config, bins]);
+  const hasValue = ["has", config.field];
+  const valueFilter = ["all", filter, hasValue];
+  const noDataFilter = ["all", filter, ["!", hasValue]];
   const height = useMemo(() => heightExpression(config), [config]);
 
   // Camera moves are ignored until the map has loaded, so wait for it before fitting the area.
@@ -87,15 +100,26 @@ export function ParcelMap({ data, metric, cities, bounds, is3D, showVacant }: Pa
         mapStyle={PARCEL_BASEMAP}
         interactiveLayerIds={INTERACTIVE_LAYERS}
         onClick={handleClick}
-        onLoad={() => setLoaded(true)}
+        onLoad={(event) => {
+          if (!event.target.hasImage(NO_DATA_PATTERN)) event.target.addImage(NO_DATA_PATTERN, noDataHatchImage());
+          setLoaded(true);
+        }}
         cursor="pointer"
       >
         <NavigationControl position="top-right" visualizePitch />
         <Source id="parcels" type="geojson" data={data.geojson} tolerance={0.25}>
+          {loaded && (
+            <Layer
+              id="parcels-no-data"
+              type="fill"
+              filter={noDataFilter as never}
+              paint={{ "fill-pattern": NO_DATA_PATTERN, "fill-opacity": 0.8 }}
+            />
+          )}
           <Layer
             id="parcels-fill"
             type="fill"
-            filter={filter as never}
+            filter={valueFilter as never}
             layout={{ visibility: is3D ? "none" : "visible" }}
             paint={{ "fill-color": color as never, "fill-opacity": 0.85 }}
           />
@@ -110,7 +134,7 @@ export function ParcelMap({ data, metric, cities, bounds, is3D, showVacant }: Pa
           <Layer
             id="parcels-extrusion"
             type="fill-extrusion"
-            filter={filter as never}
+            filter={valueFilter as never}
             layout={{ visibility: is3D ? "visible" : "none" }}
             paint={{
               "fill-extrusion-color": color as never,
@@ -150,16 +174,19 @@ export function ParcelMap({ data, metric, cities, bounds, is3D, showVacant }: Pa
       </Map>
 
       <div className="absolute bottom-8 left-3 max-w-[220px] rounded-[4px] bg-white/90 p-3 shadow-md backdrop-blur-sm">
-        <p className="mb-2 text-xs font-semibold">{config.label}</p>
-        <div className="space-y-1">
-          {[...config.bins].reverse().map((bin) => (
+        <p className="text-xs font-semibold">{config.label}</p>
+        {isAverageScale && average !== null && (
+          <p className="text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
+        )}
+        <div className="mt-2 space-y-1">
+          {[...bins].reverse().map((bin) => (
             <div key={bin.label} className="flex items-center gap-2">
-              <span className="h-3 w-4 rounded-[2px]" style={{ backgroundColor: bin.color }} />
+              <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: bin.color }} />
               <span className="text-xs text-slate-700">{bin.label}</span>
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <span className="h-3 w-4 rounded-[2px]" style={{ backgroundColor: NO_DATA_COLOR }} />
+            <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
             <span className="text-xs text-slate-700">{config.noDataLabel}</span>
           </div>
           {showVacant && (

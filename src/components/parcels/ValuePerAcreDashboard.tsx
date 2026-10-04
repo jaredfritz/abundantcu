@@ -15,7 +15,14 @@ import {
   loadParcels,
   summarize,
 } from "@/lib/parcels";
-import { MAP_METRICS, metricConfig, type ParcelMetric } from "@/lib/parcelMapStyles";
+import {
+  COLOR_SCALES,
+  MAP_METRICS,
+  metricConfig,
+  supportsAverageScale,
+  type ColorScale,
+  type ParcelMetric,
+} from "@/lib/parcelMapStyles";
 import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared";
 import { LandUseTable } from "./LandUseTable";
 import { ParcelMap } from "./ParcelMap";
@@ -40,14 +47,18 @@ export default function ValuePerAcreDashboard() {
   const metric = (MAP_METRICS.some((m) => m.id === searchParams.get("metric"))
     ? searchParams.get("metric")
     : "value") as ParcelMetric;
+  const scale: ColorScale = searchParams.get("scale") === "average" ? "average" : "bands";
   const is3D = searchParams.get("view") === "3d";
   const showVacant = searchParams.get("vacant") === "1";
 
-  const updateParams = (next: Partial<{ area: string; metric: ParcelMetric; is3D: boolean; showVacant: boolean }>) => {
-    const state = { area, metric, is3D, showVacant, ...next };
+  const updateParams = (
+    next: Partial<{ area: string; metric: ParcelMetric; scale: ColorScale; is3D: boolean; showVacant: boolean }>,
+  ) => {
+    const state = { area, metric, scale, is3D, showVacant, ...next };
     const params = new URLSearchParams();
     if (state.area !== CU_METRO) params.set("area", state.area);
     if (state.metric !== "value") params.set("metric", state.metric);
+    if (state.scale !== "bands") params.set("scale", state.scale);
     if (state.is3D) params.set("view", "3d");
     if (state.showVacant) params.set("vacant", "1");
     const query = params.toString();
@@ -59,6 +70,9 @@ export default function ValuePerAcreDashboard() {
   const cities = useMemo(() => areaCities(area), [area]);
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
   const config = metricConfig(metric);
+  // The "vs. area average" scale compares each parcel to the selected area's value (or tax) per taxable acre.
+  const average =
+    summary.taxableAcres > 0 ? (metric === "tax" ? summary.tax : summary.value) / summary.taxableAcres : null;
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -114,6 +128,26 @@ export default function ValuePerAcreDashboard() {
               ))}
             </div>
 
+            {supportsAverageScale(config) && (
+              <>
+                <label htmlFor="parcel-scale" className="sr-only">
+                  Color scale
+                </label>
+                <select
+                  id="parcel-scale"
+                  value={scale}
+                  onChange={(event) => updateParams({ scale: event.target.value as ColorScale })}
+                  className="rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm"
+                >
+                  {COLOR_SCALES.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      Color: {option.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
             <div className="flex gap-1.5" role="group" aria-label="Map view">
               <button type="button" aria-pressed={!is3D} onClick={() => updateParams({ is3D: false })} className={toggleClass(!is3D)}>
                 2D
@@ -142,10 +176,19 @@ export default function ValuePerAcreDashboard() {
                 {config.label} · {areaLabel(area)}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                {config.description} Click any parcel for details.
+                {config.description}{" "}
+                {scale === "average" && supportsAverageScale(config) && average !== null
+                  ? `Red parcels produce less per acre than the ${areaLabel(area)} average of ${formatMoney(average, { compact: true })}; blue parcels produce more. `
+                  : ""}
+                Click any parcel for details.
               </p>
             </div>
-            <ParcelMap data={data} metric={metric} cities={cities} bounds={bounds} is3D={is3D} showVacant={showVacant} />
+            <ParcelMap
+              data={data}
+              metric={metric}
+              scale={scale}
+              average={average}
+              cities={cities} bounds={bounds} is3D={is3D} showVacant={showVacant} />
           </div>
 
           <div className={`${cardClass} mt-8 p-4 md:p-6`}>
@@ -203,7 +246,7 @@ function MethodologyNote({ data }: { data: Parcels }) {
         not its sale price, so farm values here are far below market. <strong>Property tax</strong> is EAV times the
         parcel&apos;s {meta.taxYear} tax code rate, before homestead and other exemptions, so it overstates bills for
         owner-occupied homes. <strong>Land share</strong> uses the assessor&apos;s land and building split. Exempt
-        property (government, schools, churches, the University) has no assessed value and is shown in gray.
+        property (government, schools, churches, the University) has no assessed value and is shown with gray hatching.
         Condominium units in one building are combined so the building&apos;s value sits on its land once. Wind and solar
         lease areas drawn over farm parcels are left out to avoid double counting.
       </p>
