@@ -13,11 +13,23 @@
 // Output: public/data/parcels/champaign-county-parcels.json, a compact columnar file with
 // delta-encoded geometry that the page decodes client-side.
 //
-// Usage: npm run data:parcels [-- --rate-book=<pdf url>] [-- --skip-addresses]
+// Usage: npm run data:parcels [-- --rate-book=<pdf url>] [-- --skip-addresses] [-- --cache=<dir>]
+//   --cache saves downloaded parcels and addresses to <dir> and reuses them on later runs (for development).
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { booleanPointInPolygon } from "@turf/turf";
+import {
+  area as turfArea,
+  bbox as turfBbox,
+  booleanPointInPolygon,
+  buffer,
+  convex,
+  difference,
+  featureCollection,
+  multiPolygon,
+  point,
+  union,
+} from "@turf/turf";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const OUT_DIR = path.join(process.cwd(), "public", "data", "parcels");
@@ -56,6 +68,14 @@ const PARCEL_FIELDS = [
 const LEASE_PARCEL_TYPE = 3;
 // TaxParcelType 1 polygons are condominium units; units in one building share the same footprint.
 const CONDO_PARCEL_TYPE = 1;
+// Condo and townhome units are drawn as building footprints only: the shared land around them (lawns,
+// drives, parking) isn't a separate parcel. Units within this distance of each other are grouped into
+// one development.
+const CONDO_CLUSTER_METERS = 15;
+// Margin added around a development's buildings to approximate its drives and yards. The result is
+// trimmed so it never overlaps a neighboring parcel.
+const CONDO_MARGIN_METERS = 8;
+const SQ_FT_PER_SQ_M = 10.7639;
 
 function parseArgs() {
   return Object.fromEntries(
@@ -351,6 +371,135 @@ class Dictionary {
   }
 }
 
+const mostCommon = (values) => {
+  const counts = new Map();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+};
+
+// turf's union needs at least two shapes.
+const unionAll = (shapes) => (shapes.length === 1 ? shapes[0] : union(featureCollection(shapes)));
+
+const bboxesOverlap = (a, b) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+
+function polygonsOfFeature(feature) {
+  const geometry = feature?.geometry;
+  if (!geometry) return [];
+  return geometry.type === "Polygon" ? [geometry.coordinates] : geometry.type === "MultiPolygon" ? geometry.coordinates : [];
+}
+
+/**
+ * A development's approximate site: the outline around its buildings plus a margin, trimmed against
+ * neighboring parcels and against developments already built. Polygon clipping occasionally fails on
+ * degenerate shapes, so each step is guarded: a neighbor that can't be subtracted is skipped, and null
+ * means the whole site failed.
+ */
+function developmentSite(memberShapes, obstacles) {
+  try {
+    const footprints = unionAll(memberShapes);
+    const corners = memberShapes.flatMap((shape) =>
+      shape.geometry.coordinates.flatMap((rings) => rings[0].map((coord) => point(coord))),
+    );
+    let site = buffer(convex(featureCollection(corners)) ?? footprints, CONDO_MARGIN_METERS, { units: "meters" });
+    const siteBox = turfBbox(site);
+    for (const obstacle of obstacles) {
+      if (!site || !bboxesOverlap(siteBox, obstacle.box)) continue;
+      try {
+        site = difference(featureCollection([site, obstacle.shape])) ?? site;
+      } catch {
+        // Skip a neighbor whose shape can't be clipped cleanly.
+      }
+    }
+    // Never lose the buildings themselves, even where a neighbor's mapped edge overlaps them.
+    try {
+      return unionAll([site, footprints]);
+    } catch {
+      return site;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/** Group condo units whose footprints come within CONDO_CLUSTER_METERS of each other (union-find on boxes). */
+function clusterUnits(boxes) {
+  const padLat = CONDO_CLUSTER_METERS / 111_000;
+  const padLon = CONDO_CLUSTER_METERS / 85_000; // ~cos(40°) at Champaign's latitude
+  const parent = boxes.map((_, index) => index);
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const cell = 0.002;
+  const grid = new Map();
+  boxes.forEach((box, i) => {
+    for (let gx = Math.floor((box[0] - padLon) / cell); gx <= Math.floor((box[2] + padLon) / cell); gx += 1) {
+      for (let gy = Math.floor((box[1] - padLat) / cell); gy <= Math.floor((box[3] + padLat) / cell); gy += 1) {
+        const key = `${gx},${gy}`;
+        for (const j of grid.get(key) ?? []) {
+          const other = boxes[j];
+          const near =
+            box[0] - padLon <= other[2] && other[0] <= box[2] + padLon && box[1] - padLat <= other[3] && other[1] <= box[3] + padLat;
+          if (near) parent[find(i)] = find(j);
+        }
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(i);
+      }
+    }
+  });
+  const clusters = new Map();
+  boxes.forEach((_, i) => {
+    const root = find(i);
+    if (!clusters.has(root)) clusters.set(root, []);
+    clusters.get(root).push(i);
+  });
+  return [...clusters.values()];
+}
+
+/**
+ * Replace condo and townhome unit footprints with one approximate development parcel each: the
+ * outline around the development's buildings plus a margin, trimmed against neighboring parcels,
+ * carrying the units' combined value. Without this, each unit's value sits on just its footprint
+ * and condos look several times more valuable per acre than they are.
+ */
+function buildCondoDevelopments(parcels) {
+  const condos = parcels.filter((parcel) => parcel.condo);
+  const others = parcels.filter((parcel) => !parcel.condo);
+  const obstacles = others.map((parcel) => {
+    const shape = multiPolygon(parcel.polygons);
+    return { shape, box: turfBbox(shape) };
+  });
+
+  const shapes = condos.map((parcel) => multiPolygon(parcel.polygons));
+  const developments = [];
+  const fallback = [];
+  for (const members of clusterUnits(shapes.map((shape) => turfBbox(shape)))) {
+    const memberParcels = members.map((index) => condos[index]);
+    const site = developmentSite(members.map((index) => shapes[index]), obstacles);
+    if (!site) {
+      // Geometry failed (rare, degenerate shapes): keep these units as plain footprints.
+      fallback.push(...memberParcels);
+      continue;
+    }
+    // Later developments are trimmed against this one so no land is counted twice.
+    obstacles.push({ shape: site, box: turfBbox(site) });
+    const eavs = memberParcels.map((parcel) => parcel.eav);
+    developments.push({
+      pins: memberParcels.flatMap((parcel) => parcel.pins),
+      condo: true,
+      development: true,
+      taxCode: mostCommon(memberParcels.map((parcel) => parcel.taxCode)),
+      useCode: mostCommon(memberParcels.map((parcel) => parcel.useCode)),
+      exempt: memberParcels.every((parcel) => parcel.exempt),
+      eav: eavs.every((eav) => eav === null) ? null : eavs.reduce((sum, eav) => sum + (eav ?? 0), 0),
+      land: memberParcels.reduce((sum, parcel) => sum + parcel.land, 0),
+      building: memberParcels.reduce((sum, parcel) => sum + parcel.building, 0),
+      area: turfArea(site) * SQ_FT_PER_SQ_M,
+      polygons: polygonsOfFeature(site),
+    });
+  }
+
+  if (fallback.length) console.warn(`  ${fallback.length} condo units kept as footprints (geometry error)`);
+  return { parcels: [...others, ...developments, ...fallback], developments: developments.length };
+}
+
 function buildParcels(features, { codes }, addresses, places) {
   // Merge polygons that share a PIN (parcels split by roads or rail are drawn as several pieces).
   const byPin = new Map();
@@ -407,8 +556,12 @@ function buildParcels(features, { codes }, addresses, places) {
     stack.exempt &&= parcel.exempt;
   }
 
+  const { parcels: withDevelopments, developments } = buildCondoDevelopments(parcels);
+  parcels.length = 0;
+  parcels.push(...withDevelopments);
+
   const dicts = { useCode: new Dictionary(), city: new Dictionary(), taxCode: new Dictionary() };
-  const cols = { pin: [], address: [], units: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
+  const cols = { pin: [], address: [], units: [], condoDev: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
   const missingTaxCodes = new Set();
 
   for (const parcel of parcels) {
@@ -419,6 +572,7 @@ function buildParcels(features, { codes }, addresses, places) {
     cols.pin.push(pin);
     cols.address.push(parcel.pins.map((p) => addresses.get(p)).find(Boolean) ?? "");
     cols.units.push(parcel.pins.length);
+    cols.condoDev.push(parcel.development ? 1 : 0);
     cols.useCode.push(dicts.useCode.id(parcel.useCode));
     // Tax codes carry the municipality. A code created after the rate book was published falls back
     // to the Census place boundary the parcel sits in.
@@ -445,6 +599,7 @@ function buildParcels(features, { codes }, addresses, places) {
       leaseDropped,
       mergedPins: byPin.size,
       condoStacks: [...stacks.values()].filter((stack) => stack.pins.length > 1).length,
+      condoDevelopments: developments,
       parcels: parcels.length,
     },
   };
@@ -454,8 +609,23 @@ async function main() {
   const args = parseArgs();
   await mkdir(OUT_DIR, { recursive: true });
 
+  const cached = async (name, load) => {
+    if (!args.cache) return load();
+    const file = path.join(args.cache, name);
+    try {
+      const value = JSON.parse(await readFile(file, "utf8"));
+      console.log(`  using cached ${file}`);
+      return value;
+    } catch {
+      const value = await load();
+      await mkdir(args.cache, { recursive: true });
+      await writeFile(file, JSON.stringify(value));
+      return value;
+    }
+  };
+
   console.log("Fetching assessed parcels...");
-  const features = await fetchParcels();
+  const features = await cached("parcels.json", fetchParcels);
 
   const rateBookUrl = args["rate-book"] ?? (await findRateBookUrl());
   console.log(`Reading tax rates from ${rateBookUrl}`);
@@ -466,7 +636,7 @@ async function main() {
   if (args["skip-addresses"] !== "true") {
     console.log("Fetching site addresses...");
     try {
-      addresses = await fetchAddresses();
+      addresses = new Map(await cached("addresses.json", async () => [...(await fetchAddresses()).entries()]));
     } catch (error) {
       console.warn(`  Skipped addresses: ${error.message}`);
     }

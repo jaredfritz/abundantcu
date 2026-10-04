@@ -24,6 +24,8 @@ interface ParcelDataset {
     pin: string[];
     address: string[];
     units: number[];
+    /** 1 when the parcel is a reconstructed condo/townhome development (approximate area) */
+    condoDev: number[];
     useCode: number[];
     city: number[];
     taxCode: number[];
@@ -53,6 +55,8 @@ export interface Parcel {
   pin: string;
   address: string;
   units: number;
+  /** A condo or townhome development whose area is reconstructed, not a surveyed parcel */
+  condoDevelopment: boolean;
   useCode: string;
   landUse: LandUse;
   /** Set for vacant parcels: which kind of vacant land the assessor classes it as */
@@ -224,6 +228,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
       pin: cols.pin[i],
       address: cols.address[i],
       units: cols.units[i],
+      condoDevelopment: cols.condoDev?.[i] === 1,
       useCode,
       landUse: landUseFor(useCode, exempt),
       vacantType: exempt ? null : vacantTypeFor(useCode),
