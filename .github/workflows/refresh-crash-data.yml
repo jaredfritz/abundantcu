@@ -1,0 +1,51 @@
+# Monthly check for new crash data from IDOT and CCRPC's crash dashboard.
+# Rebuilds public/data/crashes/ and data/ccrpc/crash-points.json, and opens a pull request
+# only when either source changed, so updates are reviewed before they go live.
+name: Refresh crash data
+
+on:
+  schedule:
+    - cron: "17 14 3 * *" # 3rd of each month, 14:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-crash-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download IDOT crashes and refresh the CCRPC snapshot
+        run: npm run data:crashes -- --refresh-ccrpc
+
+      - name: Open a pull request if anything changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automated/refresh-crash-data
+          delete-branch: true
+          commit-message: Refresh crash data from IDOT and CCRPC
+          title: Refresh crash data from IDOT and CCRPC
+          add-paths: |
+            public/data/crashes/
+            data/ccrpc/
+          body: |
+            The monthly crash data check found changes in IDOT's crash layers or CCRPC's crash dashboard.
+
+            - `public/data/crashes/` is what the crash dashboard and location report load.
+            - `data/ccrpc/crash-points.json` is the saved copy of CCRPC's crash points; its diff shows exactly what CCRPC changed.
+
+            Check the workflow log for per-year crash counts and CCRPC match rates before merging.

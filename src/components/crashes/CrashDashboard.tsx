@@ -3,12 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Crashes, DateRange } from "@/lib/crashes";
-import { datePresets, inDateRange, loadCrashes, summarize, trends } from "@/lib/crashes";
+import {
+  ALL_PLACES,
+  ccrpcNote,
+  ccrpcRange,
+  datePresets,
+  inDateRange,
+  loadCrashes,
+  matchesPlace,
+  rangeForPlace,
+  summarize,
+  trends,
+  UNIVERSITY_DISTRICT,
+} from "@/lib/crashes";
 import { CrashMap } from "./CrashMap";
 import { MetricCards } from "./MetricCards";
 import { TrendChart } from "./TrendChart";
 import {
-  ALL_CITIES,
   cardClass,
   CityFilter,
   CrashPageHeader,
@@ -39,7 +50,9 @@ export default function CrashDashboard() {
       end: searchParams.get("end") ?? fallback.end,
     };
   }, [data, searchParams]);
-  const city = searchParams.get("city") ?? ALL_CITIES;
+  const city = searchParams.get("city") ?? ALL_PLACES;
+  // University District data only exists for CCRPC's years, so its counts and trends use those years.
+  const effectiveRange = useMemo(() => (data ? rangeForPlace(data, city, range) : range), [data, city, range]);
 
   const updateParams = (next: { range?: DateRange; city?: string }) => {
     const nextRange = next.range ?? range;
@@ -47,21 +60,23 @@ export default function CrashDashboard() {
     const params = new URLSearchParams();
     if (nextRange.start) params.set("start", nextRange.start);
     if (nextRange.end) params.set("end", nextRange.end);
-    if (nextCity !== ALL_CITIES) params.set("city", nextCity);
+    if (nextCity !== ALL_PLACES) params.set("city", nextCity);
     router.replace(`${pathname}?${params}`, { scroll: false });
   };
 
   const filtered = useMemo(
     () =>
       data
-        ? data.crashes.filter((crash) => inDateRange(crash, range) && (city === ALL_CITIES || crash.city === city))
+        ? data.crashes.filter((crash) => inDateRange(crash, effectiveRange) && matchesPlace(crash, city))
         : [],
-    [data, range, city],
+    [data, effectiveRange, city],
   );
   const stats = useMemo(() => summarize(filtered), [filtered]);
   const interval =
-    range.start && range.end && Date.parse(range.end) - Date.parse(range.start) > TWO_YEARS_MS ? "month" : "week";
-  const trendData = useMemo(() => trends(filtered, range, interval), [filtered, range, interval]);
+    effectiveRange.start && effectiveRange.end && Date.parse(effectiveRange.end) - Date.parse(effectiveRange.start) > TWO_YEARS_MS
+      ? "month"
+      : "week";
+  const trendData = useMemo(() => trends(filtered, effectiveRange, interval), [filtered, effectiveRange, interval]);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -81,7 +96,11 @@ export default function CrashDashboard() {
             <DateRangeControls data={data} range={range} onChange={(next) => updateParams({ range: next })} />
           </div>
 
-          <MetricCards stats={stats} />
+          {city === UNIVERSITY_DISTRICT && (
+            <UniversityNote data={data} />
+          )}
+
+          <MetricCards stats={stats} heavyNote={ccrpcNote(data, effectiveRange, stats.heavyVehicleKnown)} />
 
           <div className={`${cardClass} mt-8 p-6`}>
             <h2 className="mb-4 text-xl font-semibold">{interval === "week" ? "Weekly" : "Monthly"} Trends</h2>
@@ -99,3 +118,15 @@ export default function CrashDashboard() {
     </section>
   );
 }
+
+function UniversityNote({ data }: { data: Crashes }) {
+  const range = ccrpcRange(data);
+  if (!range) return null;
+  return (
+    <p className="mb-4 text-xs text-slate-600">
+      University District crashes come from CCRPC&apos;s crash dashboard and are only available for{" "}
+      {range.start.slice(0, 4)}–{range.end.slice(0, 4)}.
+    </p>
+  );
+}
+

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Crash, Crashes, DatePreset, DateRange } from "@/lib/crashes";
-import { datePresets } from "@/lib/crashes";
+import { ALL_PLACES, datePresets, placeLabel, UNIVERSITY_DISTRICT } from "@/lib/crashes";
 
 export const cardClass = "rounded-[4px] border border-[var(--color-border)] bg-white";
 
@@ -104,10 +104,21 @@ export function DateRangeControls({
   );
 }
 
-export const ALL_CITIES = "all";
-
-export function cityLabel(city: string): string {
-  return city === ALL_CITIES ? "Champaign, Urbana & Savoy" : city;
+/** Place filter options: all three cities, each city, and the University District when CCRPC data is present. */
+export function placeOptions(data: Crashes): { value: string; label: string }[] {
+  const ccrpcYears = data.meta.ccrpc?.years ?? [];
+  return [
+    { value: ALL_PLACES, label: placeLabel(ALL_PLACES) },
+    ...data.meta.cities.map((city) => ({ value: city, label: city })),
+    ...(ccrpcYears.length
+      ? [
+          {
+            value: UNIVERSITY_DISTRICT,
+            label: `${placeLabel(UNIVERSITY_DISTRICT)} (${ccrpcYears[0]}–${ccrpcYears.at(-1)})`,
+          },
+        ]
+      : []),
+  ];
 }
 
 export function CityFilter({
@@ -119,14 +130,14 @@ export function CityFilter({
 }: {
   data: Crashes;
   value: string;
-  onChange: (city: string) => void;
+  onChange: (place: string) => void;
   id: string;
   className?: string;
 }) {
   return (
     <>
       <label htmlFor={id} className="sr-only">
-        City
+        Place
       </label>
       <select
         id={id}
@@ -134,10 +145,9 @@ export function CityFilter({
         onChange={(event) => onChange(event.target.value)}
         className={`rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm ${className}`}
       >
-        <option value={ALL_CITIES}>{cityLabel(ALL_CITIES)}</option>
-        {data.meta.cities.map((city) => (
-          <option key={city} value={city}>
-            {city}
+        {placeOptions(data).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -163,6 +173,8 @@ export function CrashPopup({ crash }: { crash: Crash }) {
         {crash.aInjuries > 0 && <p className="text-orange-600">{crash.aInjuries} incapacitating injuries</p>}
         {crash.injuries > 0 && <p className="text-yellow-700">{crash.injuries} total injuries</p>}
         {crash.hitAndRun && <p className="font-medium text-purple-600">Hit and run</p>}
+        {crash.heavyVehicle && <p className="font-medium text-cyan-700">Heavy vehicle involved</p>}
+        {crash.universityDistrict && <p className="text-slate-500">University District</p>}
         {crash.crashType && <p className="text-slate-500">{crash.crashType}</p>}
         {crash.cause && <p className="text-slate-500">Cause: {crash.cause}</p>}
       </div>
@@ -185,6 +197,18 @@ export function DataSourceNote({ data }: { data: Crashes }) {
         only included in IDOT&apos;s data from 2025 on. Crashes are only reported above Illinois&apos; property-damage
         threshold, so minor crashes may not be included.
       </p>
+      {data.meta.ccrpc && (
+        <p>
+          Heavy-vehicle and University District fields come from the{" "}
+          <a href={data.meta.ccrpc.source} target="_blank" rel="noopener noreferrer" className="underline">
+            Champaign County Regional Planning Commission&apos;s crash dashboard
+          </a>{" "}
+          ({data.meta.ccrpc.years[0]}–{data.meta.ccrpc.years.at(-1)}), which is built from the same IDOT crashes.
+          CCRPC doesn&apos;t publish crash IDs, so its records were matched to IDOT&apos;s by year, city, injuries,
+          crash type, cause, and location ({data.meta.ccrpc.matched.toLocaleString()} of{" "}
+          {data.meta.ccrpc.ccrpcCrashes.toLocaleString()} matched). Other years show these fields as not available.
+        </p>
+      )}
       <p>
         Adapted from the open-source{" "}
         <a
