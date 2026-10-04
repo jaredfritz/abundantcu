@@ -48,7 +48,8 @@ export default function ValuePerAcreDashboard() {
     ? searchParams.get("metric")
     : "value") as ParcelMetric;
   const scale: ColorScale = searchParams.get("scale") === "average" ? "average" : "bands";
-  const is3D = searchParams.get("view") === "3d";
+  // 3D is the default: height makes the gap between city cores and the rest of town clearest.
+  const is3D = searchParams.get("view") !== "2d";
   const showVacant = searchParams.get("vacant") === "1";
 
   const updateParams = (
@@ -59,7 +60,7 @@ export default function ValuePerAcreDashboard() {
     if (state.area !== CU_METRO) params.set("area", state.area);
     if (state.metric !== "value") params.set("metric", state.metric);
     if (state.scale !== "bands") params.set("scale", state.scale);
-    if (state.is3D) params.set("view", "3d");
+    if (!state.is3D) params.set("view", "2d");
     if (state.showVacant) params.set("vacant", "1");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });

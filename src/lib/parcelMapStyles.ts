@@ -1,7 +1,7 @@
 // Map styling for /data/value-per-acre. Breaks and extrusion heights are adapted from Strong Towns
 // Chicago's scales.js and rescaled for Champaign County, where values run lower than Chicago's.
-// Chicago's red-to-green ramp is replaced with colorblind-safe ramps whose lightness runs in one
-// direction, plus an optional red/blue scale centered on the selected area's average.
+// Chicago's red-to-green ramp is replaced with colorblind-safe continuous gradients whose lightness
+// runs in one direction, plus an optional red/blue scale centered on the selected area's average.
 
 export const PARCEL_BASEMAP = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
@@ -60,10 +60,11 @@ const VALUE_HEIGHTS: [number, number][] = [
   [200_000_000, 2000],
 ];
 
-// Multi-hue sequential ramp (after matplotlib's "magma"): pale yellow (low) to near-black purple (high).
-// Lightness falls steadily, so order survives color blindness and grayscale. The two darkest anchors
-// give city cores ($5M-$25M+ per acre) their own range instead of sharing one top color.
-const MAGMA = ["#fcf3b0", "#fbb447", "#f47a3b", "#df405a", "#a82873", "#641a7a", "#3a0f5e", "#14061f"];
+// Multi-hue sequential ramp (after ColorBrewer YlGnBu): pale yellow (low) through green and teal to
+// navy (high). Lightness falls steadily, so order survives color blindness and grayscale. Its middle,
+// where most neighborhoods sit, is a calm green-teal rather than an alarming red, and the two darkest
+// anchors give city cores ($5M-$25M+ per acre) their own range.
+const VALUE_RAMP = ["#fde98f", "#a8d99a", "#6cc4ad", "#3aa6bc", "#2483bd", "#255fa6", "#223c83", "#0d2259"];
 // Diverging ramp for "vs. area average" (after ColorBrewer RdBu): red below, blue above, neutral at average.
 const AVERAGE_COLORS = ["#a50f26", "#d6604d", "#f4a582", "#ece9e1", "#7fb6d9", "#3b86c0", "#1a4f8f"];
 // Single-hue ramp for land share, light (low) to dark (high).
@@ -82,7 +83,7 @@ export const MAP_METRICS: MetricConfig[] = [
     stops: anchors(
       [100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 25_000_000],
       ["$100k or less", "$250k", "$500k", "$1M", "$2M", "$5M", "$10M", "$25M or more"],
-      MAGMA,
+      VALUE_RAMP,
     ),
     logScale: true,
     heightField: "vpa",
@@ -97,7 +98,7 @@ export const MAP_METRICS: MetricConfig[] = [
     stops: anchors(
       [2_500, 6_000, 12_000, 25_000, 50_000, 125_000, 250_000, 600_000],
       ["$2.5k or less", "$6k", "$12k", "$25k", "$50k", "$125k", "$250k", "$600k or more"],
-      MAGMA,
+      VALUE_RAMP,
     ),
     logScale: true,
     heightField: "tpa",

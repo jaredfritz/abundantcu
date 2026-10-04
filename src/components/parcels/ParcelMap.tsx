@@ -47,6 +47,8 @@ interface ParcelMapProps {
   showVacant: boolean;
 }
 
+const THREE_D_ZOOM_BOOST = 0.9;
+
 const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-data"];
 
 export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, showVacant }: ParcelMapProps) {
@@ -73,7 +75,13 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   // Camera moves are ignored until the map has loaded, so wait for it before fitting the area.
   useEffect(() => {
     if (!loaded || !bounds) return;
-    mapRef.current?.fitBounds(bounds, { padding: 40, duration: 800, maxZoom: 15, ...(is3D ? VIEW_3D : {}) });
+    const map = mapRef.current;
+    if (!map) return;
+    const camera = map.cameraForBounds(bounds, { padding: 40, maxZoom: 15 });
+    if (!camera) return;
+    // A tilted view makes a fitted area look small and far away, so move in closer in 3D.
+    const zoom = (camera.zoom ?? CU_VIEW_STATE.zoom) + (is3D ? THREE_D_ZOOM_BOOST : 0);
+    map.easeTo({ ...camera, zoom, ...(is3D ? VIEW_3D : { pitch: 0, bearing: 0 }), duration: 800 });
     // Only refit when the area changes, not when toggling 3D.
   }, [loaded, bounds]);
 
