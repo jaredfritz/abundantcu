@@ -24,7 +24,6 @@ export interface CrashDataset {
       heavyVehicle: number;
       universityDistrict: number;
     } | null;
-    generatedAt: string;
   };
   dict: Record<"type" | "cause" | "city" | "street" | "light" | "weather" | "surface", string[]>;
   cols: Record<

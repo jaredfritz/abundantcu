@@ -2,15 +2,18 @@
 // Downloads Champaign, Urbana, and Savoy crash records from IDOT's statewide crash layers
 // (https://gis-idot.opendata.arcgis.com) and writes a compact, columnar JSON
 // file the /data/crashes pages load client-side. Also pulls Census municipal
-// boundaries so the location report can outline the selected place.
+// boundaries so the location report can outline the selected place, and adds CCRPC's
+// heavy-vehicle and University District fields from a saved snapshot (see ccrpc-supplement.mjs).
 //
-// Usage: npm run data:crashes [-- --from=2014 --to=2025]
+// Usage: npm run data:crashes [-- --from=2014 --to=2025] [-- --refresh-ccrpc]
+//   --refresh-ccrpc  re-download CCRPC's crash points into data/ccrpc/crash-points.json first
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { addCcrpcFields } from "./ccrpc-supplement.mjs";
+import { applyCcrpcSnapshot, fetchCcrpcSnapshot } from "./ccrpc-supplement.mjs";
 
 const OUT_DIR = path.join(process.cwd(), "public", "data", "crashes");
+const CCRPC_SNAPSHOT = path.join(process.cwd(), "data", "ccrpc", "crash-points.json");
 const COUNTY = "Champaign";
 export const CITIES = ["Champaign", "Urbana", "Savoy"];
 const PAGE_SIZE = 2000;
@@ -59,6 +62,7 @@ function parseArgs() {
   return {
     from: args.from ? Number(args.from) : 2014,
     to: args.to ? Number(args.to) : Number.POSITIVE_INFINITY,
+    refreshCcrpc: args["refresh-ccrpc"] === "true",
   };
 }
 
@@ -266,8 +270,42 @@ async function fetchPlaces() {
   return getJson(`${TIGER_PLACES}?${params}`);
 }
 
+// One crash per line, so a refreshed snapshot shows a readable diff in review.
+function serializeSnapshot(snapshot) {
+  const geographies = Object.entries(snapshot.geographies).map(([geography, byYear]) => {
+    const years = Object.entries(byYear).map(
+      ([y, rows]) => `    ${JSON.stringify(y)}: [\n${rows.map((row) => `      ${JSON.stringify(row)}`).join(",\n")}\n    ]`,
+    );
+    return `  ${JSON.stringify(geography)}: {\n${years.join(",\n")}\n  }`;
+  });
+  const header = { source: snapshot.source, columns: snapshot.columns, years: snapshot.years };
+  return `${JSON.stringify(header).slice(0, -1)},\n"geographies": {\n${geographies.join(",\n")}\n}}\n`;
+}
+
+// Reads the saved CCRPC snapshot, or downloads a fresh one with --refresh-ccrpc.
+// A failed refresh keeps the saved copy; a missing snapshot leaves the CCRPC fields unavailable.
+async function loadCcrpcSnapshot(refresh) {
+  if (refresh) {
+    try {
+      const snapshot = await fetchCcrpcSnapshot({ cities: CITIES, getJson });
+      await mkdir(path.dirname(CCRPC_SNAPSHOT), { recursive: true });
+      await writeFile(CCRPC_SNAPSHOT, serializeSnapshot(snapshot));
+      console.log(`Saved CCRPC snapshot (${snapshot.years.join(", ")}) to ${path.relative(process.cwd(), CCRPC_SNAPSHOT)}.`);
+      return snapshot;
+    } catch (error) {
+      console.warn(`CCRPC refresh failed, using the saved snapshot: ${error.message}`);
+    }
+  }
+  try {
+    return JSON.parse(await readFile(CCRPC_SNAPSHOT, "utf8"));
+  } catch {
+    console.warn("No CCRPC snapshot found; heavy-vehicle and University District fields will be unavailable.");
+    return null;
+  }
+}
+
 async function main() {
-  const { from, to } = parseArgs();
+  const { from, to, refreshCcrpc } = parseArgs();
   await mkdir(OUT_DIR, { recursive: true });
 
   const layers = await findYearLayers();
@@ -290,17 +328,15 @@ async function main() {
   }
 
   let ccrpc = null;
-  try {
-    ccrpc = await addCcrpcFields(all, {
+  const snapshot = await loadCcrpcSnapshot(refreshCcrpc);
+  if (snapshot) {
+    ccrpc = applyCcrpcSnapshot(all, snapshot, {
       cities: CITIES,
-      getJson,
       int,
       year: (record) => Math.floor(crashDay(record) / 10000),
       lat: (record) => crashPoint(record)?.lat ?? null,
       lon: (record) => crashPoint(record)?.lon ?? null,
     });
-  } catch (error) {
-    console.warn(`Skipped CCRPC heavy-vehicle and University District fields: ${error.message}`);
   }
 
   const { dict, cols } = encode(all);
@@ -313,7 +349,6 @@ async function main() {
       years,
       perYear,
       ccrpc,
-      generatedAt: new Date().toISOString(),
     },
     dict,
     cols,

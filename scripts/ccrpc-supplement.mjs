@@ -4,8 +4,9 @@
 // no crash IDs, so records are matched on year, city, injuries, crash type, cause, and
 // location (within 10 m), with weather/lighting/surface breaking ties.
 //
-// The data comes from the dashboard's own data endpoint, which CCRPC doesn't document,
-// so every step fails soft: crashes CCRPC doesn't cover are left unknown.
+// The data comes from the dashboard's own data endpoint, which CCRPC doesn't document, so it is
+// downloaded only on request (--refresh-ccrpc) into data/ccrpc/crash-points.json, and normal builds
+// read that saved copy. Crashes the snapshot doesn't cover are left unknown.
 
 const DASH = "https://crashdashboard.ccrpc.org";
 const MAX_MATCH_METERS = 10;
@@ -130,20 +131,47 @@ function matchPoints(points, records, { year, lat, lon, int }) {
   return matched;
 }
 
+// Snapshot rows are compact arrays in this column order.
+const ROW = ["lat", "lon", "city", "fatalities", "injuries", "crashType", "cause", "weather", "light", "surface", "heavy"];
+const toRow = (point) => ROW.map((key) => (key === "heavy" ? Number(point.heavy) : point[key]));
+const fromRow = (row, year) => ({ year, ...Object.fromEntries(ROW.map((key, i) => [key, row[i]])), heavy: row[10] === 1 });
+
 /**
- * Sets record.heavyVehicle and record.universityDistrict (true/false) on IDOT records CCRPC covers;
- * records it doesn't cover are left without them. Returns a summary for the dataset's metadata.
+ * Downloads every crash point CCRPC's dashboard maps for the given cities and the University District,
+ * for every year it offers. The result is saved in the repo so builds don't depend on CCRPC's site.
  */
-export async function addCcrpcFields(records, { cities, getJson, year, lat, lon, int }) {
+export async function fetchCcrpcSnapshot({ cities, getJson }) {
   const years = await dashboardYears(getJson);
-  const summary = { source: `${DASH}/`, years, ccrpcCrashes: 0, matched: 0, heavyVehicle: 0, universityDistrict: 0 };
+  const geographies = {};
+  for (const geography of [...cities, "University"]) {
+    geographies[geography] = {};
+    for (const y of years) {
+      geographies[geography][y] = (await dashboardPoints(getJson, geography, y)).map(toRow);
+    }
+    console.log(`CCRPC ${geography}: ${years.map((y) => geographies[geography][y].length).join(", ")} crashes (${years.join(", ")})`);
+  }
+  return { source: `${DASH}/`, columns: ROW, years, geographies };
+}
+
+/**
+ * Sets record.heavyVehicle and record.universityDistrict (true/false) on IDOT records the CCRPC snapshot
+ * covers; records it doesn't cover are left without them. Returns a summary for the dataset's metadata.
+ */
+export function applyCcrpcSnapshot(records, snapshot, { cities, year, lat, lon, int }) {
+  const summary = {
+    source: snapshot.source,
+    years: snapshot.years,
+    ccrpcCrashes: 0,
+    matched: 0,
+    heavyVehicle: 0,
+    universityDistrict: 0,
+  };
   const helpers = { year, lat, lon, int };
 
-  for (const y of years) {
+  for (const y of snapshot.years) {
     const yearRecords = records.filter((record) => year(record) === y && lat(record) !== null);
 
-    const cityPoints = [];
-    for (const city of cities) cityPoints.push(...(await dashboardPoints(getJson, city, y)));
+    const cityPoints = cities.flatMap((city) => (snapshot.geographies[city]?.[y] ?? []).map((row) => fromRow(row, y)));
     const cityMatches = matchPoints(cityPoints, yearRecords, helpers);
     summary.ccrpcCrashes += cityPoints.length;
     summary.matched += cityMatches.size;
@@ -153,7 +181,7 @@ export async function addCcrpcFields(records, { cities, getJson, year, lat, lon,
       if (record.heavyVehicle) summary.heavyVehicle += 1;
     }
 
-    const universityPoints = await dashboardPoints(getJson, "University", y);
+    const universityPoints = (snapshot.geographies.University?.[y] ?? []).map((row) => fromRow(row, y));
     for (const record of matchPoints(universityPoints, yearRecords, helpers).values()) {
       record.universityDistrict = true;
       summary.universityDistrict += 1;
