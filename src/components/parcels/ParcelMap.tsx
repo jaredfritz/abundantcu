@@ -115,10 +115,13 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
       >
         <NavigationControl position="top-right" visualizePitch />
         <Source id="parcels" type="geojson" data={data.geojson} tolerance={0.25}>
+          {/* Added after load (it needs the hatch image), so pin it below the parcel layers;
+              otherwise MapLibre appends it on top and it draws over the 3D extrusions. */}
           {loaded && (
             <Layer
               id="parcels-no-data"
               type="fill"
+              beforeId="parcels-fill"
               filter={noDataFilter as never}
               paint={{ "fill-pattern": NO_DATA_PATTERN, "fill-opacity": 0.8 }}
             />
@@ -153,6 +156,8 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
           <Layer
             id="parcels-vacant"
             type="line"
+            // Below the extrusions, so in 3D the outlines sit on the ground behind taller parcels.
+            beforeId="parcels-extrusion"
             filter={["all", filter, ["==", ["get", "use"], "Vacant"]] as never}
             layout={{ visibility: showVacant ? "visible" : "none" }}
             paint={{
@@ -215,7 +220,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
               {showVacant && (
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-4 rounded-[2px] border-2" style={{ borderColor: VACANT_OUTLINE_COLOR }} />
-                  <span className="text-xs text-slate-700">Vacant land</span>
+                  <span className="text-xs text-slate-700">Vacant land{is3D ? " (clearest in 2D)" : ""}</span>
                 </div>
               )}
             </div>
