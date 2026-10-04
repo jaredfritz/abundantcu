@@ -149,8 +149,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             paint={{
               "fill-extrusion-color": color as never,
               "fill-extrusion-height": height as never,
-              // Fully opaque: MapLibre depth-sorts extrusions, so lower opacity only lets parcels behind show through.
-              "fill-extrusion-opacity": 1,
+              "fill-extrusion-opacity": 0.9,
             }}
           />
           <Layer
