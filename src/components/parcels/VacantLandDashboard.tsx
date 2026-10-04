@@ -15,11 +15,12 @@ import {
   formatPin,
   inArea,
   loadParcels,
-  titleCaseAddress,
+  displayAddress,
 } from "@/lib/parcels";
 import { summarizeVacant, vacantTypeConfig, VACANT_TYPES, type VacantSummary } from "@/lib/vacant";
 import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared";
-import { AreaSelect, ParcelPageHeader } from "./shared";
+import { ParcelSearch } from "./ParcelSearch";
+import { AreaSelect, areaForParcel, ParcelPageHeader, useParcelRanks } from "./shared";
 import { VacantLandMap } from "./VacantLandMap";
 
 const th = "px-2 py-3 text-xs font-medium uppercase tracking-wider text-slate-500";
@@ -48,7 +49,11 @@ export default function VacantLandDashboard() {
   const cities = useMemo(() => areaCities(area), [area]);
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
 
+  const rankFor = useParcelRanks(filtered);
+
   const showOnMap = (parcel: Parcel) => {
+    const nextArea = areaForParcel(parcel, area);
+    if (nextArea !== area) setArea(nextArea);
     setFocus({ parcel, key: Date.now() });
     mapSection.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -67,6 +72,7 @@ export default function VacantLandDashboard() {
       {data && (
         <>
           <div className="mb-6 flex flex-wrap items-center gap-3">
+            <ParcelSearch data={data} onSelect={showOnMap} />
             <AreaSelect data={data} value={area} onChange={setArea} />
           </div>
 
@@ -79,7 +85,14 @@ export default function VacantLandDashboard() {
                 Vacant parcels by type. Everything else is shown in gray for context. Click any parcel for details.
               </p>
             </div>
-            <VacantLandMap data={data} cities={cities} bounds={bounds} focus={focus} />
+            <VacantLandMap
+              data={data}
+              cities={cities}
+              bounds={bounds}
+              focus={focus}
+              rankFor={rankFor}
+              areaName={areaLabel(area)}
+            />
           </div>
 
           <div className={`${cardClass} mt-8 p-4 md:p-6`}>
@@ -214,7 +227,7 @@ function LargestTable({
               >
                 <td className="px-2 py-2 text-sm">
                   <button type="button" onClick={() => onSelect(parcel)} className="text-left font-medium hover:underline">
-                    {parcel.address ? titleCaseAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`}
+                    {parcel.address ? displayAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`}
                   </button>
                   <span className="block text-xs text-slate-500">{parcel.city}</span>
                 </td>

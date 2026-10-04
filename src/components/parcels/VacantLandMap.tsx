@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Layer, NavigationControl, Popup, Source, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronDown } from "lucide-react";
-import type { Parcel, Parcels } from "@/lib/parcels";
+import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
+import { boundsOfParcel } from "@/lib/parcels";
 import { areaFilter, CU_VIEW_STATE, MAX_ZOOM, MIN_ZOOM, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
 import { OTHER_PARCEL_COLOR, VACANT_TYPES } from "@/lib/vacant";
 import { ParcelPopup } from "./ParcelPopup";
@@ -16,27 +17,14 @@ interface VacantLandMapProps {
   bounds: [number, number, number, number] | null;
   /** A parcel picked from the table: the map flies to it and opens its popup. `key` lets a repeat pick refire. */
   focus: { parcel: Parcel; key: number } | null;
+  rankFor: (parcel: Parcel) => ParcelRanks | null;
+  areaName: string;
 }
 
 const VACANT_COLOR = ["match", ["get", "vac"], ...VACANT_TYPES.flatMap((type) => [type.id, type.color]), "#000000"];
 
-function parcelBounds(data: Parcels, parcel: Parcel): [number, number, number, number] {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const polygon of data.geojson.features[parcel.index].geometry.coordinates) {
-    for (const [x, y] of polygon[0]) {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  return [minX, minY, maxX, maxY];
-}
 
-export function VacantLandMap({ data, cities, bounds, focus }: VacantLandMapProps) {
+export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName }: VacantLandMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [legendOpen, setLegendOpen] = useState(true);
@@ -56,7 +44,7 @@ export function VacantLandMap({ data, cities, bounds, focus }: VacantLandMapProp
 
   useEffect(() => {
     if (!loaded || !focus) return;
-    const box = parcelBounds(data, focus.parcel);
+    const box = boundsOfParcel(data, focus.parcel);
     mapRef.current?.fitBounds(box, { padding: 120, maxZoom: 17, duration: 900 });
     setSelected({ parcel: focus.parcel, lngLat: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] });
   }, [loaded, focus, data, setSelected]);
@@ -119,7 +107,12 @@ export function VacantLandMap({ data, cities, bounds, focus }: VacantLandMapProp
             maxWidth="300px"
             offset={8}
           >
-            <ParcelPopup parcel={selected.parcel} taxYear={data.meta.taxYear} />
+            <ParcelPopup
+              parcel={selected.parcel}
+              taxYear={data.meta.taxYear}
+              ranks={rankFor(selected.parcel)}
+              areaName={areaName}
+            />
           </Popup>
         )}
       </Map>

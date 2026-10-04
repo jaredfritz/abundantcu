@@ -1,11 +1,11 @@
-import type { Parcel } from "@/lib/parcels";
+import type { Parcel, ParcelRanks } from "@/lib/parcels";
 import {
   countyParcelUrl,
   formatAcres,
   formatMoney,
   formatPin,
   propertyClassLabel,
-  titleCaseAddress,
+  displayAddress,
 } from "@/lib/parcels";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -17,8 +17,19 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: number | null }) {
-  const title = parcel.address ? titleCaseAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`;
+export function ParcelPopup({
+  parcel,
+  taxYear,
+  ranks,
+  areaName,
+}: {
+  parcel: Parcel;
+  taxYear: number | null;
+  /** Rounded percentiles against comparable parcels in the selected area */
+  ranks?: ParcelRanks | null;
+  areaName?: string;
+}) {
+  const title = parcel.address ? displayAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`;
   const taxNote = parcel.exempt
     ? "Exempt"
     : parcel.taxRate === null
@@ -50,6 +61,16 @@ export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: numb
         <Row label="Class" value={propertyClassLabel(parcel.useCode)} />
         {parcel.tif && <Row label="TIF district" value={parcel.tif.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bTif\b/, "TIF")} />}
       </dl>
+      {ranks && (
+        <dl className="mt-1.5 border-t border-slate-200 pt-1.5">
+          <p className="mb-0.5 text-[11px] text-slate-500">Compared with taxable parcels in {areaName}</p>
+          <Row label="Value per acre" value={ranks.valuePerAcre} />
+          <Row label="Total value" value={ranks.value} />
+        </dl>
+      )}
+      {!parcel.address && (
+        <p className="mt-1.5 text-[11px] leading-snug text-slate-500">No site address in the county&apos;s records.</p>
+      )}
       {parcel.condoDevelopment && (
         <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
           Approximate area: the shared land around condo and townhome buildings isn&apos;t a separate parcel, so it&apos;s

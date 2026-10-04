@@ -11,7 +11,8 @@ import Map, {
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronDown } from "lucide-react";
-import type { Parcels } from "@/lib/parcels";
+import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
+import { boundsOfParcel } from "@/lib/parcels";
 import {
   areaFilter,
   colorExpression,
@@ -46,13 +47,17 @@ interface ParcelMapProps {
   cities: string[] | null;
   bounds: [number, number, number, number] | null;
   is3D: boolean;
+  /** A parcel picked from search: the map flies to it and opens its popup. `key` lets a repeat pick refire. */
+  focus: { parcel: Parcel; key: number } | null;
+  rankFor: (parcel: Parcel) => ParcelRanks | null;
+  areaName: string;
 }
 
 const THREE_D_ZOOM_BOOST = 0.9;
 
 const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-data"];
 
-export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D }: ParcelMapProps) {
+export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, focus, rankFor, areaName }: ParcelMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [legendOpen, setLegendOpen] = useState(true);
@@ -94,6 +99,13 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D }
     appliedIs3D.current = is3D;
     mapRef.current?.easeTo(is3D ? VIEW_3D : { pitch: 0, bearing: 0 }, { duration: 800 });
   }, [loaded, is3D]);
+
+  useEffect(() => {
+    if (!loaded || !focus) return;
+    const box = boundsOfParcel(data, focus.parcel);
+    mapRef.current?.fitBounds(box, { padding: 120, maxZoom: 17, duration: 900 });
+    setSelected({ parcel: focus.parcel, lngLat: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] });
+  }, [loaded, focus, data, setSelected]);
 
   const selectedFilter = ["==", ["get", "i"], selected?.parcel.index ?? -1];
 
@@ -171,7 +183,12 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D }
             maxWidth="300px"
             offset={8}
           >
-            <ParcelPopup parcel={selected.parcel} taxYear={data.meta.taxYear} />
+            <ParcelPopup
+              parcel={selected.parcel}
+              taxYear={data.meta.taxYear}
+              ranks={rankFor(selected.parcel)}
+              areaName={areaName}
+            />
           </Popup>
         )}
       </Map>
