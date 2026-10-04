@@ -83,6 +83,33 @@ split is already in the data, so a first version could show:
 - the percent change by land use
 - the percent change by neighborhood
 
+### Surface parking (deferred)
+
+Add surface parking lots to the Vacant Land page and as an optional overlay on the value map. The
+assessor has no parking class: lots are classed as improved commercial, the same as the business they
+serve. So the data has to come from elsewhere. Options checked so far, best first:
+
+1. **OpenStreetMap:** parking lots traced as polygons tagged `amenity=parking` + `parking=surface`.
+   Free, with attribution. The ODbL share-alike terms only matter if we offer the data as a download.
+   C-U coverage hasn't been checked yet. That needs `overpass-api.de` on the cloud environment's
+   allowlist.
+2. **City of Champaign stormwater impervious-area data:** the stormwater utility fee is billed by
+   impervious area, so the City likely has detailed pavement polygons. They're behind a login on the
+   City's GIS server, so ask for them alongside the CCGISC licensing email.
+3. **The site's community parking map:** accurate but limited to downtown Champaign. Merge it where it
+   overlaps with another source.
+
+Not recommended: inferring parking from assessments (for example, commercial parcels whose land is
+most of their value). That also catches car lots, gas stations and big lawns, so calling it "parking"
+wouldn't be factual.
+
+Planned presentation once there's data:
+- a "Surface parking" category on the Vacant Land page, with a show/hide toggle, an acreage card, and
+  a parking-only view with its own largest-lots table
+- an optional parking outline on the value map in 2D, off by default
+- a source note saying the data is from OpenStreetMap (or the City), may miss lots, and isn't from the
+  assessor
+
 ### Other ideas
 
 - **"Who pays for what" comparisons:** curated callouts, for example a downtown block vs. a big-box
@@ -90,8 +117,6 @@ split is already in the data, so a first version could show:
   could produce these.
 - **Neighborhood and corridor summaries:** aggregate value per acre by neighborhood, census tract,
   or a drawn area, like the crash location report.
-- **Parking overlay:** combine with the community parking map to quantify how much tax base surface
-  parking produces downtown.
 - **Change over time:** once we have history, map assessment growth per acre. Where is value
   growing, and is it where the city allows growth?
 - **Infrastructure cost side:** pair revenue per acre with the cost to serve (lane-miles of street,
