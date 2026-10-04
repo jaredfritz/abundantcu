@@ -12,6 +12,10 @@ export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 18;
 
 export const VACANT_OUTLINE_COLOR = "#e34948";
+// Farmland is assessed on what it can produce, not on market value, so it sits outside the value scale
+// in a neutral tan rather than reading as the lowest-value developed land.
+export const FARM_COLOR = "#d8c8a0";
+export const FARM_LABEL = "Farmland (assessed on productivity, not market value)";
 // Exempt parcels and parcels without an assessment get a gray diagonal hatch, so they never read
 // as a value on any color scale (including the neutral midpoint of the "vs. average" scale).
 export const NO_DATA_PATTERN = "parcel-no-data-hatch";
@@ -165,6 +169,8 @@ export function colorExpression(metric: MetricConfig, stops: Stop[] = metric.sto
     // No-data parcels are drawn by their own hatched layer; this color only applies in 3D, where they stay flat.
     ["!", ["has", metric.field]],
     "#d4d4d4",
+    ["==", ["get", "use"], "Farm"],
+    FARM_COLOR,
     ["interpolate-lab", ["linear"], input, ...stops.flatMap((stop) => [position(stop.value, metric.logScale), stop.color])],
   ];
 }

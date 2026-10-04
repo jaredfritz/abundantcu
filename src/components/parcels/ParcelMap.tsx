@@ -16,6 +16,8 @@ import {
   areaFilter,
   colorExpression,
   CU_VIEW_STATE,
+  FARM_COLOR,
+  FARM_LABEL,
   heightExpression,
   legendGradient,
   legendPositions,
@@ -214,7 +216,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
         {legendOpen && (
           <div id="parcel-legend" className="px-3 pb-3">
             {isAverageScale && average !== null && (
-              <p className="-mt-1 text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
+              <p className="-mt-1 text-[11px] text-slate-500">Area average, excluding farmland: {formatMoney(average, { compact: true })}</p>
             )}
             <div className="mt-2 flex gap-2">
               <span
@@ -240,6 +242,10 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
               <div className="flex items-center gap-2">
                 <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
                 <span className="text-xs text-slate-700">{config.noDataLabel}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: FARM_COLOR }} />
+                <span className="text-xs text-slate-700">{FARM_LABEL}</span>
               </div>
               {showVacant && (
                 <div className="flex items-center gap-2">
