@@ -71,14 +71,14 @@ export default function ValuePerAcreDashboard() {
   const cities = useMemo(() => areaCities(area), [area]);
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
   const config = metricConfig(metric);
-  // The "vs. area average" scale compares each parcel to the selected area's value (or tax) per taxable acre.
+  // The "vs. area average" scale compares each parcel to the selected area's value per taxable acre.
   // Farmland is left out of the baseline, since it's assessed on productivity rather than market value.
   const average = useMemo(() => {
     const farm = summary.byLandUse.find((group) => group.landUse === "Farm");
     const acres = summary.taxableAcres - (farm?.acres ?? 0);
-    const total = metric === "tax" ? summary.tax - (farm?.tax ?? 0) : summary.value - (farm?.value ?? 0);
+    const total = summary.value - (farm?.value ?? 0);
     return acres > 0 ? total / acres : null;
-  }, [summary, metric]);
+  }, [summary]);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
