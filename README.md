@@ -124,3 +124,27 @@ npm run data:crashes -- --from=2020 --to=2025
 Output goes to `public/data/crashes/`. The pages are adapted from the MIT-licensed
 [Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline); see
 `src/components/crashes/LICENSE-chicago-crash-dashboard.txt`.
+
+## Value Per Acre Data
+
+`/data/value-per-acre` maps property value and estimated property tax per acre for every parcel in Champaign County,
+with filters for each municipality. It loads a static file built from:
+
+- parcel boundaries and assessments: the City of Champaign's public `TaxParcels_Assessed` layer (Champaign County GIS
+  Consortium data)
+- tax rates by tax code, and each tax code's municipality: the Champaign County Clerk's latest rate book PDF
+- site addresses: the county property tax inquiry's township search export (owner names are discarded)
+
+Refresh it after new assessments or a new rate book are published (takes about 3 minutes):
+
+```bash
+npm run data:parcels
+npm run data:parcels -- --rate-book=<pdf url>   # pin a specific rate book
+npm run data:parcels -- --skip-addresses
+```
+
+In a proxied environment, run with `NODE_USE_ENV_PROXY=1` so Node's `fetch` uses the proxy.
+
+Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-licensed
+[Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre); see
+`src/components/parcels/LICENSE-chicago-value-per-acre.txt`.

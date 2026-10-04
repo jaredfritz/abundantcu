@@ -198,6 +198,36 @@ export default function DataHubPage() {
               </span>
             </div>
           </Link>
+
+          <Link
+            href="/data/value-per-acre"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/value-per-acre-thumbnail.png"
+                alt="3D map of property value per acre in Champaign, with tall spikes downtown and in Campustown"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Value Per Acre</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Property value and
+                property tax per acre for every parcel in Champaign County, with filters for each city and a 3D view.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Compact, walkable
+                blocks carry far more of the tax base per acre than parking lots, strip development, and vacant land, and
+                they cost less to serve.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Value Per Acre
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
     </SiteShell>
