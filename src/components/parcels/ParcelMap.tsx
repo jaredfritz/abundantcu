@@ -14,10 +14,13 @@ import { ChevronDown } from "lucide-react";
 import type { Parcel, Parcels } from "@/lib/parcels";
 import {
   areaFilter,
-  binsFor,
   colorExpression,
   CU_VIEW_STATE,
+  FARM_COLOR,
+  FARM_LABEL,
   heightExpression,
+  legendGradient,
+  legendPositions,
   MAX_ZOOM,
   metricConfig,
   MIN_ZOOM,
@@ -25,6 +28,7 @@ import {
   NO_DATA_SWATCH,
   noDataHatchImage,
   PARCEL_BASEMAP,
+  stopsFor,
   VACANT_OUTLINE_COLOR,
   VIEW_3D,
   type ColorScale,
@@ -45,6 +49,8 @@ interface ParcelMapProps {
   showVacant: boolean;
 }
 
+const THREE_D_ZOOM_BOOST = 0.9;
+
 const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-data"];
 
 export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, showVacant }: ParcelMapProps) {
@@ -59,9 +65,10 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   const [selected, setSelected] = useState<{ parcel: Parcel; lngLat: [number, number] } | null>(null);
   const config = metricConfig(metric);
   const filter = useMemo(() => areaFilter(cities), [cities]);
-  const bins = useMemo(() => binsFor(config, scale, average), [config, scale, average]);
-  const isAverageScale = bins !== config.bins;
-  const color = useMemo(() => colorExpression(config, bins), [config, bins]);
+  const stops = useMemo(() => stopsFor(config, scale, average), [config, scale, average]);
+  const isAverageScale = stops !== config.stops;
+  const color = useMemo(() => colorExpression(config, stops), [config, stops]);
+  const positions = useMemo(() => legendPositions(stops), [stops]);
   const hasValue = ["has", config.field];
   const valueFilter = ["all", filter, hasValue];
   const noDataFilter = ["all", filter, ["!", hasValue]];
@@ -70,7 +77,13 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   // Camera moves are ignored until the map has loaded, so wait for it before fitting the area.
   useEffect(() => {
     if (!loaded || !bounds) return;
-    mapRef.current?.fitBounds(bounds, { padding: 40, duration: 800, maxZoom: 15, ...(is3D ? VIEW_3D : {}) });
+    const map = mapRef.current;
+    if (!map) return;
+    const camera = map.cameraForBounds(bounds, { padding: 40, maxZoom: 15 });
+    if (!camera) return;
+    // A tilted view makes a fitted area look small and far away, so move in closer in 3D.
+    const zoom = (camera.zoom ?? CU_VIEW_STATE.zoom) + (is3D ? THREE_D_ZOOM_BOOST : 0);
+    map.easeTo({ ...camera, zoom, ...(is3D ? VIEW_3D : { pitch: 0, bearing: 0 }), duration: 800 });
     // Only refit when the area changes, not when toggling 3D.
   }, [loaded, bounds]);
 
@@ -149,8 +162,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             paint={{
               "fill-extrusion-color": color as never,
               "fill-extrusion-height": height as never,
-              // Fully opaque: MapLibre depth-sorts extrusions, so lower opacity only lets parcels behind show through.
-              "fill-extrusion-opacity": 1,
+              "fill-extrusion-opacity": 0.9,
             }}
           />
           <Layer
@@ -204,18 +216,36 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
         {legendOpen && (
           <div id="parcel-legend" className="px-3 pb-3">
             {isAverageScale && average !== null && (
-              <p className="-mt-1 text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
+              <p className="-mt-1 text-[11px] text-slate-500">Area average, excluding farmland: {formatMoney(average, { compact: true })}</p>
             )}
-            <div className="mt-2 space-y-1">
-              {[...bins].reverse().map((bin) => (
-                <div key={bin.label} className="flex items-center gap-2">
-                  <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: bin.color }} />
-                  <span className="text-xs text-slate-700">{bin.label}</span>
-                </div>
-              ))}
+            <div className="mt-2 flex gap-2">
+              <span
+                className="w-3 shrink-0 rounded-[2px]"
+                style={{ height: 150, background: legendGradient(stops, positions) }}
+                aria-hidden
+              />
+              <div className="relative w-full" style={{ height: 150 }}>
+                {stops.map((stop, index) =>
+                  stop.label ? (
+                    <span
+                      key={stop.label}
+                      className="absolute left-0 -translate-y-1/2 whitespace-nowrap text-[11px] leading-none text-slate-700"
+                      style={{ top: `${(1 - positions[index]) * 100}%` }}
+                    >
+                      {stop.label}
+                    </span>
+                  ) : null,
+                )}
+              </div>
+            </div>
+            <div className="mt-3 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
                 <span className="text-xs text-slate-700">{config.noDataLabel}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: FARM_COLOR }} />
+                <span className="text-xs text-slate-700">{FARM_LABEL}</span>
               </div>
               {showVacant && (
                 <div className="flex items-center gap-2">

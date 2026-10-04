@@ -45,6 +45,11 @@ export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: numb
         <Row label="Class" value={propertyClassLabel(parcel.useCode)} />
         {parcel.tif && <Row label="TIF district" value={parcel.tif.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bTif\b/, "TIF")} />}
       </dl>
+      {parcel.landUse === "Farm" && (
+        <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+          Farmland is assessed on what it can produce, not its market value.
+        </p>
+      )}
       <a
         href={countyParcelUrl(parcel.pin, taxYear)}
         target="_blank"

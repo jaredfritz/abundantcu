@@ -48,7 +48,8 @@ export default function ValuePerAcreDashboard() {
     ? searchParams.get("metric")
     : "value") as ParcelMetric;
   const scale: ColorScale = searchParams.get("scale") === "average" ? "average" : "bands";
-  const is3D = searchParams.get("view") === "3d";
+  // 3D is the default: height makes the gap between city cores and the rest of town clearest.
+  const is3D = searchParams.get("view") !== "2d";
   const showVacant = searchParams.get("vacant") === "1";
 
   const updateParams = (
@@ -59,7 +60,7 @@ export default function ValuePerAcreDashboard() {
     if (state.area !== CU_METRO) params.set("area", state.area);
     if (state.metric !== "value") params.set("metric", state.metric);
     if (state.scale !== "bands") params.set("scale", state.scale);
-    if (state.is3D) params.set("view", "3d");
+    if (!state.is3D) params.set("view", "2d");
     if (state.showVacant) params.set("vacant", "1");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -71,8 +72,13 @@ export default function ValuePerAcreDashboard() {
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
   const config = metricConfig(metric);
   // The "vs. area average" scale compares each parcel to the selected area's value (or tax) per taxable acre.
-  const average =
-    summary.taxableAcres > 0 ? (metric === "tax" ? summary.tax : summary.value) / summary.taxableAcres : null;
+  // Farmland is left out of the baseline, since it's assessed on productivity rather than market value.
+  const average = useMemo(() => {
+    const farm = summary.byLandUse.find((group) => group.landUse === "Farm");
+    const acres = summary.taxableAcres - (farm?.acres ?? 0);
+    const total = metric === "tax" ? summary.tax - (farm?.tax ?? 0) : summary.value - (farm?.value ?? 0);
+    return acres > 0 ? total / acres : null;
+  }, [summary, metric]);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -178,7 +184,7 @@ export default function ValuePerAcreDashboard() {
               <p className="mt-1 text-sm text-slate-600">
                 {config.description}{" "}
                 {scale === "average" && supportsAverageScale(config) && average !== null
-                  ? `Red parcels produce less per acre than the ${areaLabel(area)} average of ${formatMoney(average, { compact: true })}; blue parcels produce more. `
+                  ? `Red parcels produce less per acre than the ${areaLabel(area)} average of ${formatMoney(average, { compact: true })} (excluding farmland); blue parcels produce more. `
                   : ""}
                 Click any parcel for details.
               </p>
@@ -243,7 +249,8 @@ function MethodologyNote({ data }: { data: Parcels }) {
       <p>
         <strong>Market value</strong> is three times each parcel&apos;s equalized assessed value (EAV), since Illinois
         assesses property at one-third of market value outside Cook County. Farmland is assessed on what it can produce,
-        not its sale price, so farm values here are far below market. <strong>Property tax</strong> is EAV times the
+        not its sale price, so farmland is shown in its own tan color instead of on the value scale and is left out of
+        the area average. <strong>Property tax</strong> is EAV times the
         parcel&apos;s {meta.taxYear} tax code rate, before homestead and other exemptions, so it overstates bills for
         owner-occupied homes. <strong>Land share</strong> uses the assessor&apos;s land and building split. Exempt
         property (government, schools, churches, the University) has no assessed value and is shown with gray hatching.
