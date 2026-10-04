@@ -591,7 +591,8 @@ function percentileOf(sorted: number[], value: number): number {
 export function percentileLabel(percentile: number): string {
   if (percentile < 5) return "Bottom 5%";
   if (percentile > 95) return "Top 5%";
-  return `${Math.min(90, Math.max(10, Math.round(percentile / 10) * 10))}th percentile`;
+  // The tilde marks the rounded middle values as estimates; the tails are already ranges.
+  return `~${Math.min(90, Math.max(10, Math.round(percentile / 10) * 10))}th percentile`;
 }
 
 export interface ParcelRanks {
