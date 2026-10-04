@@ -81,8 +81,11 @@ export const MAP_METRICS: MetricConfig[] = [
     description: "Estimated market value (3 × equalized assessed value) divided by parcel area.",
     noDataLabel: "Exempt or no assessment",
     stops: anchors(
-      [100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 25_000_000],
-      ["$100k or less", "$250k", "$500k", "$1M", "$2M", "$5M", "$10M", "$25M or more"],
+      // Anchors sit near C-U parcel percentiles (10th, 20th, 35th, 50th, 65th, 80th, 95th, 99th), so each stretch
+      // of the ramp covers a similar share of parcels: yellow marks the lowest tenth, the green-teal middle spreads
+      // out ordinary neighborhoods, and navy is reserved for city cores.
+      [450_000, 700_000, 900_000, 1_100_000, 1_400_000, 2_000_000, 5_000_000, 12_000_000],
+      ["$450k or less", "$700k", "$900k", "$1.1M", "$1.4M", "$2M", "$5M", "$12M or more"],
       VALUE_RAMP,
     ),
     logScale: true,
@@ -96,8 +99,9 @@ export const MAP_METRICS: MetricConfig[] = [
     description: "Estimated property tax before exemptions (EAV × tax code rate) divided by parcel area.",
     noDataLabel: "Exempt or rate unavailable",
     stops: anchors(
-      [2_500, 6_000, 12_000, 25_000, 50_000, 125_000, 250_000, 600_000],
-      ["$2.5k or less", "$6k", "$12k", "$25k", "$50k", "$125k", "$250k", "$600k or more"],
+      // Same C-U percentiles as value per acre.
+      [13_500, 20_000, 26_000, 32_000, 40_000, 55_000, 140_000, 300_000],
+      ["$13.5k or less", "$20k", "$26k", "$32k", "$40k", "$55k", "$140k", "$300k or more"],
       VALUE_RAMP,
     ),
     logScale: true,
@@ -165,12 +169,13 @@ export function colorExpression(metric: MetricConfig, stops: Stop[] = metric.sto
   ];
 }
 
-/** Where each anchor sits along the legend bar (0 = bottom, 1 = top), matching the map's blending. */
-export function legendPositions(metric: MetricConfig, stops: Stop[]): number[] {
-  const values = stops.map((stop) => position(stop.value, metric.logScale));
-  const min = values[0];
-  const span = values[values.length - 1] - min || 1;
-  return values.map((value) => (value - min) / span);
+/**
+ * Where each anchor sits along the legend bar (0 = bottom, 1 = top). Anchors are spaced evenly and
+ * labeled with their exact values: the value anchors are percentile-based, so even spacing shows each
+ * stretch of color covering a similar share of parcels.
+ */
+export function legendPositions(stops: Stop[]): number[] {
+  return stops.map((_, index) => index / Math.max(stops.length - 1, 1));
 }
 
 export function legendGradient(stops: Stop[], positions: number[]): string {

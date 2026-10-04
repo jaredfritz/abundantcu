@@ -66,7 +66,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   const stops = useMemo(() => stopsFor(config, scale, average), [config, scale, average]);
   const isAverageScale = stops !== config.stops;
   const color = useMemo(() => colorExpression(config, stops), [config, stops]);
-  const positions = useMemo(() => legendPositions(config, stops), [config, stops]);
+  const positions = useMemo(() => legendPositions(stops), [stops]);
   const hasValue = ["has", config.field];
   const valueFilter = ["all", filter, hasValue];
   const noDataFilter = ["all", filter, ["!", hasValue]];
