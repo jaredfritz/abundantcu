@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/data/zoning`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/data/parking`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/data/crashes`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/data/value-per-acre`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/data/crashes/location-report`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/action`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
   ];

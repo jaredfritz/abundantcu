@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "export:maps": "node scripts/export-print-maps.mjs",
-    "data:crashes": "node scripts/fetch-idot-crashes.mjs"
+    "data:crashes": "node scripts/fetch-idot-crashes.mjs",
+    "data:parcels": "node scripts/fetch-parcel-values.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",
@@ -33,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "pdfjs-dist": "^5.7.284",
     "playwright": "^1.58.2",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
