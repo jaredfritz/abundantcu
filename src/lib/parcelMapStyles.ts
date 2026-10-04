@@ -28,9 +28,9 @@ export const COLOR_SCALES: { id: ColorScale; label: string }[] = [
   { id: "average", label: "vs. area average" },
 ];
 
-export interface Bin {
-  /** Upper bound (exclusive) of this bin; Infinity for the last bin */
-  max: number;
+/** A color anchor. Parcels between two anchors get a color blended between them. */
+export interface Stop {
+  value: number;
   label: string;
   color: string;
 }
@@ -41,7 +41,9 @@ export interface MetricConfig {
   /** Feature property holding the value */
   field: "vpa" | "tpa" | "land";
   description: string;
-  bins: Bin[];
+  stops: Stop[];
+  /** Blend on a log scale (each doubling moves the same distance along the colors) */
+  logScale: boolean;
   noDataLabel: string;
   /** Property and [value, meters] stops for the 3D extrusion height */
   heightField: "vpa" | "tpa";
@@ -58,16 +60,17 @@ const VALUE_HEIGHTS: [number, number][] = [
   [200_000_000, 2000],
 ];
 
-// Multi-hue sequential ramp (after matplotlib's "magma"): pale yellow (low) to deep purple (high).
-// Lightness falls steadily, so order survives color blindness and grayscale, while the hue shifts
-// keep neighboring bands distinct.
-const MAGMA = ["#fcf3b0", "#fbb447", "#f47a3b", "#df405a", "#a82873", "#641a7a", "#250a4f"];
-// Diverging ramp for "vs. area average" (after ColorBrewer RdBu): red below, blue above, neutral middle.
-const BELOW_AVERAGE = ["#a50f26", "#d6604d", "#f4a582"];
-const NEAR_AVERAGE = "#ece9e1";
-const ABOVE_AVERAGE = ["#7fb6d9", "#3b86c0", "#1a4f8f"];
+// Multi-hue sequential ramp (after matplotlib's "magma"): pale yellow (low) to near-black purple (high).
+// Lightness falls steadily, so order survives color blindness and grayscale. The two darkest anchors
+// give city cores ($5M-$25M+ per acre) their own range instead of sharing one top color.
+const MAGMA = ["#fcf3b0", "#fbb447", "#f47a3b", "#df405a", "#a82873", "#641a7a", "#3a0f5e", "#14061f"];
+// Diverging ramp for "vs. area average" (after ColorBrewer RdBu): red below, blue above, neutral at average.
+const AVERAGE_COLORS = ["#a50f26", "#d6604d", "#f4a582", "#ece9e1", "#7fb6d9", "#3b86c0", "#1a4f8f"];
 // Single-hue ramp for land share, light (low) to dark (high).
 const ORANGE = ["#fde3d3", "#f9c0a0", "#f39a6c", "#eb6834", "#c8521f", "#9c3e14"];
+
+const anchors = (values: number[], labels: string[], colors: string[]): Stop[] =>
+  values.map((value, index) => ({ value, label: labels[index], color: colors[index] }));
 
 export const MAP_METRICS: MetricConfig[] = [
   {
@@ -76,15 +79,12 @@ export const MAP_METRICS: MetricConfig[] = [
     field: "vpa",
     description: "Estimated market value (3 × equalized assessed value) divided by parcel area.",
     noDataLabel: "Exempt or no assessment",
-    bins: [
-      { max: 100_000, label: "Under $100k", color: MAGMA[0] },
-      { max: 250_000, label: "$100k–$250k", color: MAGMA[1] },
-      { max: 500_000, label: "$250k–$500k", color: MAGMA[2] },
-      { max: 1_000_000, label: "$500k–$1M", color: MAGMA[3] },
-      { max: 2_000_000, label: "$1M–$2M", color: MAGMA[4] },
-      { max: 5_000_000, label: "$2M–$5M", color: MAGMA[5] },
-      { max: Infinity, label: "$5M and up", color: MAGMA[6] },
-    ],
+    stops: anchors(
+      [100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 25_000_000],
+      ["$100k or less", "$250k", "$500k", "$1M", "$2M", "$5M", "$10M", "$25M or more"],
+      MAGMA,
+    ),
+    logScale: true,
     heightField: "vpa",
     heights: VALUE_HEIGHTS,
   },
@@ -94,15 +94,12 @@ export const MAP_METRICS: MetricConfig[] = [
     field: "tpa",
     description: "Estimated property tax before exemptions (EAV × tax code rate) divided by parcel area.",
     noDataLabel: "Exempt or rate unavailable",
-    bins: [
-      { max: 2_500, label: "Under $2.5k", color: MAGMA[0] },
-      { max: 6_000, label: "$2.5k–$6k", color: MAGMA[1] },
-      { max: 12_000, label: "$6k–$12k", color: MAGMA[2] },
-      { max: 25_000, label: "$12k–$25k", color: MAGMA[3] },
-      { max: 50_000, label: "$25k–$50k", color: MAGMA[4] },
-      { max: 125_000, label: "$50k–$125k", color: MAGMA[5] },
-      { max: Infinity, label: "$125k and up", color: MAGMA[6] },
-    ],
+    stops: anchors(
+      [2_500, 6_000, 12_000, 25_000, 50_000, 125_000, 250_000, 600_000],
+      ["$2.5k or less", "$6k", "$12k", "$25k", "$50k", "$125k", "$250k", "$600k or more"],
+      MAGMA,
+    ),
+    logScale: true,
     heightField: "tpa",
     heights: [
       [0, 0],
@@ -122,14 +119,8 @@ export const MAP_METRICS: MetricConfig[] = [
       "The share of a parcel's assessed value that is land rather than buildings. High shares mark land that is " +
       "vacant or lightly used for its location, like surface parking.",
     noDataLabel: "Exempt or no assessment",
-    bins: [
-      { max: 0.1, label: "Under 10%", color: ORANGE[0] },
-      { max: 0.2, label: "10–20%", color: ORANGE[1] },
-      { max: 0.35, label: "20–35%", color: ORANGE[2] },
-      { max: 0.5, label: "35–50%", color: ORANGE[3] },
-      { max: 0.75, label: "50–75%", color: ORANGE[4] },
-      { max: Infinity, label: "75–100%", color: ORANGE[5] },
-    ],
+    stops: anchors([0, 0.2, 0.4, 0.6, 0.8, 1], ["0%", "20%", "40%", "60%", "80%", "100%"], ORANGE),
+    logScale: false,
     // Height stays value per acre, so tall-but-orange parcels are valuable land holding little building.
     heightField: "vpa",
     heights: VALUE_HEIGHTS,
@@ -140,33 +131,49 @@ export function metricConfig(id: ParcelMetric): MetricConfig {
   return MAP_METRICS.find((metric) => metric.id === id) ?? MAP_METRICS[0];
 }
 
-// Ratio-to-average breaks for the diverging scale. The middle bin (0.8-1.25x) is "near average".
-const AVERAGE_RATIOS = [0.25, 0.5, 0.8, 1.25, 2, 4];
-const RATIO_LABELS = ["Under ¼ of average", "¼–½ of average", "½–0.8× average", "Near average", "1.25–2× average", "2–4× average", "4× average or more"];
-const AVERAGE_COLORS = [...BELOW_AVERAGE, NEAR_AVERAGE, ...ABOVE_AVERAGE];
-
 export function supportsAverageScale(metric: MetricConfig): boolean {
   return metric.field !== "land";
 }
 
-/** The legend bins in effect. "average" breaks are absolute values derived from the area average. */
-export function binsFor(metric: MetricConfig, scale: ColorScale, average: number | null): Bin[] {
-  if (scale !== "average" || !supportsAverageScale(metric) || !average || average <= 0) return metric.bins;
-  return AVERAGE_COLORS.map((color, index) => ({
-    max: index < AVERAGE_RATIOS.length ? average * AVERAGE_RATIOS[index] : Infinity,
-    label: RATIO_LABELS[index],
-    color,
-  }));
+/**
+ * The color anchors in effect. For "vs. area average" they are multiples of the area average,
+ * blended on a log scale so ½× and 2× sit the same distance from the neutral midpoint.
+ */
+export function stopsFor(metric: MetricConfig, scale: ColorScale, average: number | null): Stop[] {
+  if (scale !== "average" || !supportsAverageScale(metric) || !average || average <= 0) return metric.stops;
+  return anchors(
+    [0.25, 0.5, 0.8, 1, 1.25, 2, 4].map((ratio) => ratio * average),
+    ["¼ of average or less", "½ of average", "", "Area average", "", "2× average", "4× average or more"],
+    AVERAGE_COLORS,
+  );
 }
 
-export function colorExpression(metric: MetricConfig, bins: Bin[] = metric.bins): unknown[] {
-  // No-data parcels are drawn by their own hatched layer; this color only applies in 3D, where they stay flat.
-  const expression: unknown[] = ["case", ["!", ["has", metric.field]], "#d4d4d4"];
-  for (const bin of bins) {
-    if (bin.max === Infinity) expression.push(bin.color);
-    else expression.push(["<", ["get", metric.field], bin.max], bin.color);
-  }
-  return expression;
+// Values at or below zero (common areas) can't go through ln(); clamp them to a tiny positive value,
+// which lands on the lowest color.
+const position = (value: number, logScale: boolean) => (logScale ? Math.log(Math.max(value, 1e-6)) : value);
+
+export function colorExpression(metric: MetricConfig, stops: Stop[] = metric.stops): unknown[] {
+  const value = ["get", metric.field];
+  const input = metric.logScale ? ["ln", ["max", value, 1e-6]] : value;
+  return [
+    "case",
+    // No-data parcels are drawn by their own hatched layer; this color only applies in 3D, where they stay flat.
+    ["!", ["has", metric.field]],
+    "#d4d4d4",
+    ["interpolate-lab", ["linear"], input, ...stops.flatMap((stop) => [position(stop.value, metric.logScale), stop.color])],
+  ];
+}
+
+/** Where each anchor sits along the legend bar (0 = bottom, 1 = top), matching the map's blending. */
+export function legendPositions(metric: MetricConfig, stops: Stop[]): number[] {
+  const values = stops.map((stop) => position(stop.value, metric.logScale));
+  const min = values[0];
+  const span = values[values.length - 1] - min || 1;
+  return values.map((value) => (value - min) / span);
+}
+
+export function legendGradient(stops: Stop[], positions: number[]): string {
+  return `linear-gradient(to top, ${stops.map((stop, index) => `${stop.color} ${(positions[index] * 100).toFixed(1)}%`).join(", ")})`;
 }
 
 export function heightExpression(metric: MetricConfig): unknown[] {

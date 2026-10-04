@@ -14,10 +14,11 @@ import { ChevronDown } from "lucide-react";
 import type { Parcel, Parcels } from "@/lib/parcels";
 import {
   areaFilter,
-  binsFor,
   colorExpression,
   CU_VIEW_STATE,
   heightExpression,
+  legendGradient,
+  legendPositions,
   MAX_ZOOM,
   metricConfig,
   MIN_ZOOM,
@@ -25,6 +26,7 @@ import {
   NO_DATA_SWATCH,
   noDataHatchImage,
   PARCEL_BASEMAP,
+  stopsFor,
   VACANT_OUTLINE_COLOR,
   VIEW_3D,
   type ColorScale,
@@ -59,9 +61,10 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   const [selected, setSelected] = useState<{ parcel: Parcel; lngLat: [number, number] } | null>(null);
   const config = metricConfig(metric);
   const filter = useMemo(() => areaFilter(cities), [cities]);
-  const bins = useMemo(() => binsFor(config, scale, average), [config, scale, average]);
-  const isAverageScale = bins !== config.bins;
-  const color = useMemo(() => colorExpression(config, bins), [config, bins]);
+  const stops = useMemo(() => stopsFor(config, scale, average), [config, scale, average]);
+  const isAverageScale = stops !== config.stops;
+  const color = useMemo(() => colorExpression(config, stops), [config, stops]);
+  const positions = useMemo(() => legendPositions(config, stops), [config, stops]);
   const hasValue = ["has", config.field];
   const valueFilter = ["all", filter, hasValue];
   const noDataFilter = ["all", filter, ["!", hasValue]];
@@ -205,13 +208,27 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             {isAverageScale && average !== null && (
               <p className="-mt-1 text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
             )}
-            <div className="mt-2 space-y-1">
-              {[...bins].reverse().map((bin) => (
-                <div key={bin.label} className="flex items-center gap-2">
-                  <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: bin.color }} />
-                  <span className="text-xs text-slate-700">{bin.label}</span>
-                </div>
-              ))}
+            <div className="mt-2 flex gap-2">
+              <span
+                className="w-3 shrink-0 rounded-[2px]"
+                style={{ height: 150, background: legendGradient(stops, positions) }}
+                aria-hidden
+              />
+              <div className="relative w-full" style={{ height: 150 }}>
+                {stops.map((stop, index) =>
+                  stop.label ? (
+                    <span
+                      key={stop.label}
+                      className="absolute left-0 -translate-y-1/2 whitespace-nowrap text-[11px] leading-none text-slate-700"
+                      style={{ top: `${(1 - positions[index]) * 100}%` }}
+                    >
+                      {stop.label}
+                    </span>
+                  ) : null,
+                )}
+              </div>
+            </div>
+            <div className="mt-3 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
                 <span className="text-xs text-slate-700">{config.noDataLabel}</span>
