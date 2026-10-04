@@ -147,4 +147,5 @@ In a proxied environment, run with `NODE_USE_ENV_PROXY=1` so Node's `fetch` uses
 
 Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-licensed
 [Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre); see
-`src/components/parcels/LICENSE-chicago-value-per-acre.txt`.
+`src/components/parcels/LICENSE-chicago-value-per-acre.txt`. Planned follow-ups are in
+`docs/value-per-acre-next-steps.md`.
