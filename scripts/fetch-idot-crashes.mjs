@@ -8,6 +8,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { addCcrpcFields } from "./ccrpc-supplement.mjs";
 
 const OUT_DIR = path.join(process.cwd(), "public", "data", "crashes");
 const COUNTY = "Champaign";
@@ -137,19 +138,33 @@ async function fetchYear(layerUrl) {
   return records;
 }
 
+// Some years carry UTF-8 punctuation that was decoded as Windows-1252 ("â€“" for "–").
+const MOJIBAKE = { "â€“": "–", "â€”": "—", "â€™": "’", "â€˜": "‘", "â€œ": "“", "â€\u009d": "”" };
+
+function cleanText(raw) {
+  if (typeof raw !== "string") return "";
+  let text = raw;
+  for (const [bad, good] of Object.entries(MOJIBAKE)) text = text.replaceAll(bad, good);
+  return text.trim().replace(/\s+/g, " ");
+}
+
 class Dictionary {
-  constructor() {
+  // keyOf merges spellings that differ only in punctuation (e.g. a cause written with and
+  // without a dash in different years) into the first spelling seen.
+  constructor(keyOf = (value) => value) {
     this.values = [];
     this.index = new Map();
+    this.keyOf = keyOf;
   }
 
   id(raw) {
-    const value = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
-    if (!this.index.has(value)) {
-      this.index.set(value, this.values.length);
+    const value = cleanText(raw);
+    const key = this.keyOf(value);
+    if (!this.index.has(key)) {
+      this.index.set(key, this.values.length);
       this.values.push(value);
     }
-    return this.index.get(value);
+    return this.index.get(key);
   }
 }
 
@@ -173,10 +188,22 @@ function crashDay(record) {
   return Number(parts.replaceAll("-", ""));
 }
 
+// Crash location in degrees, or null when IDOT has none.
+function crashPoint(record) {
+  const lat = Number(record.TSCrashLatitude);
+  // 2014-2017 layers store longitude without its sign; everything in Illinois is west of Greenwich.
+  const lon = -Math.abs(Number(record.TSCrashLongitude));
+  const valid = Number.isFinite(lat) && Number.isFinite(lon) && lat > 39 && lat < 41 && lon > -89 && lon < -87;
+  return valid ? { lat, lon } : null;
+}
+
+// CCRPC fields are stored as 1 (yes), 0 (no), or -1 (CCRPC doesn't cover this crash).
+const flag = (value) => (value === undefined ? -1 : value ? 1 : 0);
+
 function encode(records) {
   const dicts = {
     type: new Dictionary(),
-    cause: new Dictionary(),
+    cause: new Dictionary((value) => value.toLowerCase().replace(/[^a-z0-9]/g, "")),
     city: new Dictionary(),
     street: new Dictionary(),
     light: new Dictionary(),
@@ -186,20 +213,18 @@ function encode(records) {
   const cols = {
     id: [], date: [], hour: [], lon: [], lat: [], k: [], a: [], b: [], c: [], injured: [], vehicles: [],
     type: [], cause: [], city: [], street: [], cross: [], hitRun: [], light: [], weather: [], surface: [],
+    heavy: [], university: [],
   };
 
   records.sort((x, y) => crashDay(x) - crashDay(y) || int(x.CrashHour) - int(y.CrashHour));
 
   for (const r of records) {
-    const lat = Number(r.TSCrashLatitude);
-    // 2014-2017 layers store longitude without its sign; everything in Illinois is west of Greenwich.
-    const lon = -Math.abs(Number(r.TSCrashLongitude));
-    const hasPoint = Number.isFinite(lat) && Number.isFinite(lon) && lat > 39 && lat < 41 && lon > -89 && lon < -87;
+    const point = crashPoint(r);
     cols.id.push(int(r.CrashID));
     cols.date.push(crashDay(r));
     cols.hour.push(int(r.CrashHour));
-    cols.lon.push(hasPoint ? Math.round(lon * 1e5) : 0);
-    cols.lat.push(hasPoint ? Math.round(lat * 1e5) : 0);
+    cols.lon.push(point ? Math.round(point.lon * 1e5) : 0);
+    cols.lat.push(point ? Math.round(point.lat * 1e5) : 0);
     cols.k.push(int(r.TotalFatals));
     cols.a.push(int(r.AInjuries));
     cols.b.push(int(r.BInjuries));
@@ -215,6 +240,8 @@ function encode(records) {
     cols.light.push(dicts.light.id(r.LightingCond));
     cols.weather.push(dicts.weather.id(r.WeatherCond));
     cols.surface.push(dicts.surface.id(r.RoadSurfaceCond));
+    cols.heavy.push(flag(r.heavyVehicle));
+    cols.university.push(flag(r.universityDistrict));
   }
 
   return {
@@ -262,6 +289,20 @@ async function main() {
     console.log(`${year}: ${records.length.toLocaleString()} crashes`);
   }
 
+  let ccrpc = null;
+  try {
+    ccrpc = await addCcrpcFields(all, {
+      cities: CITIES,
+      getJson,
+      int,
+      year: (record) => Math.floor(crashDay(record) / 10000),
+      lat: (record) => crashPoint(record)?.lat ?? null,
+      lon: (record) => crashPoint(record)?.lon ?? null,
+    });
+  } catch (error) {
+    console.warn(`Skipped CCRPC heavy-vehicle and University District fields: ${error.message}`);
+  }
+
   const { dict, cols } = encode(all);
   const dataset = {
     meta: {
@@ -271,6 +312,7 @@ async function main() {
       cities: CITIES,
       years,
       perYear,
+      ccrpc,
       generatedAt: new Date().toISOString(),
     },
     dict,

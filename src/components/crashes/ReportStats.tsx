@@ -3,7 +3,7 @@ import { formatCurrency } from "@/lib/crashes";
 import { CostBreakdownTable } from "./CostBreakdownTable";
 import { cardClass } from "./shared";
 
-export function ReportStats({ report }: { report: LocationReport }) {
+export function ReportStats({ report, heavyNote }: { report: LocationReport; heavyNote?: string | null }) {
   const { stats, costs } = report;
 
   const metrics = [
@@ -23,6 +23,7 @@ export function ReportStats({ report }: { report: LocationReport }) {
     { label: "Crashes with Injuries", value: stats.crashesWithInjuries, color: "text-amber-700", bg: "bg-amber-50" },
     { label: "Vehicles Involved", value: stats.totalVehicles, color: "text-slate-700", bg: "bg-slate-50" },
   ];
+  const showHeavy = heavyNote !== null && heavyNote !== undefined;
 
   const injuryRate = stats.totalCrashes > 0 ? Math.round((stats.crashesWithInjuries / stats.totalCrashes) * 100) : 0;
   const fatalityRate =
@@ -73,6 +74,15 @@ export function ReportStats({ report }: { report: LocationReport }) {
               <p className={`text-right text-2xl font-bold tabular-nums ${metric.color}`}>{metric.value.toLocaleString()}</p>
             </div>
           ))}
+          {showHeavy && (
+            <div className="rounded-[4px] bg-cyan-50 p-4">
+              <p className="mb-1 truncate text-xs text-slate-600">Heavy Vehicle Crashes</p>
+              <p className="text-right text-2xl font-bold tabular-nums text-cyan-700">
+                {stats.heavyVehicleKnown ? stats.heavyVehicleCrashes.toLocaleString() : "—"}
+              </p>
+              {heavyNote && <p className="mt-0.5 text-right text-[11px] text-slate-500">{heavyNote}</p>}
+            </div>
+          )}
         </div>
       </div>
     </div>

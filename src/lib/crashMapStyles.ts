@@ -25,7 +25,7 @@ export const SEVERITY_COLOR_EXPRESSION = [
   "#22c55e",
 ];
 
-export type MapMetric = "severity" | "hit_and_run" | "crash_type";
+export type MapMetric = "severity" | "hit_and_run" | "crash_type" | "heavy_vehicle";
 
 export interface MetricConfig {
   id: MapMetric;
@@ -91,6 +91,24 @@ export const MAP_METRICS: MetricConfig[] = [
         conditions.push(["!", ["in", ["get", "crash_type"], ["literal", ["Pedestrian", "Pedalcyclist"]]]]);
       }
       return conditions.length > 1 ? conditions : NOTHING;
+    },
+  },
+  {
+    id: "heavy_vehicle",
+    label: "Heavy Vehicle",
+    legend: [
+      { label: "Heavy vehicle", color: "#0891b2" },
+      { label: "No heavy vehicle", color: "#6b7280" },
+      { label: "Not available", color: "#d1d5db" },
+    ],
+    colorExpression: ["match", ["get", "heavy"], 1, "#0891b2", 0, "#6b7280", "#d1d5db"],
+    getFilterExpression: (visible) => {
+      const values = [
+        ...(visible.has("Heavy vehicle") ? [1] : []),
+        ...(visible.has("No heavy vehicle") ? [0] : []),
+        ...(visible.has("Not available") ? [-1] : []),
+      ];
+      return values.length ? ["in", ["get", "heavy"], ["literal", values]] : NOTHING;
     },
   },
 ];

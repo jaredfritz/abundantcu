@@ -15,6 +15,15 @@ export interface CrashDataset {
     cities: string[];
     years: number[];
     perYear: Record<string, number>;
+    /** Heavy-vehicle and University District fields matched from CCRPC's crash dashboard. */
+    ccrpc?: {
+      source: string;
+      years: number[];
+      ccrpcCrashes: number;
+      matched: number;
+      heavyVehicle: number;
+      universityDistrict: number;
+    } | null;
     generatedAt: string;
   };
   dict: Record<"type" | "cause" | "city" | "street" | "light" | "weather" | "surface", string[]>;
@@ -22,7 +31,9 @@ export interface CrashDataset {
     | "id" | "date" | "hour" | "lon" | "lat" | "k" | "a" | "b" | "c" | "injured" | "vehicles"
     | "type" | "cause" | "city" | "street" | "cross" | "hitRun" | "light" | "weather" | "surface",
     number[]
-  >;
+  > &
+    // 1 = yes, 0 = no, -1 = not covered by CCRPC
+    Partial<Record<"heavy" | "university", number[]>>;
 }
 
 export interface Crash {
@@ -48,6 +59,9 @@ export interface Crash {
   lighting: string;
   weather: string;
   surface: string;
+  /** From CCRPC; null where CCRPC doesn't cover the crash (before 2020, after its latest year, or unmatched). */
+  heavyVehicle: boolean | null;
+  universityDistrict: boolean | null;
 }
 
 export interface Crashes {
@@ -71,6 +85,9 @@ function severityOf(k: number, a: number, b: number, c: number): Severity {
   if (c > 0) return "C";
   return "O";
 }
+
+const ccrpcFlag = (value: number | undefined): boolean | null =>
+  value === 1 ? true : value === 0 ? false : null;
 
 export function decodeCrashes(dataset: CrashDataset): Crashes {
   const { cols, dict } = dataset;
@@ -101,6 +118,8 @@ export function decodeCrashes(dataset: CrashDataset): Crashes {
       lighting: dict.light[cols.light[i]],
       weather: dict.weather[cols.weather[i]],
       surface: dict.surface[cols.surface[i]],
+      heavyVehicle: ccrpcFlag(cols.heavy?.[i]),
+      universityDistrict: ccrpcFlag(cols.university?.[i]),
     };
   });
 
@@ -159,6 +178,29 @@ export function isBicycle(crash: Crash): boolean {
   return crash.crashType === "Pedalcyclist";
 }
 
+// Place filters: all three cities, one city, or CCRPC's University District.
+export const ALL_PLACES = "all";
+export const UNIVERSITY_DISTRICT = "university";
+
+export function placeLabel(place: string): string {
+  if (place === ALL_PLACES) return "Champaign, Urbana & Savoy";
+  if (place === UNIVERSITY_DISTRICT) return "University District";
+  return place;
+}
+
+export function matchesPlace(crash: Crash, place: string): boolean {
+  if (place === ALL_PLACES) return true;
+  if (place === UNIVERSITY_DISTRICT) return crash.universityDistrict === true;
+  return crash.city === place;
+}
+
+/** CCRPC's years as an ISO date range, or null when the dataset has no CCRPC fields. */
+export function ccrpcRange(data: Crashes): DateRange | null {
+  const years = data.meta.ccrpc?.years;
+  if (!years?.length) return null;
+  return { start: `${years[0]}-01-01`, end: `${years.at(-1)}-12-31` };
+}
+
 export interface DatePreset {
   id: string;
   label: string;
@@ -177,6 +219,24 @@ export function datePresets(minDate: string, maxDate: string): DatePreset[] {
   ];
 }
 
+/** For the University District (CCRPC years only), trims a date range to the years CCRPC covers. */
+export function rangeForPlace(data: Crashes, place: string, range: DateRange): DateRange {
+  const covered = ccrpcRange(data);
+  if (place !== UNIVERSITY_DISTRICT || !covered) return range;
+  const start = range.start > covered.start ? range.start : covered.start;
+  const end = range.end < covered.end ? range.end : covered.end;
+  return start <= end ? { start, end } : range;
+}
+
+/** Caption for CCRPC-only figures: null without CCRPC data, "" when the range is inside CCRPC's years. */
+export function ccrpcNote(data: Crashes, range: DateRange, known: number): string | null {
+  const covered = ccrpcRange(data);
+  if (!covered) return null;
+  if (range.start >= covered.start && range.end <= covered.end) return "";
+  const span = `${covered.start.slice(0, 4)}–${covered.end.slice(2, 4)}`;
+  return known ? `${span} only` : `Data for ${span} only`;
+}
+
 // ─── Aggregations ───────────────────────────────────────────────────────────
 
 export interface CrashStats {
@@ -186,6 +246,9 @@ export interface CrashStats {
   pedestrianCrashes: number;
   bicycleCrashes: number;
   hitAndRunCount: number;
+  heavyVehicleCrashes: number;
+  /** Crashes whose heavy-vehicle status is known (CCRPC covers them). */
+  heavyVehicleKnown: number;
 }
 
 export function summarize(crashes: Crash[]): CrashStats {
@@ -196,6 +259,8 @@ export function summarize(crashes: Crash[]): CrashStats {
     pedestrianCrashes: 0,
     bicycleCrashes: 0,
     hitAndRunCount: 0,
+    heavyVehicleCrashes: 0,
+    heavyVehicleKnown: 0,
   };
   for (const crash of crashes) {
     stats.totalInjuries += crash.injuries;
@@ -203,6 +268,8 @@ export function summarize(crashes: Crash[]): CrashStats {
     if (isPedestrian(crash)) stats.pedestrianCrashes += 1;
     if (isBicycle(crash)) stats.bicycleCrashes += 1;
     if (crash.hitAndRun) stats.hitAndRunCount += 1;
+    if (crash.heavyVehicle !== null) stats.heavyVehicleKnown += 1;
+    if (crash.heavyVehicle) stats.heavyVehicleCrashes += 1;
   }
   return stats;
 }
@@ -392,6 +459,7 @@ export function toGeoJSON(crashes: Crash[]): GeoJSON.FeatureCollection<GeoJSON.P
         severity: crash.severity,
         hit_and_run: crash.hitAndRun,
         crash_type: crash.crashType,
+        heavy: crash.heavyVehicle === null ? -1 : crash.heavyVehicle ? 1 : 0,
       },
     });
   });
@@ -420,6 +488,8 @@ const CSV_COLUMNS: [string, (crash: Crash) => string | number | boolean | null][
   ["lighting", (c) => c.lighting],
   ["weather", (c) => c.weather],
   ["road_surface", (c) => c.surface],
+  ["heavy_vehicle_ccrpc", (c) => c.heavyVehicle],
+  ["university_district_ccrpc", (c) => c.universityDistrict],
 ];
 
 export function toCsv(crashes: Crash[]): string {

@@ -4,26 +4,39 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { booleanPointInPolygon, circle, point } from "@turf/turf";
 import AddressSearch from "@/components/AddressSearch";
 import type { Crash, Crashes, DateRange, LocationReport as Report } from "@/lib/crashes";
-import { datePresets, inDateRange, loadCrashes, loadPlaceBoundaries, locationReport, toCsv } from "@/lib/crashes";
+import {
+  ALL_PLACES,
+  ccrpcNote,
+  ccrpcRange,
+  datePresets,
+  inDateRange,
+  loadCrashes,
+  loadPlaceBoundaries,
+  locationReport,
+  matchesPlace,
+  placeLabel,
+  rangeForPlace,
+  toCsv,
+  UNIVERSITY_DISTRICT,
+} from "@/lib/crashes";
 import { CausesTable } from "./CausesTable";
 import { LocationReportMap, type SelectionMode } from "./LocationReportMap";
 import { ReportStats } from "./ReportStats";
 import { TrendSparklines } from "./TrendSparklines";
 import {
-  ALL_CITIES,
   cardClass,
-  cityLabel,
   CrashPageHeader,
   DataSourceNote,
   DateRangeControls,
   ErrorBlock,
   LoadingBlock,
+  placeOptions,
 } from "./shared";
 
 const MIN_RADIUS = 25;
 const MAX_RADIUS = 10560; // 2 miles
 const FEET_PER_KM = 3280.84;
-const DEFAULT_PLACE = ALL_CITIES;
+const DEFAULT_PLACE = ALL_PLACES;
 
 // Logarithmic slider so small radii around an intersection are easy to pick.
 function sliderToRadius(value: number): number {
@@ -72,16 +85,21 @@ export default function LocationReport() {
     loadPlaceBoundaries().then(setBoundaries);
   }, []);
 
-  const placeCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const crash of data?.crashes ?? []) counts.set(crash.city, (counts.get(crash.city) ?? 0) + 1);
-    return counts;
-  }, [data]);
+  const places = useMemo(
+    () =>
+      data
+        ? placeOptions(data).map((option) => ({
+            ...option,
+            count: data.crashes.filter((crash) => matchesPlace(crash, option.value)).length,
+          }))
+        : [],
+    [data],
+  );
 
   // "All" outlines all three cities together.
   const placeBoundary: GeoJSON.Feature | null = useMemo(() => {
     const features = (boundaries?.features ?? []).filter(
-      (feature) => place === ALL_CITIES || feature.properties?.name === place,
+      (feature) => place === ALL_PLACES || feature.properties?.name === place,
     );
     if (features.length === 0) return null;
     if (features.length === 1) return features[0];
@@ -111,8 +129,8 @@ export default function LocationReport() {
     let matches: (crash: Crash) => boolean;
     let label: string;
     if (mode === "place") {
-      matches = place === ALL_CITIES ? () => true : (crash) => crash.city === place;
-      label = cityLabel(place);
+      matches = (crash) => matchesPlace(crash, place);
+      label = placeLabel(place);
     } else if (selectionArea && selectionArea.geometry.type === "Polygon") {
       const area = selectionArea as GeoJSON.Feature<GeoJSON.Polygon>;
       matches = (crash) =>
@@ -121,9 +139,11 @@ export default function LocationReport() {
     } else {
       return;
     }
-    const crashes = data.crashes.filter((crash) => inDateRange(crash, range) && matches(crash));
-    setReport(locationReport(crashes, range));
-    setReportRange(range);
+    // University District data only exists for CCRPC's years, so the report uses those years.
+    const reportDates = mode === "place" ? rangeForPlace(data, place, range) : range;
+    const crashes = data.crashes.filter((crash) => inDateRange(crash, reportDates) && matches(crash));
+    setReport(locationReport(crashes, reportDates));
+    setReportRange(reportDates);
     setReportLabel(label);
   }, [data, mode, place, selectionArea, radius, range]);
 
@@ -228,15 +248,18 @@ export default function LocationReport() {
                     }}
                     className="w-full rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-2 text-sm"
                   >
-                    <option value={ALL_CITIES}>
-                      {cityLabel(ALL_CITIES)} ({data.crashes.length.toLocaleString()})
-                    </option>
-                    {data.meta.cities.map((name) => (
-                      <option key={name} value={name}>
-                        {name} ({(placeCounts.get(name) ?? 0).toLocaleString()})
+                    {places.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {placeLabel(option.value)} ({option.count.toLocaleString()})
                       </option>
                     ))}
                   </select>
+                  {place === UNIVERSITY_DISTRICT && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      From CCRPC&apos;s crash dashboard; only {ccrpcRange(data)?.start.slice(0, 4)}–
+                      {ccrpcRange(data)?.end.slice(0, 4)} crashes are tagged.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -336,7 +359,10 @@ export default function LocationReport() {
 
           {report && (
             <>
-              <ReportStats report={report} />
+              <ReportStats
+                report={report}
+                heavyNote={reportRange ? ccrpcNote(data, reportRange, report.stats.heavyVehicleKnown) : null}
+              />
 
               <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <div className={`${cardClass} p-6`}>

@@ -163,6 +163,7 @@ export function LocationReportMap({
         ["Pedestrian", stats.pedestrianCrashes],
         ["Bicycle", stats.bicycleCrashes],
         ["Hit & Run", stats.hitAndRunCount],
+        ["Heavy Vehicle", stats.heavyVehicleCrashes],
         ["With Injuries", stats.crashesWithInjuries],
       ].filter(([, value]) => Number(value) > 0)
     : [];

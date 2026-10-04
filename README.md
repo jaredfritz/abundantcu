@@ -121,6 +121,11 @@ npm run data:crashes            # all available years, 2014 on
 npm run data:crashes -- --from=2020 --to=2025
 ```
 
+The same script adds heavy-vehicle and University District fields for the years covered by CCRPC's
+[Champaign County Traffic Crash Dashboard](https://crashdashboard.ccrpc.org/) (currently 2020-2024), matching
+CCRPC's crash points to IDOT records by year, city, injuries, crash type, cause, and location
+(`scripts/ccrpc-supplement.mjs`). If CCRPC's dashboard can't be reached, those fields are left as unavailable.
+
 Output goes to `public/data/crashes/`. The pages are adapted from the MIT-licensed
 [Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline); see
 `src/components/crashes/LICENSE-chicago-crash-dashboard.txt`.
