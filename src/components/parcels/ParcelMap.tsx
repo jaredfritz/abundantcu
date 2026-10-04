@@ -10,6 +10,7 @@ import Map, {
   type MapRef,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { ChevronDown } from "lucide-react";
 import type { Parcel, Parcels } from "@/lib/parcels";
 import {
   areaFilter,
@@ -49,6 +50,12 @@ const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-dat
 export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, showVacant }: ParcelMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(true);
+
+  // Start with the legend collapsed on phones, where it would cover much of the map.
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 639px)").matches) setLegendOpen(false);
+  }, []);
   const [selected, setSelected] = useState<{ parcel: Parcel; lngLat: [number, number] } | null>(null);
   const config = metricConfig(metric);
   const filter = useMemo(() => areaFilter(cities), [cities]);
@@ -139,7 +146,8 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             paint={{
               "fill-extrusion-color": color as never,
               "fill-extrusion-height": height as never,
-              "fill-extrusion-opacity": 0.9,
+              // Fully opaque: MapLibre depth-sorts extrusions, so lower opacity only lets parcels behind show through.
+              "fill-extrusion-opacity": 1,
             }}
           />
           <Layer
@@ -173,30 +181,51 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
         )}
       </Map>
 
-      <div className="absolute bottom-8 left-3 max-w-[220px] rounded-[4px] bg-white/90 p-3 shadow-md backdrop-blur-sm">
-        <p className="text-xs font-semibold">{config.label}</p>
-        {isAverageScale && average !== null && (
-          <p className="text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
-        )}
-        <div className="mt-2 space-y-1">
-          {[...bins].reverse().map((bin) => (
-            <div key={bin.label} className="flex items-center gap-2">
-              <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: bin.color }} />
-              <span className="text-xs text-slate-700">{bin.label}</span>
+      <div className="absolute bottom-8 left-3 max-w-[220px] rounded-[4px] bg-white/90 shadow-md backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={() => setLegendOpen((open) => !open)}
+          aria-expanded={legendOpen}
+          aria-controls="parcel-legend"
+          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+        >
+          <span className="text-xs font-semibold">{legendOpen ? config.label : "Legend"}</span>
+          <ChevronDown
+            aria-hidden
+            className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform ${legendOpen ? "" : "rotate-180"}`}
+          />
+          <span className="sr-only">{legendOpen ? "Hide legend" : "Show legend"}</span>
+        </button>
+        {legendOpen && (
+          <div id="parcel-legend" className="px-3 pb-3">
+            {isAverageScale && average !== null && (
+              <p className="-mt-1 text-[11px] text-slate-500">Area average: {formatMoney(average, { compact: true })}</p>
+            )}
+            <div className="mt-2 space-y-1">
+              {[...bins].reverse().map((bin) => (
+                <div key={bin.label} className="flex items-center gap-2">
+                  <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: bin.color }} />
+                  <span className="text-xs text-slate-700">{bin.label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
+                <span className="text-xs text-slate-700">{config.noDataLabel}</span>
+              </div>
+              {showVacant && (
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-4 rounded-[2px] border-2" style={{ borderColor: VACANT_OUTLINE_COLOR }} />
+                  <span className="text-xs text-slate-700">Vacant land</span>
+                </div>
+              )}
             </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-4 shrink-0 rounded-[2px]" style={{ background: NO_DATA_SWATCH }} />
-            <span className="text-xs text-slate-700">{config.noDataLabel}</span>
+            {is3D && (
+              <p className="mt-2 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">
+                Height = {config.heightField === "tpa" ? "tax" : "value"} per acre
+              </p>
+            )}
           </div>
-          {showVacant && (
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-4 rounded-[2px] border-2" style={{ borderColor: VACANT_OUTLINE_COLOR }} />
-              <span className="text-xs text-slate-700">Vacant land</span>
-            </div>
-          )}
-        </div>
-        {is3D && <p className="mt-2 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">Height = {config.heightField === "tpa" ? "tax" : "value"} per acre</p>}
+        )}
       </div>
     </div>
   );
