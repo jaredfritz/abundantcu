@@ -217,7 +217,10 @@ function MethodologyNote({ data }: { data: Parcels }) {
         parcel&apos;s {meta.taxYear} tax code rate, before homestead and other exemptions, so it overstates bills for
         owner-occupied homes. <strong>Land share</strong> uses the assessor&apos;s land and building split. Exempt
         property (government, schools, churches, the University) has no assessed value and is shown with gray hatching.
-        Condominium units in one building are combined so the building&apos;s value sits on its land once. Wind and solar
+        Condo and townhome units are mapped by the county as building footprints only, without the
+        shared land around them, so each development&apos;s units are combined into one shape: the outline around its
+        buildings plus an 8-meter margin, trimmed so it doesn&apos;t overlap neighboring parcels. Those areas are
+        approximate. Wind and solar
         lease areas drawn over farm parcels are left out to avoid double counting.
       </p>
       <p>

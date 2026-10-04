@@ -31,7 +31,11 @@ export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: numb
       <p className="pr-8 text-sm font-bold text-[var(--color-primary)]">{title}</p>
       <p className="mt-0.5 text-slate-500">
         {parcel.city}
-        {parcel.units > 1 ? ` · ${parcel.units} condo units` : ""}
+        {parcel.condoDevelopment
+          ? ` · Condo or townhome development, ${parcel.units} ${parcel.units === 1 ? "unit" : "units"}`
+          : parcel.units > 1
+            ? ` · ${parcel.units} condo units`
+            : ""}
       </p>
       <dl className="mt-2 border-t border-slate-200 pt-1.5">
         <Row label="Value per acre" value={formatMoney(parcel.valuePerAcre)} />
@@ -46,6 +50,12 @@ export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: numb
         <Row label="Class" value={propertyClassLabel(parcel.useCode)} />
         {parcel.tif && <Row label="TIF district" value={parcel.tif.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bTif\b/, "TIF")} />}
       </dl>
+      {parcel.condoDevelopment && (
+        <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+          Approximate area: the shared land around condo and townhome buildings isn&apos;t a separate parcel, so it&apos;s
+          estimated from the buildings plus a margin.
+        </p>
+      )}
       {parcel.landUse === "Farm" && (
         <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
           Farmland is assessed on what it can produce, not its market value.

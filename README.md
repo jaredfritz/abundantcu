@@ -147,12 +147,15 @@ municipality. `/data/vacant-land` maps vacant parcels by type from the same data
 - tax rates by tax code, and each tax code's municipality: the Champaign County Clerk's latest rate book PDF
 - site addresses: the county property tax inquiry's township search export (owner names are discarded)
 
-Refresh it after new assessments or a new rate book are published (takes about 3 minutes):
+Condo and townhome units, which the county maps as building footprints only, are combined into approximate development
+areas (see `docs/value-per-acre-next-steps.md`). Refresh the data after new assessments or a new rate book are published
+(takes about 3 minutes):
 
 ```bash
 npm run data:parcels
 npm run data:parcels -- --rate-book=<pdf url>   # pin a specific rate book
 npm run data:parcels -- --skip-addresses
+npm run data:parcels -- --cache=/tmp/parcel-cache   # reuse downloads while developing
 ```
 
 In a proxied environment, run with `NODE_USE_ENV_PROXY=1` so Node's `fetch` uses the proxy.

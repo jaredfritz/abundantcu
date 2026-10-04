@@ -41,6 +41,12 @@ Status of `/data/value-per-acre` and the work we've identified to build on it. S
   - Exemptions, for accurate net tax and a fair vacant-land-tax simulation.
   - Final certified values instead of the Board of Review stage.
   - History, for change-over-time views (see below).
+- **Get the real condo and townhome land boundaries.** The county maps condo units as building
+  footprints only, without the shared land around them. The map currently approximates each
+  development's area from the outline around its buildings plus an 8 m margin, trimmed against
+  neighboring parcels (`buildCondoDevelopments` in `scripts/fetch-parcel-values.mjs`). The condominium
+  declaration parcels or plats (Champaign County Recorder, or CCGISC's parcel data) would give exact
+  boundaries. Add them to the FOIA or CCGISC licensing request, then replace the approximation.
 - **Ask CU-CitizenAccess** for the property data they obtained by FOIA for tax years 2020–2023.
   That gives us history now.
 - **Newer tax codes:** rerun `npm run data:parcels` when the Clerk posts the next rate book.
