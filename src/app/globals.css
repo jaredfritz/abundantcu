@@ -48,3 +48,24 @@ body {
 .maplibregl-ctrl-attrib {
   font-size: 11px;
 }
+
+/* Parcel map popups (value per acre, vacant land): a larger close button with room around it. */
+.parcel-popup .maplibregl-popup-content {
+  padding: 14px 16px 12px;
+}
+
+.parcel-popup .maplibregl-popup-close-button {
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  font-size: 22px;
+  line-height: 1;
+  color: #475569;
+}
+
+.parcel-popup .maplibregl-popup-close-button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}

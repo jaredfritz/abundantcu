@@ -52,6 +52,10 @@ Status of `/data/value-per-acre` and the work we've identified to build on it. S
 
 ### Vacant land tax simulation (highest priority)
 
+This would live on the `/data/vacant-land` page, which already maps vacant parcels by type (including "10-30"
+subdivision-rate land) with summary tables.
+
+
 The Strong Towns Chicago map's second page models a revenue-neutral vacant land tax:
 
 - Raise vacant land's assessment.

@@ -2,6 +2,8 @@
 // Methodology adapted from Strong Towns Chicago's value-per-acre map (MIT); see
 // src/components/parcels/LICENSE-chicago-value-per-acre.txt.
 
+import { VACANT_CLASS_TYPES, vacantTypeFor, type VacantType } from "./vacant";
+
 export const PARCEL_DATA_URL = "/data/parcels/champaign-county-parcels.json";
 
 // Illinois counties outside Cook assess property at one-third of market value, so market value
@@ -53,6 +55,8 @@ export interface Parcel {
   units: number;
   useCode: string;
   landUse: LandUse;
+  /** Set for vacant parcels: which kind of vacant land the assessor classes it as */
+  vacantType: VacantType | null;
   city: string;
   taxCode: string;
   taxRate: number | null;
@@ -80,6 +84,8 @@ export interface ParcelFeatureProps {
   i: number;
   city: string;
   use: LandUse;
+  /** Vacant land type, set only on vacant parcels */
+  vac?: VacantType;
   vpa?: number;
   land?: number;
 }
@@ -157,7 +163,7 @@ export const PROPERTY_CLASSES: Record<string, string> = {
   "8000": "Leasehold interest",
 };
 
-const VACANT_CLASSES = new Set(["0030", "0032", "0050", "0052", "0062", "0072", "0081", "0082"]);
+const VACANT_CLASSES = new Set(Object.keys(VACANT_CLASS_TYPES));
 
 export function landUseFor(useCode: string, exempt: boolean): LandUse {
   if (exempt || ["0090", "0091", "0092", "0093"].includes(useCode)) return "Exempt";
@@ -220,6 +226,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
       units: cols.units[i],
       useCode,
       landUse: landUseFor(useCode, exempt),
+      vacantType: exempt ? null : vacantTypeFor(useCode),
       city,
       taxCode: dict.taxCode[cols.taxCode[i]],
       taxRate,
@@ -240,6 +247,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
     const props: ParcelFeatureProps = { i, city, use: parcel.landUse };
     if (valuePerAcre !== null) props.vpa = valuePerAcre;
     if (landShare !== null) props.land = landShare;
+    if (parcel.vacantType) props.vac = parcel.vacantType;
     features.push({
       type: "Feature",
       id: i,

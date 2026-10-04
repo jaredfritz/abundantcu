@@ -139,8 +139,8 @@ Output goes to `public/data/crashes/`. The pages are adapted from the MIT-licens
 
 ## Value Per Acre Data
 
-`/data/value-per-acre` maps property value and estimated property tax per acre for every parcel in Champaign County,
-with filters for each municipality. It loads a static file built from:
+`/data/value-per-acre` maps property value per acre for every parcel in Champaign County, with filters for each
+municipality. `/data/vacant-land` maps vacant parcels by type from the same data file. It loads a static file built from:
 
 - parcel boundaries and assessments: the City of Champaign's public `TaxParcels_Assessed` layer (Champaign County GIS
   Consortium data)
