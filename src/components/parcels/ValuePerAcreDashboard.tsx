@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Parcels } from "@/lib/parcels";
 import {
-  ALL_COUNTY,
   areaCities,
   areaLabel,
   boundsOf,
@@ -26,11 +25,7 @@ import {
 import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared";
 import { LandUseTable } from "./LandUseTable";
 import { ParcelMap } from "./ParcelMap";
-
-const toggleClass = (active: boolean) =>
-  `rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-    active ? "bg-[var(--color-primary)] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-  }`;
+import { AreaSelect, ParcelPageHeader, toggleClass } from "./shared";
 
 export default function ValuePerAcreDashboard() {
   const router = useRouter();
@@ -50,18 +45,16 @@ export default function ValuePerAcreDashboard() {
   const scale: ColorScale = searchParams.get("scale") === "average" ? "average" : "bands";
   // 3D is the default: height makes the gap between city cores and the rest of town clearest.
   const is3D = searchParams.get("view") !== "2d";
-  const showVacant = searchParams.get("vacant") === "1";
 
   const updateParams = (
-    next: Partial<{ area: string; metric: ParcelMetric; scale: ColorScale; is3D: boolean; showVacant: boolean }>,
+    next: Partial<{ area: string; metric: ParcelMetric; scale: ColorScale; is3D: boolean }>,
   ) => {
-    const state = { area, metric, scale, is3D, showVacant, ...next };
+    const state = { area, metric, scale, is3D, ...next };
     const params = new URLSearchParams();
     if (state.area !== CU_METRO) params.set("area", state.area);
     if (state.metric !== "value") params.set("metric", state.metric);
     if (state.scale !== "bands") params.set("scale", state.scale);
     if (!state.is3D) params.set("view", "2d");
-    if (state.showVacant) params.set("vacant", "1");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
@@ -82,13 +75,10 @@ export default function ValuePerAcreDashboard() {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold md:text-4xl">Value Per Acre</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">
-          How much property value and property tax every acre of Champaign County produces. Compact, walkable blocks
-          pay far more per acre than parking lots, strip development, and vacant land, and they cost less to serve.
-        </p>
-      </div>
+      <ParcelPageHeader
+        title="Value Per Acre"
+        description="How much property value and property tax every acre of Champaign County produces. Compact, walkable blocks pay far more per acre than parking lots, strip development, and vacant land, and they cost less to serve."
+      />
 
       {error && <ErrorBlock message={error} />}
 
@@ -97,28 +87,7 @@ export default function ValuePerAcreDashboard() {
       {data && (
         <>
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <label htmlFor="parcel-area" className="sr-only">
-              Area
-            </label>
-            <select
-              id="parcel-area"
-              value={area}
-              onChange={(event) => updateParams({ area: event.target.value })}
-              className="rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm"
-            >
-              <option value={CU_METRO}>{areaLabel(CU_METRO)}</option>
-              <option value={ALL_COUNTY}>{areaLabel(ALL_COUNTY)}</option>
-              <optgroup label="Municipality">
-                {data.cities
-                  .filter((city) => city.name !== "Unincorporated")
-                  .map((city) => (
-                    <option key={city.name} value={city.name}>
-                      {city.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <option value="Unincorporated">Unincorporated areas</option>
-            </select>
+            <AreaSelect data={data} value={area} onChange={(next) => updateParams({ area: next })} />
 
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map metric">
               {MAP_METRICS.map((option) => (
@@ -163,15 +132,6 @@ export default function ValuePerAcreDashboard() {
               </button>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={showVacant}
-                onChange={(event) => updateParams({ showVacant: event.target.checked })}
-                className="h-4 w-4 accent-[var(--color-primary)]"
-              />
-              Outline vacant land
-            </label>
           </div>
 
           <SummaryCards summary={summary} />
@@ -194,7 +154,10 @@ export default function ValuePerAcreDashboard() {
               metric={metric}
               scale={scale}
               average={average}
-              cities={cities} bounds={bounds} is3D={is3D} showVacant={showVacant} />
+              cities={cities}
+              bounds={bounds}
+              is3D={is3D}
+            />
           </div>
 
           <div className={`${cardClass} mt-8 p-4 md:p-6`}>

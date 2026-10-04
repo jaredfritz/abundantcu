@@ -228,6 +228,36 @@ export default function DataHubPage() {
               </span>
             </div>
           </Link>
+
+          <Link
+            href="/data/vacant-land"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/vacant-land-thumbnail.png"
+                alt="Map of vacant parcels in Champaign and Urbana, colored by type"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Vacant Land</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every vacant
+                parcel in Champaign County by type, including subdivision land still assessed at farmland rates.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Empty lots in town
+                are where new homes and businesses could go, and they produce almost nothing while the city maintains
+                the streets and pipes around them.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Vacant Land
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
     </SiteShell>

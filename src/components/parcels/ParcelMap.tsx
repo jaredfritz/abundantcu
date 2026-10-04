@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Map, {
   Layer,
   NavigationControl,
@@ -11,7 +11,7 @@ import Map, {
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronDown } from "lucide-react";
-import type { Parcel, Parcels } from "@/lib/parcels";
+import type { Parcels } from "@/lib/parcels";
 import {
   areaFilter,
   colorExpression,
@@ -29,13 +29,13 @@ import {
   noDataHatchImage,
   PARCEL_BASEMAP,
   stopsFor,
-  VACANT_OUTLINE_COLOR,
   VIEW_3D,
   type ColorScale,
   type ParcelMetric,
 } from "@/lib/parcelMapStyles";
 import { formatMoney } from "@/lib/parcels";
 import { ParcelPopup } from "./ParcelPopup";
+import { PARCEL_POPUP_CLASS, useParcelSelection } from "./shared";
 
 interface ParcelMapProps {
   data: Parcels;
@@ -46,14 +46,13 @@ interface ParcelMapProps {
   cities: string[] | null;
   bounds: [number, number, number, number] | null;
   is3D: boolean;
-  showVacant: boolean;
 }
 
 const THREE_D_ZOOM_BOOST = 0.9;
 
 const INTERACTIVE_LAYERS = ["parcels-fill", "parcels-extrusion", "parcels-no-data"];
 
-export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, showVacant }: ParcelMapProps) {
+export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D }: ParcelMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [legendOpen, setLegendOpen] = useState(true);
@@ -62,7 +61,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
   useEffect(() => {
     if (window.matchMedia("(max-width: 639px)").matches) setLegendOpen(false);
   }, []);
-  const [selected, setSelected] = useState<{ parcel: Parcel; lngLat: [number, number] } | null>(null);
+  const { selected, setSelected, handleClick } = useParcelSelection(data);
   const config = metricConfig(metric);
   const filter = useMemo(() => areaFilter(cities), [cities]);
   const stops = useMemo(() => stopsFor(config, scale, average), [config, scale, average]);
@@ -95,16 +94,6 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
     appliedIs3D.current = is3D;
     mapRef.current?.easeTo(is3D ? VIEW_3D : { pitch: 0, bearing: 0 }, { duration: 800 });
   }, [loaded, is3D]);
-
-  const handleClick = useCallback(
-    (event: MapLayerMouseEvent) => {
-      const index = event.features?.[0]?.properties?.i;
-      setSelected(
-        typeof index === "number" ? { parcel: data.parcels[index], lngLat: [event.lngLat.lng, event.lngLat.lat] } : null,
-      );
-    },
-    [data],
-  );
 
   const selectedFilter = ["==", ["get", "i"], selected?.parcel.index ?? -1];
 
@@ -166,18 +155,6 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             }}
           />
           <Layer
-            id="parcels-vacant"
-            type="line"
-            // Below the extrusions, so in 3D the outlines sit on the ground behind taller parcels.
-            beforeId="parcels-extrusion"
-            filter={["all", filter, ["==", ["get", "use"], "Vacant"]] as never}
-            layout={{ visibility: showVacant ? "visible" : "none" }}
-            paint={{
-              "line-color": VACANT_OUTLINE_COLOR,
-              "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 15, 2.5],
-            }}
-          />
-          <Layer
             id="parcels-selected"
             type="line"
             filter={selectedFilter as never}
@@ -190,6 +167,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             latitude={selected.lngLat[1]}
             onClose={() => setSelected(null)}
             closeOnClick={false}
+            className={PARCEL_POPUP_CLASS}
             maxWidth="300px"
             offset={8}
           >
@@ -247,12 +225,6 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
                 <span className="mt-0.5 h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: FARM_COLOR }} />
                 <span className="text-xs text-slate-700">{FARM_LABEL}</span>
               </div>
-              {showVacant && (
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-4 rounded-[2px] border-2" style={{ borderColor: VACANT_OUTLINE_COLOR }} />
-                  <span className="text-xs text-slate-700">Vacant land{is3D ? " (clearest in 2D)" : ""}</span>
-                </div>
-              )}
             </div>
             {is3D && (
               <p className="mt-2 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">

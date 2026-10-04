@@ -11,7 +11,6 @@ export const VIEW_3D = { pitch: 55, bearing: -20 };
 export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 18;
 
-export const VACANT_OUTLINE_COLOR = "#e34948";
 // Farmland is assessed on what it can produce, not on market value, so it sits outside the value scale
 // in a neutral tan rather than reading as the lowest-value developed land.
 export const FARM_COLOR = "#d8c8a0";

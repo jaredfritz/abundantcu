@@ -27,7 +27,8 @@ export function ParcelPopup({ parcel, taxYear }: { parcel: Parcel; taxYear: numb
 
   return (
     <div className="min-w-[230px] text-xs">
-      <p className="text-sm font-bold text-[var(--color-primary)]">{title}</p>
+      {/* Right padding keeps the title clear of the popup's close button. */}
+      <p className="pr-8 text-sm font-bold text-[var(--color-primary)]">{title}</p>
       <p className="mt-0.5 text-slate-500">
         {parcel.city}
         {parcel.units > 1 ? ` · ${parcel.units} condo units` : ""}
