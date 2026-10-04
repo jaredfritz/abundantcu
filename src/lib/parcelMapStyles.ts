@@ -22,7 +22,9 @@ export const NO_DATA_PATTERN = "parcel-no-data-hatch";
 export const NO_DATA_SWATCH =
   "repeating-linear-gradient(135deg, #a3a3a3 0 1.5px, #ececec 1.5px 4px)";
 
-export type ParcelMetric = "value" | "tax" | "land";
+// A tax-per-acre view was removed: with one rate per city it mirrored value per acre. Bring it back once
+// exemption data gives net tax (see docs/value-per-acre-next-steps.md).
+export type ParcelMetric = "value" | "land";
 
 /** "bands" colors by fixed dollar bands; "average" colors by how a parcel compares to the area average. */
 export type ColorScale = "bands" | "average";
@@ -43,14 +45,14 @@ export interface MetricConfig {
   id: ParcelMetric;
   label: string;
   /** Feature property holding the value */
-  field: "vpa" | "tpa" | "land";
+  field: "vpa" | "land";
   description: string;
   stops: Stop[];
   /** Blend on a log scale (each doubling moves the same distance along the colors) */
   logScale: boolean;
   noDataLabel: string;
   /** Property and [value, meters] stops for the 3D extrusion height */
-  heightField: "vpa" | "tpa";
+  heightField: "vpa";
   heights: [number, number][];
 }
 
@@ -95,30 +97,6 @@ export const MAP_METRICS: MetricConfig[] = [
     logScale: true,
     heightField: "vpa",
     heights: VALUE_HEIGHTS,
-  },
-  {
-    id: "tax",
-    label: "Property tax per acre",
-    field: "tpa",
-    description: "Estimated property tax before exemptions (EAV × tax code rate) divided by parcel area.",
-    noDataLabel: "Exempt or rate unavailable",
-    stops: anchors(
-      // Same C-U percentiles as value per acre.
-      [13_500, 20_000, 26_000, 32_000, 40_000, 55_000, 140_000, 300_000],
-      ["$13.5k or less", "$20k", "$26k", "$32k", "$40k", "$55k", "$140k", "$300k or more"],
-      VALUE_RAMP,
-    ),
-    logScale: true,
-    heightField: "tpa",
-    heights: [
-      [0, 0],
-      [25_000, 30],
-      [125_000, 150],
-      [250_000, 300],
-      [625_000, 600],
-      [1_250_000, 1000],
-      [5_000_000, 2000],
-    ],
   },
   {
     id: "land",

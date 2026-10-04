@@ -81,7 +81,6 @@ export interface ParcelFeatureProps {
   city: string;
   use: LandUse;
   vpa?: number;
-  tpa?: number;
   land?: number;
 }
 
@@ -240,7 +239,6 @@ function decodeParcels(data: ParcelDataset): Parcels {
     // numeric properties when they have a value.
     const props: ParcelFeatureProps = { i, city, use: parcel.landUse };
     if (valuePerAcre !== null) props.vpa = valuePerAcre;
-    if (taxPerAcre !== null) props.tpa = taxPerAcre;
     if (landShare !== null) props.land = landShare;
     features.push({
       type: "Feature",

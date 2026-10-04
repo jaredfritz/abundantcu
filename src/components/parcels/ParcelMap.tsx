@@ -256,7 +256,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
             </div>
             {is3D && (
               <p className="mt-2 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">
-                Height = {config.heightField === "tpa" ? "tax" : "value"} per acre
+                Height = value per acre
               </p>
             )}
           </div>

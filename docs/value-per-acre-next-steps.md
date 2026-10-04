@@ -32,6 +32,9 @@ Status of `/data/value-per-acre` and the work we've identified to build on it. S
 
 ## Data improvements
 
+- **Bring back a tax-per-acre map view once we have net tax.** It was removed because, with one tax rate per
+  city, estimated tax per acre just mirrored value per acre. With exemptions and TIF diversions from the FOIA data,
+  net tax per acre will differ meaningfully from value per acre and is worth its own view.
 - **FOIA the assessment roll** (Supervisor of Assessments). Ask for, as a CSV: PIN, property class,
   land / building / total assessed value, every exemption amount, tax code, and tax billed, for the
   current year and as many prior years as available. That fills the main gaps:
