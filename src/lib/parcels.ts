@@ -23,6 +23,8 @@ interface ParcelDataset {
   cols: {
     pin: string[];
     address: string[];
+    /** Other units' addresses for multi-unit parcels, joined with "|" */
+    otherAddresses?: string[];
     units: number[];
     /** 1 when the parcel is a reconstructed condo/townhome development (approximate area) */
     condoDev: number[];
@@ -54,6 +56,8 @@ export interface Parcel {
   index: number;
   pin: string;
   address: string;
+  /** Other units' site addresses, for condo stacks and developments */
+  otherAddresses: string[];
   units: number;
   /** A condo or townhome development whose area is reconstructed, not a surveyed parcel */
   condoDevelopment: boolean;
@@ -227,6 +231,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
       index: i,
       pin: cols.pin[i],
       address: cols.address[i],
+      otherAddresses: cols.otherAddresses?.[i] ? cols.otherAddresses[i].split("|") : [],
       units: cols.units[i],
       condoDevelopment: cols.condoDev?.[i] === 1,
       useCode,
@@ -309,6 +314,22 @@ export function areaCities(area: string): string[] | null {
 export function inArea(parcel: Parcel, area: string): boolean {
   const cities = areaCities(area);
   return cities === null || cities.includes(parcel.city);
+}
+
+export function boundsOfParcel(data: Parcels, parcel: Parcel): [number, number, number, number] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const polygon of data.geojson.features[parcel.index].geometry.coordinates) {
+    for (const [x, y] of polygon[0]) {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return [minX, minY, maxX, maxY];
 }
 
 export function boundsOf(parcels: Parcels, area: string): [number, number, number, number] | null {
@@ -409,6 +430,16 @@ export function formatAcres(acres: number): string {
   return acres.toFixed(2);
 }
 
+// County site addresses end with the city, sometimes followed by a unit ("518 BRADLEY AVE CHAMPAIGN",
+// "1702 AIRPORT RD URBANA UNIT 5006"); the city is shown separately.
+const ADDRESS_CITY_SUFFIX =
+  /\s+(CHAMPAIGN|URBANA|SAVOY|MAHOMET|RANTOUL|ST\.? JOSEPH|SAINT JOSEPH|TOLONO|FISHER|PHILO|HOMER|SIDNEY|THOMASBORO|GIFFORD|OGDEN|PESOTUM|SADORUS|LUDLOW|BROADLANDS|BONDVILLE|IVESDALE|ROYAL|LONGVIEW|FOOSLAND|ALLERTON|SEYMOUR|DEWEY|PENFIELD|TUSCOLA|VILLA GROVE)(?=(\s+UNIT\b.*)?$)/i;
+
+/** A site address for display: title case, without the trailing city name. */
+export function displayAddress(address: string): string {
+  return titleCaseAddress(address.trim().replace(ADDRESS_CITY_SUFFIX, ""));
+}
+
 export function titleCaseAddress(address: string): string {
   return address
     .toLowerCase()
@@ -424,4 +455,154 @@ export function countyParcelUrl(pin: string, taxYear: number | null): string {
 
 export function formatPin(pin: string): string {
   return pin.length === 12 ? `${pin.slice(0, 2)}-${pin.slice(2, 4)}-${pin.slice(4, 6)}-${pin.slice(6, 9)}-${pin.slice(9)}` : pin;
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+// County site addresses use USPS-style abbreviations ("518 BRADLEY AVE CHAMPAIGN"); map common
+// spelled-out words to them so "518 Bradley Avenue" still matches.
+const ADDRESS_ABBREVIATIONS: Record<string, string> = {
+  STREET: "ST",
+  AVENUE: "AVE",
+  AV: "AVE",
+  DRIVE: "DR",
+  ROAD: "RD",
+  BOULEVARD: "BLVD",
+  COURT: "CT",
+  LANE: "LN",
+  PLACE: "PL",
+  CIRCLE: "CIR",
+  PARKWAY: "PKWY",
+  TERRACE: "TER",
+  HIGHWAY: "HWY",
+  NORTH: "N",
+  SOUTH: "S",
+  EAST: "E",
+  WEST: "W",
+};
+
+export function addressTokens(text: string): string[] {
+  return text
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => ADDRESS_ABBREVIATIONS[token] ?? token);
+}
+
+export interface ParcelMatch {
+  parcel: Parcel;
+  /** The address that matched (a unit's address for multi-unit parcels), or "" for a parcel-number match */
+  address: string;
+}
+
+/**
+ * Parcels matching a typed address or parcel number. Every word typed must start a word in the
+ * address, so "518 brad" finds 518 Bradley Ave. Multi-unit parcels match on any unit's address.
+ * Digits-only input of 4+ characters also matches parcel numbers.
+ */
+export function searchParcels(parcels: Parcel[], query: string, limit = 8): ParcelMatch[] {
+  const digits = query.replace(/[\s-]/g, "");
+  const tokens = addressTokens(query);
+  if (tokens.length === 0) return [];
+  const results: (ParcelMatch & { score: number })[] = [];
+  const pinQuery = /^\d{4,}$/.test(digits);
+  for (const parcel of parcels) {
+    if (pinQuery && parcel.pin.startsWith(digits)) {
+      results.push({ parcel, address: "", score: 0 });
+      continue;
+    }
+    for (const address of parcel.address ? [parcel.address, ...parcel.otherAddresses] : []) {
+      const words = addressTokens(address);
+      if (!tokens.every((token) => words.some((word) => word.startsWith(token)))) continue;
+      // Prefer an exact house-number match, then shorter addresses.
+      results.push({ parcel, address, score: (words[0] === tokens[0] ? 0 : 1) + address.length / 1000 });
+      break;
+    }
+  }
+  return results
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit)
+    .map(({ parcel, address }) => ({ parcel, address }));
+}
+
+/** The parcel containing a point, if any. */
+export function parcelAt(data: Parcels, lng: number, lat: number): Parcel | null {
+  for (const feature of data.geojson.features) {
+    for (const polygon of feature.geometry.coordinates) {
+      if (pointInRing(lng, lat, polygon[0]) && !polygon.slice(1).some((hole) => pointInRing(lng, lat, hole))) {
+        return data.parcels[feature.properties.i];
+      }
+    }
+  }
+  return null;
+}
+
+function pointInRing(x: number, y: number, ring: GeoJSON.Position[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// ---------------------------------------------------------------------------
+// Percentiles
+// ---------------------------------------------------------------------------
+
+export interface PercentileTable {
+  valuePerAcre: number[];
+  value: number[];
+}
+
+/** Whether a parcel belongs in the percentile comparison: taxable, assessed at market value, with a value. */
+function comparable(parcel: Parcel): boolean {
+  return !parcel.exempt && parcel.landUse !== "Farm" && (parcel.marketValue ?? 0) > 0 && parcel.valuePerAcre !== null;
+}
+
+export function percentileTable(parcels: Parcel[]): PercentileTable {
+  const group = parcels.filter(comparable);
+  return {
+    valuePerAcre: group.map((parcel) => parcel.valuePerAcre as number).sort((a, b) => a - b),
+    value: group.map((parcel) => parcel.marketValue as number).sort((a, b) => a - b),
+  };
+}
+
+/** Share of the sorted values strictly below `value`, 0-100. */
+function percentileOf(sorted: number[], value: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < value) lo = mid + 1;
+    else hi = mid;
+  }
+  return sorted.length ? (lo / sorted.length) * 100 : 0;
+}
+
+/**
+ * A rounded percentile label. The data isn't exact, so ranks are rounded to the nearest 10th
+ * percentile, except the tails: "Bottom 5%" and "Top 5%".
+ */
+export function percentileLabel(percentile: number): string {
+  if (percentile < 5) return "Bottom 5%";
+  if (percentile > 95) return "Top 5%";
+  return `${Math.min(90, Math.max(10, Math.round(percentile / 10) * 10))}th percentile`;
+}
+
+export interface ParcelRanks {
+  valuePerAcre: string;
+  value: string;
+}
+
+export function rankParcel(table: PercentileTable, parcel: Parcel): ParcelRanks | null {
+  if (!comparable(parcel) || table.value.length === 0) return null;
+  return {
+    valuePerAcre: percentileLabel(percentileOf(table.valuePerAcre, parcel.valuePerAcre as number)),
+    value: percentileLabel(percentileOf(table.value, parcel.marketValue as number)),
+  };
 }

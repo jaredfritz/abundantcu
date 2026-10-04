@@ -561,7 +561,7 @@ function buildParcels(features, { codes }, addresses, places) {
   parcels.push(...withDevelopments);
 
   const dicts = { useCode: new Dictionary(), city: new Dictionary(), taxCode: new Dictionary() };
-  const cols = { pin: [], address: [], units: [], condoDev: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
+  const cols = { pin: [], address: [], otherAddresses: [], units: [], condoDev: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
   const missingTaxCodes = new Set();
 
   for (const parcel of parcels) {
@@ -570,7 +570,10 @@ function buildParcels(features, { codes }, addresses, places) {
     const taxCode = codes.get(parcel.taxCode);
     if (parcel.taxCode && !taxCode) missingTaxCodes.add(parcel.taxCode);
     cols.pin.push(pin);
-    cols.address.push(parcel.pins.map((p) => addresses.get(p)).find(Boolean) ?? "");
+    // Multi-unit parcels (condo stacks and developments) keep every unit's address so each is searchable.
+    const unitAddresses = [...new Set(parcel.pins.map((p) => addresses.get(p)).filter(Boolean))];
+    cols.address.push(unitAddresses[0] ?? "");
+    cols.otherAddresses.push(unitAddresses.slice(1).join("|"));
     cols.units.push(parcel.pins.length);
     cols.condoDev.push(parcel.development ? 1 : 0);
     cols.useCode.push(dicts.useCode.id(parcel.useCode));

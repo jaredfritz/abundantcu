@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { Parcels } from "@/lib/parcels";
+import type { Parcel, Parcels } from "@/lib/parcels";
 import {
   areaCities,
   areaLabel,
@@ -25,7 +25,8 @@ import {
 import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared";
 import { LandUseTable } from "./LandUseTable";
 import { ParcelMap } from "./ParcelMap";
-import { AreaSelect, ParcelPageHeader, toggleClass } from "./shared";
+import { ParcelSearch } from "./ParcelSearch";
+import { AreaSelect, areaForParcel, ParcelPageHeader, toggleClass, useParcelRanks } from "./shared";
 
 export default function ValuePerAcreDashboard() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function ValuePerAcreDashboard() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<Parcels | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [focus, setFocus] = useState<{ parcel: Parcel; key: number } | null>(null);
 
   useEffect(() => {
     loadParcels().then(setData, (err: Error) => setError(err.message));
@@ -63,7 +65,14 @@ export default function ValuePerAcreDashboard() {
   const summary = useMemo(() => summarize(filtered), [filtered]);
   const cities = useMemo(() => areaCities(area), [area]);
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
+  const rankFor = useParcelRanks(filtered);
   const config = metricConfig(metric);
+
+  const showParcel = (parcel: Parcel) => {
+    const nextArea = areaForParcel(parcel, area);
+    if (nextArea !== area) updateParams({ area: nextArea });
+    setFocus({ parcel, key: Date.now() });
+  };
   // The "vs. area average" scale compares each parcel to the selected area's value per taxable acre.
   // Farmland is left out of the baseline, since it's assessed on productivity rather than market value.
   const average = useMemo(() => {
@@ -87,6 +96,7 @@ export default function ValuePerAcreDashboard() {
       {data && (
         <>
           <div className="mb-6 flex flex-wrap items-center gap-3">
+            <ParcelSearch data={data} onSelect={showParcel} />
             <AreaSelect data={data} value={area} onChange={(next) => updateParams({ area: next })} />
 
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map metric">
@@ -157,6 +167,9 @@ export default function ValuePerAcreDashboard() {
               cities={cities}
               bounds={bounds}
               is3D={is3D}
+              focus={focus}
+              rankFor={rankFor}
+              areaName={areaLabel(area)}
             />
           </div>
 
@@ -220,7 +233,9 @@ function MethodologyNote({ data }: { data: Parcels }) {
         Condo and townhome units are mapped by the county as building footprints only, without the
         shared land around them, so each development&apos;s units are combined into one shape: the outline around its
         buildings plus an 8-meter margin, trimmed so it doesn&apos;t overlap neighboring parcels. Those areas are
-        approximate. Wind and solar
+        approximate. <strong>Percentiles</strong> in parcel details compare a parcel with the taxable, non-farm
+        parcels in the selected area. Because these values are estimates, they&apos;re rounded to the nearest 10th
+        percentile, except the top and bottom 5%. Wind and solar
         lease areas drawn over farm parcels are left out to avoid double counting.
       </p>
       <p>

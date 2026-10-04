@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
-import type { Parcel, Parcels } from "@/lib/parcels";
-import { ALL_COUNTY, areaLabel, CU_METRO } from "@/lib/parcels";
+import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
+import { ALL_COUNTY, areaLabel, CU_METRO, inArea, percentileTable, rankParcel } from "@/lib/parcels";
 
 export const toggleClass = (active: boolean) =>
   `rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -111,4 +111,15 @@ export function useParcelSelection(data: Parcels) {
     [data, selected],
   );
   return { selected, setSelected, handleClick };
+}
+
+/** Percentile ranks against comparable parcels in the selected area, for parcel popups. */
+export function useParcelRanks(areaParcels: Parcel[]): (parcel: Parcel) => ParcelRanks | null {
+  const table = useMemo(() => percentileTable(areaParcels), [areaParcels]);
+  return useCallback((parcel: Parcel) => rankParcel(table, parcel), [table]);
+}
+
+/** The area to switch to so a searched parcel is visible: keep the current area if it already includes it. */
+export function areaForParcel(parcel: Parcel, area: string): string {
+  return inArea(parcel, area) ? area : parcel.city;
 }
