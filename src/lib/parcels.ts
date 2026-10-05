@@ -28,6 +28,8 @@ interface ParcelDataset {
     units: number[];
     /** 1 when the parcel is a reconstructed condo/townhome development (approximate area) */
     condoDev: number[];
+    /** 1 when a vacant parcel is held with the built parcel next door (same taxpayer) */
+    held?: number[];
     useCode: number[];
     city: number[];
     taxCode: number[];
@@ -61,6 +63,8 @@ export interface Parcel {
   units: number;
   /** A condo or townhome development whose area is reconstructed, not a surveyed parcel */
   condoDevelopment: boolean;
+  /** A vacant lot held with the built parcel next door (same taxpayer): a side yard, extra lot, or parking */
+  heldWithNeighbor: boolean;
   useCode: string;
   landUse: LandUse;
   /** Set for vacant parcels: which kind of vacant land the assessor classes it as */
@@ -94,6 +98,8 @@ export interface ParcelFeatureProps {
   use: LandUse;
   /** Vacant land type, set only on vacant parcels */
   vac?: VacantType;
+  /** 1 on vacant parcels held with the built parcel next door */
+  held?: 1;
   vpa?: number;
   land?: number;
 }
@@ -234,6 +240,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
       otherAddresses: cols.otherAddresses?.[i] ? cols.otherAddresses[i].split("|") : [],
       units: cols.units[i],
       condoDevelopment: cols.condoDev?.[i] === 1,
+      heldWithNeighbor: cols.held?.[i] === 1,
       useCode,
       landUse: landUseFor(useCode, exempt),
       vacantType: exempt ? null : vacantTypeFor(useCode),
@@ -258,6 +265,7 @@ function decodeParcels(data: ParcelDataset): Parcels {
     if (valuePerAcre !== null) props.vpa = valuePerAcre;
     if (landShare !== null) props.land = landShare;
     if (parcel.vacantType) props.vac = parcel.vacantType;
+    if (parcel.vacantType && parcel.heldWithNeighbor) props.held = 1;
     features.push({
       type: "Feature",
       id: i,

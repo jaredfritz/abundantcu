@@ -7,7 +7,7 @@ import { ChevronDown } from "lucide-react";
 import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
 import { boundsOfParcel } from "@/lib/parcels";
 import { areaFilter, CU_VIEW_STATE, MAX_ZOOM, MIN_ZOOM, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
-import { OTHER_PARCEL_COLOR, VACANT_TYPES } from "@/lib/vacant";
+import { heldPatternId, heldPatternImage, heldSwatch, OTHER_PARCEL_COLOR, VACANT_TYPES } from "@/lib/vacant";
 import { ParcelPopup } from "./ParcelPopup";
 import { PARCEL_POPUP_CLASS, useParcelSelection } from "./shared";
 
@@ -19,19 +19,27 @@ interface VacantLandMapProps {
   focus: { parcel: Parcel; key: number } | null;
   rankFor: (parcel: Parcel) => ParcelRanks | null;
   areaName: string;
+  /** Show vacant lots held with the built parcel next door (hatched); hidden ones draw as ordinary parcels */
+  showHeld: boolean;
 }
 
 const VACANT_COLOR = ["match", ["get", "vac"], ...VACANT_TYPES.flatMap((type) => [type.id, type.color]), "#000000"];
 
 
-export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName }: VacantLandMapProps) {
+export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName, showHeld }: VacantLandMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [legendOpen, setLegendOpen] = useState(true);
   const { selected, setSelected, handleClick } = useParcelSelection(data);
   const filter = useMemo(() => areaFilter(cities), [cities]);
-  const vacantFilter = ["all", filter, ["has", "vac"]];
-  const otherFilter = ["all", filter, ["!", ["has", "vac"]]];
+  const isVacant = ["has", "vac"];
+  const isHeld = ["has", "held"];
+  const standaloneFilter = ["all", filter, isVacant, ["!", isHeld]];
+  const heldFilter = ["all", filter, isVacant, isHeld];
+  const shownVacantFilter = showHeld ? ["all", filter, isVacant] : standaloneFilter;
+  const otherFilter = showHeld
+    ? ["all", filter, ["!", isVacant]]
+    : ["all", filter, ["any", ["!", isVacant], isHeld]];
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 639px)").matches) setLegendOpen(false);
@@ -62,9 +70,15 @@ export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName }
         dragRotate={false}
         style={{ width: "100%", height: "640px", borderRadius: "4px" }}
         mapStyle={PARCEL_BASEMAP}
-        interactiveLayerIds={["vacant-fill", "other-fill"]}
+        interactiveLayerIds={["vacant-fill", "vacant-held", "other-fill"]}
         onClick={handleClick}
-        onLoad={() => setLoaded(true)}
+        onLoad={(event) => {
+          for (const type of VACANT_TYPES) {
+            const id = heldPatternId(type.id);
+            if (!event.target.hasImage(id)) event.target.addImage(id, heldPatternImage(type.color));
+          }
+          setLoaded(true);
+        }}
         cursor="pointer"
       >
         <NavigationControl position="top-right" showCompass={false} />
@@ -78,13 +92,24 @@ export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName }
           <Layer
             id="vacant-fill"
             type="fill"
-            filter={vacantFilter as never}
+            filter={standaloneFilter as never}
             paint={{ "fill-color": VACANT_COLOR as never, "fill-opacity": 0.9 }}
           />
+          {/* Added after load (it needs the hatch images); pinned below the outlines. */}
+          {loaded && (
+            <Layer
+              id="vacant-held"
+              type="fill"
+              beforeId="vacant-outline"
+              filter={heldFilter as never}
+              layout={{ visibility: showHeld ? "visible" : "none" }}
+              paint={{ "fill-pattern": ["concat", "vacant-held-", ["get", "vac"]] as never }}
+            />
+          )}
           <Layer
             id="vacant-outline"
             type="line"
-            filter={vacantFilter as never}
+            filter={shownVacantFilter as never}
             paint={{
               "line-color": VACANT_COLOR as never,
               "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 15, 1.5],
@@ -140,6 +165,12 @@ export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName }
                 <span className="text-xs text-slate-700">{type.label}</span>
               </div>
             ))}
+            {showHeld && (
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 h-3 w-4 shrink-0 rounded-[2px]" style={{ background: heldSwatch("#64748b") }} />
+                <span className="text-xs text-slate-700">Hatched: held with the built property next door</span>
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <span className="mt-0.5 h-3 w-4 shrink-0 rounded-[2px]" style={{ backgroundColor: OTHER_PARCEL_COLOR }} />
               <span className="text-xs text-slate-700">All other parcels</span>

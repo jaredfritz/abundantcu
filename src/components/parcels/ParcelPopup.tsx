@@ -68,6 +68,11 @@ export function ParcelPopup({
           <Row label="Total value" value={ranks.value} />
         </dl>
       )}
+      {parcel.heldWithNeighbor && (
+        <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+          Held with the property next door (same taxpayer), such as a side yard or parking.
+        </p>
+      )}
       {!parcel.address && (
         <p className="mt-1.5 text-[11px] leading-snug text-slate-500">No site address in the county&apos;s records.</p>
       )}

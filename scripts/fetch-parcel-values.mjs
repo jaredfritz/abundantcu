@@ -21,6 +21,7 @@ import path from "node:path";
 import {
   area as turfArea,
   bbox as turfBbox,
+  booleanIntersects,
   booleanPointInPolygon,
   buffer,
   convex,
@@ -61,6 +62,9 @@ const PARCEL_FIELDS = [
   "AssessedBuilding",
   "AssessedFarmBuilding",
   "Shape.STArea()",
+  // Used only to tell whether a vacant lot is held with the built parcel next door; never written out.
+  "TaxPayer_Name",
+  "TaxPayer_Address1",
 ];
 
 // TaxParcelType 3 polygons are wind/solar lease areas drawn on top of the farm parcels they sit
@@ -388,6 +392,52 @@ function polygonsOfFeature(feature) {
   return geometry.type === "Polygon" ? [geometry.coordinates] : geometry.type === "MultiPolygon" ? geometry.coordinates : [];
 }
 
+// Vacant land classes (see src/lib/vacant.ts) and the built classes a vacant lot can be held with.
+const VACANT_USE_CODES = new Set(["0030", "0050", "0081", "0032", "0052", "0062", "0072", "0082"]);
+const BUILT_USE_CODES = new Set(["0040", "0060", "0080"]);
+// "Touching" tolerance: shared lot lines in the GIS don't always line up exactly.
+const NEIGHBOR_TOUCH_METERS = 2;
+
+const normalizeTaxpayer = (value) => String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/**
+ * Flag vacant lots held with the built parcel next door: a side yard, an extra lot, or a business's
+ * parking. A non-exempt vacant parcel is flagged when it touches a built parcel with the same taxpayer
+ * name or mailing address. Taxpayer fields are dropped afterwards and never published.
+ */
+function flagHeldWithNeighbor(parcels) {
+  const built = parcels
+    .filter((parcel) => BUILT_USE_CODES.has(parcel.useCode) && parcel.building > 0 && (parcel.taxpayer || parcel.mailing))
+    .map((parcel) => {
+      const shape = multiPolygon(parcel.polygons);
+      return { parcel, shape, box: turfBbox(shape) };
+    });
+  let flagged = 0;
+  for (const parcel of parcels) {
+    if (!VACANT_USE_CODES.has(parcel.useCode) || parcel.exempt || !(parcel.taxpayer || parcel.mailing)) continue;
+    let reach;
+    try {
+      reach = buffer(multiPolygon(parcel.polygons), NEIGHBOR_TOUCH_METERS, { units: "meters" });
+    } catch {
+      continue;
+    }
+    const box = turfBbox(reach);
+    parcel.heldWithNeighbor = built.some(
+      (neighbor) =>
+        ((parcel.taxpayer && neighbor.parcel.taxpayer === parcel.taxpayer) ||
+          (parcel.mailing && neighbor.parcel.mailing === parcel.mailing)) &&
+        bboxesOverlap(box, neighbor.box) &&
+        booleanIntersects(reach, neighbor.shape),
+    );
+    if (parcel.heldWithNeighbor) flagged += 1;
+  }
+  for (const parcel of parcels) {
+    delete parcel.taxpayer;
+    delete parcel.mailing;
+  }
+  return flagged;
+}
+
 /**
  * A development's approximate site: the outline around its buildings plus a margin, trimmed against
  * neighboring parcels and against developments already built. Polygon clipping occasionally fails on
@@ -526,6 +576,8 @@ function buildParcels(features, { codes }, addresses, places) {
       useCode: p.UseCode ?? "",
       exempt: p.Tax_Status === "E",
       eav: numberOrNull(p.EAV),
+      taxpayer: normalizeTaxpayer(p.TaxPayer_Name),
+      mailing: normalizeTaxpayer(p.TaxPayer_Address1),
       land: int(p.AssessedLand) + int(p.AssessedFarmland),
       building: int(p.AssessedBuilding) + int(p.AssessedFarmBuilding),
       area: Number(p["Shape.STArea()"]) || 0,
@@ -556,12 +608,14 @@ function buildParcels(features, { codes }, addresses, places) {
     stack.exempt &&= parcel.exempt;
   }
 
+  const heldWithNeighbor = flagHeldWithNeighbor(parcels);
+
   const { parcels: withDevelopments, developments } = buildCondoDevelopments(parcels);
   parcels.length = 0;
   parcels.push(...withDevelopments);
 
   const dicts = { useCode: new Dictionary(), city: new Dictionary(), taxCode: new Dictionary() };
-  const cols = { pin: [], address: [], otherAddresses: [], units: [], condoDev: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
+  const cols = { pin: [], address: [], otherAddresses: [], units: [], condoDev: [], held: [], useCode: [], city: [], taxCode: [], exempt: [], eav: [], land: [], building: [], area: [], geom: [] };
   const missingTaxCodes = new Set();
 
   for (const parcel of parcels) {
@@ -576,6 +630,7 @@ function buildParcels(features, { codes }, addresses, places) {
     cols.otherAddresses.push(unitAddresses.slice(1).join("|"));
     cols.units.push(parcel.pins.length);
     cols.condoDev.push(parcel.development ? 1 : 0);
+    cols.held.push(parcel.heldWithNeighbor ? 1 : 0);
     cols.useCode.push(dicts.useCode.id(parcel.useCode));
     // Tax codes carry the municipality. A code created after the rate book was published falls back
     // to the Census place boundary the parcel sits in.
@@ -603,6 +658,7 @@ function buildParcels(features, { codes }, addresses, places) {
       mergedPins: byPin.size,
       condoStacks: [...stacks.values()].filter((stack) => stack.pins.length > 1).length,
       condoDevelopments: developments,
+      heldWithNeighbor,
       parcels: parcels.length,
     },
   };
