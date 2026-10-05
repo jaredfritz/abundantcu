@@ -41,10 +41,10 @@ npm run data:crashes -- --from=2020 --to=2025
 Downloads IDOT's yearly statewide crash layers, keeps crashes in Champaign, Urbana, and Savoy (using Census municipal
 boundaries), and writes `public/data/crashes/`.
 
-The published file also has heavy-vehicle and University District fields for 2020-2024 from the Champaign County
-Regional Planning Commission's [crash dashboard](https://crashdashboard.ccrpc.org/), matched to IDOT records by
-`scripts/ccrpc-supplement.mjs`. CCRPC's points aren't included in this repo, so a rebuild leaves those two fields
-as "not available" unless you supply them (see the comments in that script).
+The file also has heavy-vehicle and University District fields for 2020-2024 from the Champaign County Regional
+Planning Commission's [crash dashboard](https://crashdashboard.ccrpc.org/), matched to IDOT records by year, city,
+injuries, crash type, cause, and location (`scripts/ccrpc-supplement.mjs`). CCRPC's crash points are saved in
+`data/ccrpc/crash-points.json`, so normal rebuilds don't contact CCRPC; add `--refresh-ccrpc` to download a new copy.
 
 ### Parcels: Value Per Acre and Vacant Land
 

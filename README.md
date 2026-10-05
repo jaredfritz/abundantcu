@@ -58,7 +58,7 @@ git add -A && git commit -m "Update from site" && git push
 `scripts/export-public-tools.mjs` follows imports from each tool's page, API route, and data script, so the file list
 updates itself. `public-tools/` holds the files that differ in the public repo (README, package.json, a plain page
 shell and index, config), and `REWRITES` in the script adjusts lines that name or link the site. The parking map,
-signup, writings, editor admin, and CCRPC's raw crash snapshot aren't exported. `LICENSE` is the MIT license the
+signup, writings, and editor admin aren't exported. `LICENSE` is the MIT license the
 public repo uses.
 
 ## High-Res Map Export Tool

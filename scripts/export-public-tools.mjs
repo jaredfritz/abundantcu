@@ -8,8 +8,8 @@
 // a new shared component comes along automatically. Files in public-tools/ replace their site counterparts (a plain
 // page shell and layout, package.json, README, config), and REWRITES adjusts the lines that point at or name the site.
 //
-// The export deletes everything in the target except .git, node_modules, and .next before copying, so the public
-// repo always matches the export exactly. Review the diff there (git status / git diff), then commit and push.
+// The export deletes everything in the target except .git, package-lock.json, node_modules, and .next before copying,
+// so the public repo always matches the export. Review the diff there (git status / git diff), then commit and push.
 
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
@@ -45,6 +45,7 @@ const EXTRA = [
   "public/value-per-acre-thumbnail.png",
   "public/vacant-land-thumbnail.png",
   "data/permits",
+  "data/ccrpc",
   "docs/value-per-acre-next-steps.md",
   "src/components/crashes/LICENSE-chicago-crash-dashboard.txt",
   "src/components/parcels/LICENSE-chicago-value-per-acre.txt",
@@ -143,8 +144,8 @@ async function main() {
   };
   await walk(OVERRIDES);
 
-  // Keep the target's git history and local installs; everything else is replaced.
-  const KEEP = new Set([".git", "node_modules", ".next"]);
+  // Keep the target's git history, lockfile, and local installs; everything else is replaced.
+  const KEEP = new Set([".git", "node_modules", ".next", "package-lock.json"]);
   for (const entry of await readdir(targetDir)) {
     if (!KEEP.has(entry)) await rm(path.join(targetDir, entry), { recursive: true, force: true });
   }
