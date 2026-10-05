@@ -34,6 +34,103 @@ export default function DataHubPage() {
           to make local land use and urban policy easier to explore and understand.
         </p>
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
+          Champaign-Urbana
+        </h2>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <Link
+            href="/data/crashes"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/crash-dashboard-thumbnail.png"
+                alt="Map of 2025 traffic crashes in Champaign and Urbana, colored by severity"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Crash Dashboard</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every reported
+                traffic crash in Champaign, Urbana, and Savoy since 2014, mapped, with a report builder for any city,
+                street, or intersection.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Street design
+                decides who gets hurt. Knowing where people are injured and killed is the first step to fixing those
+                streets.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Crash Data
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/data/value-per-acre"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/value-per-acre-thumbnail.png"
+                alt="3D map of property value per acre in Champaign, with tall spikes downtown and in Campustown"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Value Per Acre</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Property value and
+                property tax per acre for every parcel in Champaign County, with filters for each city and a 3D view.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Compact, walkable
+                blocks carry far more of the tax base per acre than parking lots, strip development, and vacant land, and
+                they cost less to serve.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Value Per Acre
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/data/vacant-land"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/vacant-land-thumbnail.png"
+                alt="Map of vacant parcels in Champaign and Urbana, colored by type"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Vacant Land</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every vacant
+                parcel in Champaign County by type, including subdivision land still assessed at farmland rates.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Empty lots in town
+                are where new homes and businesses could go, and they produce almost nothing while the city maintains
+                the streets and pipes around them.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore Vacant Land
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
           City of Champaign
         </h2>
 
@@ -158,103 +255,6 @@ export default function DataHubPage() {
               </p>
               <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
                 Explore Parking Map
-              </span>
-            </div>
-          </Link>
-        </div>
-
-        <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
-          Champaign-Urbana
-        </h2>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Link
-            href="/data/crashes"
-            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
-          >
-            <div className="relative h-44 border-b border-[var(--color-border)]">
-              <Image
-                src="/crash-dashboard-thumbnail.png"
-                alt="Map of 2025 traffic crashes in Champaign and Urbana, colored by severity"
-                fill
-                sizes="(min-width: 768px) 33vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold">Crash Dashboard</h3>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every reported
-                traffic crash in Champaign, Urbana, and Savoy since 2014, mapped, with a report builder for any city,
-                street, or intersection.
-              </p>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Street design
-                decides who gets hurt. Knowing where people are injured and killed is the first step to fixing those
-                streets.
-              </p>
-              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
-                Explore Crash Data
-              </span>
-            </div>
-          </Link>
-
-          <Link
-            href="/data/value-per-acre"
-            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
-          >
-            <div className="relative h-44 border-b border-[var(--color-border)]">
-              <Image
-                src="/value-per-acre-thumbnail.png"
-                alt="3D map of property value per acre in Champaign, with tall spikes downtown and in Campustown"
-                fill
-                sizes="(min-width: 768px) 33vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold">Value Per Acre</h3>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Property value and
-                property tax per acre for every parcel in Champaign County, with filters for each city and a 3D view.
-              </p>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Compact, walkable
-                blocks carry far more of the tax base per acre than parking lots, strip development, and vacant land, and
-                they cost less to serve.
-              </p>
-              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
-                Explore Value Per Acre
-              </span>
-            </div>
-          </Link>
-
-          <Link
-            href="/data/vacant-land"
-            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
-          >
-            <div className="relative h-44 border-b border-[var(--color-border)]">
-              <Image
-                src="/vacant-land-thumbnail.png"
-                alt="Map of vacant parcels in Champaign and Urbana, colored by type"
-                fill
-                sizes="(min-width: 768px) 33vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold">Vacant Land</h3>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every vacant
-                parcel in Champaign County by type, including subdivision land still assessed at farmland rates.
-              </p>
-              <p className="mt-3 text-sm text-slate-700">
-                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Empty lots in town
-                are where new homes and businesses could go, and they produce almost nothing while the city maintains
-                the streets and pipes around them.
-              </p>
-              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
-                Explore Vacant Land
               </span>
             </div>
           </Link>
