@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DataUpdated } from "@/components/site/DataUpdated";
 import { usePathname } from "next/navigation";
 import type { Crash, Crashes, DatePreset, DateRange } from "@/lib/crashes";
 import { ALL_PLACES, datePresets, placeLabel, UNIVERSITY_DISTRICT } from "@/lib/crashes";
@@ -34,6 +35,7 @@ export function CrashPageHeader({ title, description }: { title: string; descrip
       </nav>
       <h1 className="text-3xl font-extrabold md:text-4xl">{title}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">{description}</p>
+      <DataUpdated dataset="crashes" className="mt-2" />
     </div>
   );
 }

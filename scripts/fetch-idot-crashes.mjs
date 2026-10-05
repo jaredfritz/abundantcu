@@ -10,6 +10,7 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { markDatasetUpdated, writeIfChanged } from "./data-updates.mjs";
 import { applyCcrpcSnapshot, fetchCcrpcSnapshot } from "./ccrpc-supplement.mjs";
 
 const OUT_DIR = path.join(process.cwd(), "public", "data", "crashes");
@@ -353,7 +354,11 @@ async function main() {
     dict,
     cols,
   };
-  await writeFile(path.join(OUT_DIR, "champaign-urbana-savoy-idot.json"), JSON.stringify(dataset));
+  // Only a real data change bumps the "refreshed" date, so the monthly refresh doesn't open a PR for a date alone.
+  if (await writeIfChanged(path.join(OUT_DIR, "champaign-urbana-savoy-idot.json"), JSON.stringify(dataset))) {
+    const latest = String(all.reduce((max, record) => Math.max(max, crashDay(record) ?? 0), 0));
+    await markDatasetUpdated("crashes", { through: `${latest.slice(0, 4)}-${latest.slice(4, 6)}-${latest.slice(6, 8)}` });
+  }
   console.log(`Wrote ${all.length.toLocaleString()} crashes for ${years[0]}-${years.at(-1)}.`);
 
   try {

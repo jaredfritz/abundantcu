@@ -164,3 +164,11 @@ Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-l
 [Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre); see
 `src/components/parcels/LICENSE-chicago-value-per-acre.txt`. Planned follow-ups are in
 `docs/value-per-acre-next-steps.md`.
+
+## Data dates on the maps
+
+Each map and dashboard under `/data` shows what its data covers and when it was last refreshed (for example,
+"Crashes through Dec 31, 2025 · Refreshed Oct 4, 2026"), from `src/data/data-updates.json`. `npm run data:parcels`
+and `npm run data:crashes` write their entries from the data they build (crashes only when the data actually
+changes). Zoning is a static file: update its `asOf` date by hand when it changes. The permit year comes from the
+permit data itself, and the parking map shows its most recent community addition from the live data.
