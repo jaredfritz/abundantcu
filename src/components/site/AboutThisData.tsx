@@ -13,10 +13,7 @@ function openAbout(): boolean {
   return true;
 }
 
-/**
- * A page's sources, methods, and caveats, collapsed at the bottom of the page. The credit line (data
- * sources and attribution) stays visible below it.
- */
+/** A page's sources, methods, and caveats, collapsed at the bottom of the page, ending with `credit`. */
 export function AboutThisData({ credit, children }: { credit: ReactNode; children: ReactNode }) {
   // Arriving at #about-this-data (e.g. from a shared link) opens the notes.
   useEffect(() => {
@@ -33,9 +30,11 @@ export function AboutThisData({ credit, children }: { credit: ReactNode; childre
           About this data
           <span className="font-normal text-slate-500">(sources, methods, and caveats)</span>
         </summary>
-        <div className="mt-2 space-y-2">{children}</div>
+        <div className="mt-2 space-y-2">
+          {children}
+          <p>{credit}</p>
+        </div>
       </details>
-      <p className="mt-2 text-slate-500">{credit}</p>
     </section>
   );
 }

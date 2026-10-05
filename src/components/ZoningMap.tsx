@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DATA_STATUS, permitsThrough } from "@/lib/dataUpdates";
+import ZoningAbout from "./ZoningAbout";
 import { Info } from "lucide-react";
 import Map, { Layer, Marker, Source, MapMouseEvent, MapRef } from "react-map-gl/maplibre";
 import type { FilterSpecification, DataDrivenPropertyValueSpecification, ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
@@ -819,36 +819,13 @@ export default function ZoningMap({
             type="button"
             onClick={toggleAttributionPanel}
             className="h-9 px-3 rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-lg backdrop-blur-sm inline-flex items-center justify-center gap-1.5 hover:bg-white"
-            aria-label="Map attribution info"
+            aria-label="About this data"
             aria-expanded={attributionOpen}
           >
             <Info className="h-4 w-4" />
             <span className="text-xs font-medium">Info</span>
           </button>
-          {attributionOpen && (
-            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 rounded bg-white/95 px-2 py-1 text-[10px] text-gray-600 shadow-sm border border-gray-100 backdrop-blur-sm whitespace-nowrap">
-              <a href="https://maplibre.org/" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
-                MapLibre
-              </a>
-              <span className="mx-1 text-gray-400">|</span>
-              <span>&copy; </span>
-              <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
-                CARTO
-              </a>
-              <span>, &copy; </span>
-              <a
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-gray-800 underline"
-              >
-                OpenStreetMap contributors
-              </a>
-              <span className="mt-0.5 block">
-                {DATA_STATUS.zoning} · {permitsThrough(permitsData)}
-              </span>
-            </div>
-          )}
+          {attributionOpen && <ZoningAbout permitsData={permitsData} className="absolute right-full bottom-0 mr-2" />}
         </div>
 
         {showAnyLegend && (
@@ -1089,30 +1066,7 @@ export default function ZoningMap({
             </div>
           )}
 
-          {attributionOpen && (
-            <div className="absolute bottom-full right-0 mb-2 rounded bg-white/95 px-2 py-1 text-[10px] text-gray-600 shadow-sm border border-gray-100 backdrop-blur-sm whitespace-nowrap">
-              <a href="https://maplibre.org/" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
-                MapLibre
-              </a>
-              <span className="mx-1 text-gray-400">|</span>
-              <span>&copy; </span>
-              <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" className="hover:text-gray-800 underline">
-                CARTO
-              </a>
-              <span>, &copy; </span>
-              <a
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-gray-800 underline"
-              >
-                OpenStreetMap contributors
-              </a>
-              <span className="mt-0.5 block">
-                {DATA_STATUS.zoning} · {permitsThrough(permitsData)}
-              </span>
-            </div>
-          )}
+          {attributionOpen && <ZoningAbout permitsData={permitsData} className="absolute bottom-full right-0 mb-2" />}
 
           <div className="flex items-center justify-end gap-2">
             {showAnyLegend && (
@@ -1127,7 +1081,7 @@ export default function ZoningMap({
               type="button"
               onClick={toggleAttributionPanel}
               className="min-h-11 px-3 py-2 rounded-lg border border-gray-200 bg-white/95 text-gray-700 shadow-lg backdrop-blur-sm inline-flex items-center justify-center gap-1.5"
-              aria-label="Map attribution info"
+              aria-label="About this data"
               aria-expanded={attributionOpen}
             >
               <Info className="h-4 w-4" />

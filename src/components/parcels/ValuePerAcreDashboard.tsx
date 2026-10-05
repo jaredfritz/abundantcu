@@ -220,7 +220,7 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof summarize> }) {
 function MethodologyNote({ data }: { data: Parcels }) {
   const { meta } = data;
   return (
-    <AboutThisData credit={<ParcelCredit meta={meta} />}>
+    <AboutThisData credit={<ParcelCredit />}>
       <p>
         <strong>Market value</strong> is three times each parcel&apos;s equalized assessed value (EAV), since Illinois
         assesses property at one-third of market value outside Cook County. Farmland is assessed on what it can produce,

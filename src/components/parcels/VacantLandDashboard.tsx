@@ -301,7 +301,7 @@ function LargestTable({
 
 function MethodologyNote({ data }: { data: Parcels }) {
   return (
-    <AboutThisData credit={<ParcelCredit meta={data.meta} />}>
+    <AboutThisData credit={<ParcelCredit />}>
       <p>
         Vacant land is every parcel the Champaign County assessor classes as vacant (residential, commercial, or
         industrial vacant land, plus the &ldquo;10-30&rdquo; subdivision classes). <strong>Surface parking lots are not

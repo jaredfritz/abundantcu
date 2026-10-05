@@ -165,6 +165,22 @@ Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-l
 `src/components/parcels/LICENSE-chicago-value-per-acre.txt`. Planned follow-ups are in
 `docs/value-per-acre-next-steps.md`.
 
+## Residential Permit Data
+
+The permit layer on `/data/zoning` comes from new-construction building permits provided by the City of Champaign,
+kept in `data/permits/champaign-residential-permits.csv` (no coordinates). To add permits, append rows to the CSV and
+rebuild the map points:
+
+```bash
+npm run data:permits
+```
+
+Each address is matched to the City of Champaign's public Address Points layer (including retired addresses), then
+to the county site addresses in the parcel data, then placed between the nearest address points on the same side of
+the same street. Street names a permit spells differently from the city go in `SPELLINGS` in the script. The script
+lists any permits it can't place. Output goes to
+`src/data/residential-permits.json`.
+
 ## Data dates on the maps
 
 Each map and dashboard under `/data` shows what its data covers and when it was last refreshed (for example,
