@@ -1,5 +1,5 @@
 // Records when a dataset behind the /data pages last changed, in src/data/data-updates.json.
-// The site shows these dates on the Data Hub cards and each map.
+// The site shows these dates on each map and dashboard.
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";

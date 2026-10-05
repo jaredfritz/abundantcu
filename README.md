@@ -165,9 +165,9 @@ Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-l
 `src/components/parcels/LICENSE-chicago-value-per-acre.txt`. Planned follow-ups are in
 `docs/value-per-acre-next-steps.md`.
 
-## "Updated" dates on the Data Hub
+## "Updated" dates on the data maps
 
-The Data Hub cards and each map show when their data last changed, from `src/data/data-updates.json`.
+Each map and dashboard under `/data` shows when its data last changed, from `src/data/data-updates.json`.
 `npm run data:parcels` and `npm run data:crashes` update their entries (crashes only when the data actually
 changes). Zoning and permits are static files: update their dates by hand when those files change. The parking map
 shows its most recent community addition from the live data.
