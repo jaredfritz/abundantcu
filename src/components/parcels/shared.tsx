@@ -22,6 +22,58 @@ export function ParcelPageHeader({ title, description }: { title: string; descri
   );
 }
 
+/** Short, always-visible credit line under the parcel pages' "About this data" notes. */
+export function ParcelCredit({ meta }: { meta: Parcels["meta"] }) {
+  return (
+    <>
+      Data:{" "}
+      <a href={meta.parcelSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+        Champaign County GIS Consortium
+      </a>{" "}
+      and{" "}
+      <a href={meta.rateSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+        County Clerk
+      </a>
+      . Adapted from the open-source{" "}
+      <a
+        href="https://github.com/StrongTownsChicago/chicago-value-per-acre"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline"
+      >
+        Value Per Acre map
+      </a>{" "}
+      by{" "}
+      <a href="https://www.strongtownschicago.org/value-per-acre-map" target="_blank" rel="noopener noreferrer" className="underline">
+        Strong Towns Chicago
+      </a>{" "}
+      (MIT license).
+    </>
+  );
+}
+
+/** Full source list for the parcel pages' "About this data" notes. */
+export function ParcelSources({ meta }: { meta: Parcels["meta"] }) {
+  return (
+    <p>
+      Sources: parcel boundaries and assessments from the{" "}
+      <a href={meta.parcelSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+        Champaign County GIS Consortium via City of Champaign GIS
+      </a>
+      ; tax rates from the{" "}
+      <a href={meta.rateSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+        Champaign County Clerk&apos;s {meta.taxYear} rate book
+      </a>
+      ; site addresses from the{" "}
+      <a href={meta.addressSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+        Champaign County property tax inquiry
+      </a>
+      . Municipalities come from each parcel&apos;s tax code. Values are estimates for illustration, not official tax
+      bills.
+    </p>
+  );
+}
+
 export function AreaSelect({
   data,
   value,

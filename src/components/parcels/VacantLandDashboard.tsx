@@ -20,7 +20,8 @@ import {
 import { summarizeVacant, vacantTypeConfig, VACANT_TYPES, type VacantSummary } from "@/lib/vacant";
 import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared";
 import { ParcelSearch } from "./ParcelSearch";
-import { AreaSelect, areaForParcel, ParcelPageHeader, useParcelRanks } from "./shared";
+import { AboutThisData } from "@/components/site/AboutThisData";
+import { AreaSelect, areaForParcel, ParcelCredit, ParcelPageHeader, ParcelSources, useParcelRanks } from "./shared";
 import { VacantLandMap } from "./VacantLandMap";
 
 const th = "px-2 py-3 text-xs font-medium uppercase tracking-wider text-slate-500";
@@ -127,7 +128,7 @@ export default function VacantLandDashboard() {
             <LargestTable parcels={summary.largest} taxYear={data.meta.taxYear} onSelect={showOnMap} />
           </div>
 
-          <MethodologyNote />
+          <MethodologyNote data={data} />
         </>
       )}
     </section>
@@ -298,10 +299,9 @@ function LargestTable({
   );
 }
 
-function MethodologyNote() {
+function MethodologyNote({ data }: { data: Parcels }) {
   return (
-    <div className="mt-8 space-y-2 text-xs text-slate-600">
-      <h2 className="text-sm font-semibold text-[var(--color-primary)]">About this data</h2>
+    <AboutThisData credit={<ParcelCredit meta={data.meta} />}>
       <p>
         Vacant land is every parcel the Champaign County assessor classes as vacant (residential, commercial, or
         industrial vacant land, plus the &ldquo;10-30&rdquo; subdivision classes). <strong>Surface parking lots are not
@@ -325,12 +325,13 @@ function MethodologyNote() {
         valued in the hundreds of thousands.
       </p>
       <p>
-        Market value is three times the equalized assessed value. Values and sources are the same as the{" "}
+        Market value is three times the equalized assessed value, calculated the same way as on the{" "}
         <Link href="/data/value-per-acre" className="underline">
           Value Per Acre
         </Link>{" "}
-        map; see its notes for details.
+        map.
       </p>
-    </div>
+      <ParcelSources meta={data.meta} />
+    </AboutThisData>
   );
 }

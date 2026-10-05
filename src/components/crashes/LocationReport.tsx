@@ -374,16 +374,19 @@ export default function LocationReport() {
                   <CausesTable causes={report.causes} />
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="mt-8 rounded-[4px] border border-[var(--color-border)] bg-slate-50 p-4 text-xs text-slate-600">
-                <p className="font-medium text-slate-700">Cost Estimation Methodology</p>
-                <p className="mt-2">
-                  Cost estimates use the Federal Highway Administration (FHWA) KABCO injury-based methodology.{" "}
-                  <strong>Economic costs</strong> include medical expenses, lost productivity, legal costs, and property
-                  damage. <strong>Societal costs</strong> add the value of lost quality of life (QALY) to capture the
-                  full impact on individuals and communities.
+          <DataSourceNote data={data}>
+            {report && (
+              <>
+                <p>
+                  <strong>Cost estimates</strong> use the Federal Highway Administration (FHWA) KABCO injury-based
+                  methodology. <strong>Economic costs</strong> include medical expenses, lost productivity, legal costs, and
+                  property damage. <strong>Societal costs</strong> add the value of lost quality of life (QALY) to capture
+                  the full impact on individuals and communities.
                 </p>
-                <p className="mt-2">
+                <p>
                   Costs are calculated per person by injury severity (K=Fatal, A=Incapacitating, B=Non-incapacitating,
                   C=Possible injury), plus per-vehicle costs for property-damage-only crashes. Values are in 2024
                   dollars.{" "}
@@ -391,16 +394,14 @@ export default function LocationReport() {
                     href="https://highways.dot.gov/sites/fhwa.dot.gov/files/2025-10/CrashCostFactSheet_508_OCT2025.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium underline"
+                    className="underline"
                   >
                     FHWA Crash Cost Fact Sheet (PDF)
                   </a>
                 </p>
-              </div>
-            </>
-          )}
-
-          <DataSourceNote data={data} />
+              </>
+            )}
+          </DataSourceNote>
         </>
       )}
     </section>

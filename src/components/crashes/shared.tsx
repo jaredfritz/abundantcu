@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { AboutThisData } from "@/components/site/AboutThisData";
 import { DataUpdated } from "@/components/site/DataUpdated";
 import { usePathname } from "next/navigation";
 import type { Crash, Crashes, DatePreset, DateRange } from "@/lib/crashes";
@@ -184,12 +186,45 @@ export function CrashPopup({ crash }: { crash: Crash }) {
   );
 }
 
-export function DataSourceNote({ data }: { data: Crashes }) {
+/** The crash pages' "About this data" notes. `children` adds page-specific notes ahead of the sources. */
+export function DataSourceNote({ data, children }: { data: Crashes; children?: ReactNode }) {
   const years = data.meta.years;
   return (
-    <div className="mt-8 space-y-2 text-center text-xs text-slate-600">
+    <AboutThisData
+      credit={
+        <>
+          Data:{" "}
+          <a href={data.meta.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            IDOT crash data
+          </a>
+          {data.meta.ccrpc && (
+            <>
+              {" "}and{" "}
+              <a href={data.meta.ccrpc.source} target="_blank" rel="noopener noreferrer" className="underline">
+                CCRPC
+              </a>
+            </>
+          )}
+          . Adapted from the open-source{" "}
+          <a
+            href="https://github.com/MisterClean/chicago-crashes-pipeline"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Chicago Crash Dashboard
+          </a>{" "}
+          by{" "}
+          <a href="https://bsky.app/profile/mclean.bsky.social" target="_blank" rel="noopener noreferrer" className="underline">
+            Michael McLean
+          </a>{" "}
+          (MIT license).
+        </>
+      }
+    >
+      {children}
       <p>
-        Data:{" "}
+        Sources:{" "}
         <a href={data.meta.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
           Illinois Department of Transportation crash data
         </a>
@@ -211,23 +246,7 @@ export function DataSourceNote({ data }: { data: Crashes }) {
           {data.meta.ccrpc.ccrpcCrashes.toLocaleString()} matched). Other years show these fields as not available.
         </p>
       )}
-      <p>
-        Adapted from the open-source{" "}
-        <a
-          href="https://github.com/MisterClean/chicago-crashes-pipeline"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          Chicago Crash Dashboard
-        </a>{" "}
-        by{" "}
-        <a href="https://bsky.app/profile/mclean.bsky.social" target="_blank" rel="noopener noreferrer" className="underline">
-          Michael McLean
-        </a>{" "}
-        (MIT license).
-      </p>
-    </div>
+    </AboutThisData>
   );
 }
 
