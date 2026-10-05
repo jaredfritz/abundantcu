@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import ModeMapThumbnail from "@/components/map/ModeMapThumbnail";
+import { DataUpdated } from "@/components/site/DataUpdated";
 import SiteShell from "@/components/site/SiteShell";
 import permitsData from "@/data/residential-permits.json";
 
@@ -52,6 +53,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Zoning Districts</h3>
+              <DataUpdated dataset="zoning" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> The city&apos;s
                 legal zoning framework, block by block.
@@ -80,6 +82,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Residential Permit Map</h3>
+              <DataUpdated dataset="permits" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Where new
                 residential permits have actually been issued over the last decade.
@@ -112,6 +115,7 @@ export default function DataHubPage() {
                 Where Can I Build A <span className="sr-only">type</span>
                 <span aria-hidden className="mx-1 inline-block w-14 translate-y-[-2px] border-b-2 border-current" />?
               </h3>
+              <DataUpdated dataset="zoning" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Where common
                 housing types are allowed by right, allowed conditionally, or not allowed.
@@ -148,6 +152,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Parking Map</h3>
+              <p className="mt-1 text-xs text-slate-500">Live, community-mapped</p>
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Community-mapped
                 surface lots and parking garages in downtown Champaign.
@@ -183,6 +188,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Crash Dashboard</h3>
+              <DataUpdated dataset="crashes" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every reported
                 traffic crash in Champaign, Urbana, and Savoy since 2014, mapped, with a report builder for any city,
@@ -214,6 +220,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Value Per Acre</h3>
+              <DataUpdated dataset="parcels" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Property value and
                 property tax per acre for every parcel in Champaign County, with filters for each city and a 3D view.
@@ -244,6 +251,7 @@ export default function DataHubPage() {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold">Vacant Land</h3>
+              <DataUpdated dataset="parcels" className="mt-1" />
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every vacant
                 parcel in Champaign County by type, including subdivision land still assessed at farmland rates.

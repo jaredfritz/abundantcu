@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { dataUpdated } from "@/lib/dataUpdates";
 import { Info } from "lucide-react";
 import Map, { Layer, Marker, Source, MapMouseEvent, MapRef } from "react-map-gl/maplibre";
 import type { FilterSpecification, DataDrivenPropertyValueSpecification, ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
@@ -843,6 +844,9 @@ export default function ZoningMap({
               >
                 OpenStreetMap contributors
               </a>
+              <span className="mt-0.5 block">
+                Zoning updated {dataUpdated("zoning")} · Permits updated {dataUpdated("permits")}
+              </span>
             </div>
           )}
         </div>
@@ -1104,6 +1108,9 @@ export default function ZoningMap({
               >
                 OpenStreetMap contributors
               </a>
+              <span className="mt-0.5 block">
+                Zoning updated {dataUpdated("zoning")} · Permits updated {dataUpdated("permits")}
+              </span>
             </div>
           )}
 

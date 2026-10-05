@@ -18,6 +18,7 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { markDatasetUpdated } from "./data-updates.mjs";
 import {
   area as turfArea,
   bbox as turfBbox,
@@ -733,6 +734,7 @@ async function main() {
   };
 
   await writeFile(path.join(OUT_DIR, OUT_FILE), JSON.stringify(dataset));
+  await markDatasetUpdated("parcels");
   console.log(
     `Wrote ${stats.parcels.toLocaleString()} parcels (${stats.condoStacks.toLocaleString()} condo buildings, ` +
       `${stats.leaseDropped} lease polygons dropped, ${addresses.size.toLocaleString()} addresses).`,

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
+import { formatUpdateDate } from "@/lib/dataUpdates";
 import type {
   ParkingBasemap,
   ParkingExportFeature,
@@ -218,6 +219,15 @@ function sourceToFeature(source: ParkingFeatureSource): ParkingFeature | null {
     created_by: source.created_by ?? "",
     created_by_name: source.created_by_name ?? "contributor",
   };
+}
+
+/** Most recent created_at among loaded rows, as an ISO date (YYYY-MM-DD), or null. */
+function latestCreatedAt(rows: DbParkingFeature[] | null): string | null {
+  const latest = (rows ?? []).reduce<string | null>(
+    (max, row) => (row.created_at && (!max || row.created_at > max) ? row.created_at : max),
+    null,
+  );
+  return latest ? latest.slice(0, 10) : null;
 }
 
 function dbToFeature(row: DbParkingFeature): ParkingFeature | null {
@@ -972,6 +982,7 @@ export default function ParkingMapper({
   const [analysisRectCoords, setAnalysisRectCoords] = useState<[number, number][] | null>(null);
   const [roadMasks, setRoadMasks] = useState<MaskFeature[]>([]);
   const [brushPoints, setBrushPoints] = useState<[number, number][]>([]);
+  const [lastAddedAt, setLastAddedAt] = useState<string | null>(null);
   const [features, setFeatures] = useState<ParkingFeature[]>(
     hasServerSeededCaptureFeatures ? normalizedInitialCaptureFeatures : []
   );
@@ -1312,6 +1323,7 @@ export default function ParkingMapper({
             .filter((feature): feature is ParkingFeature => feature !== null);
           if (mapped.length > 0 || !captureMode || attempt === maxAttempts - 1) {
             setFeatures(mapped);
+            setLastAddedAt(latestCreatedAt(data as DbParkingFeature[] | null));
             if (captureMode && mapped.length === 0) {
               setFeatureLoadError("No parking features returned for export.");
             }
@@ -2488,6 +2500,7 @@ export default function ParkingMapper({
                   <span className="font-semibold text-gray-900">{surfaceCount}</span> lot{surfaceCount !== 1 ? "s" : ""}{" "}
                   &middot;{" "}
                   <span className="font-semibold text-gray-900">{garageCount}</span> garage{garageCount !== 1 ? "s" : ""}
+                  {lastAddedAt && <span className="block text-[11px] text-gray-400">Last addition {formatUpdateDate(lastAddedAt)}</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {canEditMap && (
