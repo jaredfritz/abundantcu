@@ -62,41 +62,81 @@ export interface VacantTypeSummary {
   parcels: number;
   acres: number;
   value: number;
+  heldParcels: number;
+  heldAcres: number;
 }
 
 export interface VacantSummary {
+  /** Standalone vacant parcels (not held with a built neighbor) */
   parcels: number;
   acres: number;
   value: number;
+  heldParcels: number;
+  heldAcres: number;
+  heldValue: number;
   /** All parcel acres in the area, for "share of land" */
   areaAcres: number;
   byType: VacantTypeSummary[];
+  /** Largest vacant parcels, standalone only unless `includeHeld` */
   largest: Parcel[];
 }
 
-export function summarizeVacant(parcels: Parcel[], largestCount = 20): VacantSummary {
+export function summarizeVacant(parcels: Parcel[], { includeHeld = true, largestCount = 20 } = {}): VacantSummary {
   const byType = new Map<VacantType, VacantTypeSummary>();
-  const vacant: Parcel[] = [];
-  let areaAcres = 0;
+  const listed: Parcel[] = [];
+  const summary = { parcels: 0, acres: 0, value: 0, heldParcels: 0, heldAcres: 0, heldValue: 0, areaAcres: 0 };
   for (const parcel of parcels) {
-    areaAcres += parcel.acres;
+    summary.areaAcres += parcel.acres;
     if (!parcel.vacantType) continue;
-    vacant.push(parcel);
-    const group = byType.get(parcel.vacantType) ?? { type: parcel.vacantType, parcels: 0, acres: 0, value: 0 };
-    group.parcels += 1;
-    group.acres += parcel.acres;
-    group.value += parcel.marketValue ?? 0;
+    const group =
+      byType.get(parcel.vacantType) ??
+      { type: parcel.vacantType, parcels: 0, acres: 0, value: 0, heldParcels: 0, heldAcres: 0 };
+    if (parcel.heldWithNeighbor) {
+      group.heldParcels += 1;
+      group.heldAcres += parcel.acres;
+      summary.heldParcels += 1;
+      summary.heldAcres += parcel.acres;
+      summary.heldValue += parcel.marketValue ?? 0;
+      if (includeHeld) listed.push(parcel);
+    } else {
+      group.parcels += 1;
+      group.acres += parcel.acres;
+      group.value += parcel.marketValue ?? 0;
+      summary.parcels += 1;
+      summary.acres += parcel.acres;
+      summary.value += parcel.marketValue ?? 0;
+      listed.push(parcel);
+    }
     byType.set(parcel.vacantType, group);
   }
-  const groups = VACANT_TYPES.map((entry) => byType.get(entry.id)).filter((group): group is VacantTypeSummary =>
-    Boolean(group),
-  );
   return {
-    parcels: vacant.length,
-    acres: groups.reduce((sum, group) => sum + group.acres, 0),
-    value: groups.reduce((sum, group) => sum + group.value, 0),
-    areaAcres,
-    byType: groups,
-    largest: [...vacant].sort((a, b) => b.acres - a.acres).slice(0, largestCount),
+    ...summary,
+    byType: VACANT_TYPES.map((entry) => byType.get(entry.id)).filter((group): group is VacantTypeSummary => Boolean(group)),
+    largest: listed.sort((a, b) => b.acres - a.acres).slice(0, largestCount),
   };
+}
+
+/** Hatch fill for vacant lots held with a neighbor: diagonal stripes in the type's color. */
+export function heldPatternId(type: VacantType) {
+  return `vacant-held-${type}`;
+}
+
+export function heldPatternImage(hex: string): { width: number; height: number; data: Uint8Array } {
+  const size = 8;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const stripe = (x + y) % size < 3;
+      data.set(stripe ? [r, g, b, 255] : [255, 255, 255, 170], (y * size + x) * 4);
+    }
+  }
+  return { width: size, height: size, data };
+}
+
+/** CSS swatch matching the held-lot hatch. */
+export function heldSwatch(hex: string) {
+  return `repeating-linear-gradient(135deg, ${hex} 0 2px, #ffffff 2px 5px)`;
 }

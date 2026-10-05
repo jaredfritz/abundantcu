@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
 import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
 import { ALL_COUNTY, areaLabel, CU_METRO, inArea, percentileTable, rankParcel } from "@/lib/parcels";
@@ -12,34 +10,10 @@ export const toggleClass = (active: boolean) =>
     active ? "bg-[var(--color-primary)] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
   }`;
 
-const TABS = [
-  { href: "/data/value-per-acre", label: "Value Per Acre" },
-  { href: "/data/vacant-land", label: "Vacant Land" },
-];
-
-/** Page title with tabs between the parcel maps. The selected area carries over between tabs. */
+/** Page title and description for the parcel maps. */
 export function ParcelPageHeader({ title, description }: { title: string; description: string }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const area = searchParams.get("area");
   return (
     <div className="mb-8">
-      <nav aria-label="Parcel data views" className="mb-5 flex gap-2 text-sm font-medium">
-        {TABS.map((tab) => (
-          <Link
-            key={tab.href}
-            href={area ? `${tab.href}?area=${encodeURIComponent(area)}` : tab.href}
-            aria-current={pathname === tab.href ? "page" : undefined}
-            className={
-              pathname === tab.href
-                ? "rounded-[4px] bg-[var(--color-primary)] px-3 py-1.5 text-white"
-                : "rounded-[4px] border border-[var(--color-border)] bg-white px-3 py-1.5 hover:bg-slate-50"
-            }
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
       <h1 className="text-3xl font-extrabold md:text-4xl">{title}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">{description}</p>
     </div>

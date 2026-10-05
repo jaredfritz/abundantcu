@@ -40,12 +40,19 @@ export default function VacantLandDashboard() {
   }, []);
 
   const area = searchParams.get("area") ?? CU_METRO;
-  const setArea = (next: string) => {
-    router.replace(next === CU_METRO ? pathname : `${pathname}?area=${encodeURIComponent(next)}`, { scroll: false });
+  const showHeld = searchParams.get("held") !== "0";
+  const updateParams = (next: Partial<{ area: string; showHeld: boolean }>) => {
+    const state = { area, showHeld, ...next };
+    const params = new URLSearchParams();
+    if (state.area !== CU_METRO) params.set("area", state.area);
+    if (!state.showHeld) params.set("held", "0");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
+  const setArea = (next: string) => updateParams({ area: next });
 
   const filtered = useMemo(() => (data ? data.parcels.filter((parcel) => inArea(parcel, area)) : []), [data, area]);
-  const summary = useMemo(() => summarizeVacant(filtered), [filtered]);
+  const summary = useMemo(() => summarizeVacant(filtered, { includeHeld: showHeld }), [filtered, showHeld]);
   const cities = useMemo(() => areaCities(area), [area]);
   const bounds = useMemo(() => (data ? boundsOf(data, area) : null), [data, area]);
 
@@ -74,6 +81,15 @@ export default function VacantLandDashboard() {
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <ParcelSearch data={data} onSelect={showOnMap} />
             <AreaSelect data={data} value={area} onChange={setArea} />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={showHeld}
+                onChange={(event) => updateParams({ showHeld: event.target.checked })}
+                className="h-4 w-4 accent-[var(--color-primary)]"
+              />
+              Show lots held with the property next door
+            </label>
           </div>
 
           <SummaryCards summary={summary} />
@@ -82,7 +98,8 @@ export default function VacantLandDashboard() {
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Vacant Land · {areaLabel(area)}</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Vacant parcels by type. Everything else is shown in gray for context. Click any parcel for details.
+                Vacant parcels by type. Hatched lots are held with the built property next door, such as a side yard or
+                a business&apos;s parking. Everything else is shown in gray for context. Click any parcel for details.
               </p>
             </div>
             <VacantLandMap
@@ -92,6 +109,7 @@ export default function VacantLandDashboard() {
               focus={focus}
               rankFor={rankFor}
               areaName={areaLabel(area)}
+              showHeld={showHeld}
             />
           </div>
 
@@ -102,7 +120,10 @@ export default function VacantLandDashboard() {
 
           <div className={`${cardClass} mt-8 p-4 md:p-6`}>
             <h2 className="text-xl font-semibold">Largest Vacant Parcels · {areaLabel(area)}</h2>
-            <p className="mt-1 mb-4 text-sm text-slate-600">Click a row to see the parcel on the map.</p>
+            <p className="mt-1 mb-4 text-sm text-slate-600">
+              {showHeld ? "Includes lots held with the property next door. " : "Standalone vacant lots only. "}
+              Click a row to see the parcel on the map.
+            </p>
             <LargestTable parcels={summary.largest} taxYear={data.meta.taxYear} onSelect={showOnMap} />
           </div>
 
@@ -115,18 +136,23 @@ export default function VacantLandDashboard() {
 
 function SummaryCards({ summary }: { summary: VacantSummary }) {
   const subdivision = summary.byType.find((group) => group.type === "subdivision");
+  const subdivisionAcres = (subdivision?.acres ?? 0) + (subdivision?.heldAcres ?? 0);
   const metrics = [
-    { label: "Vacant parcels", value: summary.parcels.toLocaleString() },
     {
-      label: "Vacant acres",
-      value: formatAcres(summary.acres),
-      detail: `${summary.areaAcres > 0 ? Math.round((summary.acres / summary.areaAcres) * 100) : 0}% of parcel land`,
+      label: "Standalone vacant parcels",
+      value: summary.parcels.toLocaleString(),
+      detail: `+${summary.heldParcels.toLocaleString()} held with the property next door`,
     },
-    { label: "Market value (est.)", value: formatMoney(summary.value, { compact: true }) },
+    {
+      label: "Standalone vacant acres",
+      value: formatAcres(summary.acres),
+      detail: `${summary.areaAcres > 0 ? Math.round((summary.acres / summary.areaAcres) * 100) : 0}% of parcel land · +${formatAcres(summary.heldAcres)} acres held with neighbors`,
+    },
+    { label: "Market value, standalone (est.)", value: formatMoney(summary.value, { compact: true }) },
     {
       label: "Assessed at subdivision rate (10-30)",
-      value: `${formatAcres(subdivision?.acres ?? 0)} acres`,
-      detail: subdivision ? `${formatMoney(subdivision.value / subdivision.acres, { compact: true })} per acre` : undefined,
+      value: `${formatAcres(subdivisionAcres)} acres`,
+      detail: subdivision && subdivision.acres > 0 ? `${formatMoney(subdivision.value / subdivision.acres, { compact: true })} per acre` : undefined,
     },
   ];
   return (
@@ -143,7 +169,7 @@ function SummaryCards({ summary }: { summary: VacantSummary }) {
 }
 
 function TypeTable({ summary }: { summary: VacantSummary }) {
-  if (summary.parcels === 0) {
+  if (summary.byType.length === 0) {
     return <div className="py-8 text-center text-slate-500">No vacant parcels in this area</div>;
   }
   return (
@@ -152,10 +178,10 @@ function TypeTable({ summary }: { summary: VacantSummary }) {
         <thead>
           <tr className="border-b border-[var(--color-border)]">
             <th className={`${th} text-left`}>Type</th>
-            <th className={`${th} text-right`}>Parcels</th>
-            <th className={`${th} text-right`}>Acres</th>
-            <th className={`${th} text-right`}>Market value (est.)</th>
+            <th className={`${th} text-right`}>Standalone parcels</th>
+            <th className={`${th} text-right`}>Standalone acres</th>
             <th className={`${th} text-right`}>Value per acre</th>
+            <th className={`${th} text-right`}>Held with neighbor</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -174,8 +200,11 @@ function TypeTable({ summary }: { summary: VacantSummary }) {
                 </td>
                 <td className={td}>{group.parcels.toLocaleString()}</td>
                 <td className={td}>{formatAcres(group.acres)}</td>
-                <td className={td}>{formatMoney(group.value, { compact: true })}</td>
                 <td className={td}>{formatMoney(group.acres > 0 ? group.value / group.acres : null, { compact: true })}</td>
+                <td className={td}>
+                  {group.heldParcels.toLocaleString()}
+                  <span className="block text-xs text-slate-500">{formatAcres(group.heldAcres)} acres</span>
+                </td>
               </tr>
             );
           })}
@@ -183,11 +212,18 @@ function TypeTable({ summary }: { summary: VacantSummary }) {
             <td className="px-2 py-2 text-sm">Total</td>
             <td className={td}>{summary.parcels.toLocaleString()}</td>
             <td className={td}>{formatAcres(summary.acres)}</td>
-            <td className={td}>{formatMoney(summary.value, { compact: true })}</td>
             <td className={td}>{formatMoney(summary.acres > 0 ? summary.value / summary.acres : null, { compact: true })}</td>
+            <td className={td}>
+              {summary.heldParcels.toLocaleString()}
+              <span className="block text-xs font-normal text-slate-500">{formatAcres(summary.heldAcres)} acres</span>
+            </td>
           </tr>
         </tbody>
       </table>
+      <p className="mt-3 text-xs text-slate-500">
+        &ldquo;Held with neighbor&rdquo; lots touch a built parcel with the same taxpayer, such as a side yard, an extra
+        lot, or a business&apos;s parking. Value per acre is for standalone lots.
+      </p>
     </div>
   );
 }
@@ -236,6 +272,9 @@ function LargestTable({
                     <span className="h-3 w-3 shrink-0 rounded-[2px]" style={{ backgroundColor: config.color }} />
                     {config.label.replace(/^Vacant,? /, "").replace(/^\w/, (c) => c.toUpperCase())}
                   </span>
+                  {parcel.heldWithNeighbor && (
+                    <span className="block text-xs text-slate-500">Held with property next door</span>
+                  )}
                 </td>
                 <td className={td}>{formatAcres(parcel.acres)}</td>
                 <td className={td}>{formatMoney(parcel.valuePerAcre, { compact: true })}</td>
@@ -271,6 +310,13 @@ function MethodologyNote() {
           parking map
         </Link>{" "}
         for those. Exempt vacant land, such as city- or university-owned lots, is not counted.
+      </p>
+      <p>
+        <strong>Held with the property next door:</strong> a vacant lot that touches a built parcel with the same
+        taxpayer name or mailing address is marked as held with it, since it usually works as a side yard, an extra lot,
+        or a business&apos;s parking. Owner names are used only to make this match and aren&apos;t published. Matching
+        is approximate: an owner listed differently on the two parcels, or lots separated by an alley, won&apos;t be
+        matched.
       </p>
       <p>
         <strong>Subdivision rate (10-30):</strong> under 35 ILCS 200/10-30, land that has been platted into a
