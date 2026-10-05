@@ -193,19 +193,7 @@ export function DataSourceNote({ data, children }: { data: Crashes; children?: R
     <AboutThisData
       credit={
         <>
-          Data:{" "}
-          <a href={data.meta.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-            IDOT crash data
-          </a>
-          {data.meta.ccrpc && (
-            <>
-              {" "}and{" "}
-              <a href={data.meta.ccrpc.source} target="_blank" rel="noopener noreferrer" className="underline">
-                CCRPC
-              </a>
-            </>
-          )}
-          . Adapted from the open-source{" "}
+          Adapted from the open-source{" "}
           <a
             href="https://github.com/MisterClean/chicago-crashes-pipeline"
             target="_blank"

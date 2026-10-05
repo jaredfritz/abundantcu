@@ -22,19 +22,11 @@ export function ParcelPageHeader({ title, description }: { title: string; descri
   );
 }
 
-/** Short, always-visible credit line under the parcel pages' "About this data" notes. */
-export function ParcelCredit({ meta }: { meta: Parcels["meta"] }) {
+/** Attribution at the end of the parcel pages' "About this data" notes. */
+export function ParcelCredit() {
   return (
     <>
-      Data:{" "}
-      <a href={meta.parcelSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-        Champaign County GIS Consortium
-      </a>{" "}
-      and{" "}
-      <a href={meta.rateSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-        County Clerk
-      </a>
-      . Adapted from the open-source{" "}
+      Adapted from the open-source{" "}
       <a
         href="https://github.com/StrongTownsChicago/chicago-value-per-acre"
         target="_blank"
