@@ -7,8 +7,10 @@
 //   1. the City of Champaign's official Address Points layer (including retired addresses, since
 //      older permits can use addresses that were later replaced), then
 //   2. the county site addresses in the parcel data (npm run data:parcels), placing the permit inside
-//      the matching parcel.
-// Permits that match neither are listed and left off the map.
+//      the matching parcel, then
+//   3. for a number the city hasn't assigned a point yet, a point between the nearest city address points
+//      on the same side of the same street, as street geocoders do.
+// Permits that match none of these are listed and left off the map.
 //
 // Output: src/data/residential-permits.json (GeoJSON points).
 
@@ -61,19 +63,27 @@ const STREET_TYPES = new Set([
   "RUN", "LOOP", "PATH", "BND", "CV", "PASS", "PT", "POINTE",
 ]);
 
+// Street names a permit spells differently from the city's address points.
+const SPELLINGS = { WILBUR: "WILBER" };
+
 const tokens = (text) =>
   text
     .toUpperCase()
     .replace(/[^A-Z0-9 ]/g, " ")
     .split(/\s+/)
     .filter(Boolean)
-    .map((token) => ABBREVIATIONS[token] ?? token);
+    .map((token) => ABBREVIATIONS[token] ?? SPELLINGS[token] ?? token);
 const exactKey = (words) => words.join(" ");
 const looseKey = (words) => words.filter((word, i) => i === 0 || !STREET_TYPES.has(word)).join(" ");
 // Some addresses leave off the direction ("37 CHALMERS ST" for 37 E Chalmers St), so the loosest match
 // drops it too. It's only used when the address is unambiguous without it.
 const DIRECTIONS = new Set(["N", "S", "E", "W"]);
 const undirectedKey = (words) => looseKey(words.filter((word, i) => i !== 1 || !DIRECTIONS.has(word)));
+// Street names written as one word or two ("PRAIRIE RIDGE PL" for 2412 Prairieridge Pl).
+const compactKey = (words) => {
+  const [number, ...street] = undirectedKey(words).split(" ");
+  return `${number} ${street.join("")}`;
+};
 const AMBIGUOUS = "ambiguous";
 
 function parseCsv(text) {
@@ -107,6 +117,7 @@ class AddressIndex {
     [exactKey, new Map()],
     [looseKey, new Map()],
     [undirectedKey, new Map()],
+    [compactKey, new Map()],
   ];
 
   add(address, point) {
@@ -132,6 +143,36 @@ class AddressIndex {
   }
 }
 
+/**
+ * Address points by street and side, for placing a house number the city hasn't given a point yet
+ * between its neighbors.
+ */
+class StreetIndex {
+  streets = new Map();
+
+  add(address, point) {
+    const [number, ...street] = looseKey(tokens(address)).split(" ");
+    if (!/^\d+$/.test(number)) return;
+    const key = `${street.join(" ")}|${Number(number) % 2}`;
+    if (!this.streets.has(key)) this.streets.set(key, []);
+    this.streets.get(key).push({ number: Number(number), point });
+  }
+
+  interpolate(address) {
+    const [number, ...street] = looseKey(tokens(candidates(address)[0])).split(" ");
+    if (!/^\d+$/.test(number)) return null;
+    const target = Number(number);
+    const side = this.streets.get(`${street.join(" ")}|${target % 2}`) ?? [];
+    const below = side.filter((p) => p.number < target).sort((a, b) => b.number - a.number)[0];
+    const above = side.filter((p) => p.number > target).sort((a, b) => a.number - b.number)[0];
+    // Only between close neighbors on one block or so, never past the end of a street.
+    if (!below || !above || above.number - below.number > 200) return null;
+    if (turf.distance(below.point, above.point, { units: "meters" }) > 400) return null;
+    const t = (target - below.number) / (above.number - below.number);
+    return below.point.map((value, i) => value + t * (above.point[i] - value));
+  }
+}
+
 async function fetchJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${url}`);
@@ -140,6 +181,7 @@ async function fetchJson(url) {
 
 async function loadAddressPoints() {
   const index = new AddressIndex();
+  const streets = new StreetIndex();
   const { count } = await fetchJson(`${ADDRESS_POINTS}/query?where=1%3D1&returnCountOnly=true&f=json`);
   const rows = [];
   for (let offset = 0; offset < count; offset += 2000) {
@@ -159,11 +201,15 @@ async function loadAddressPoints() {
   const rank = ({ attributes: a }) =>
     (a.Status === "Active" ? 0 : 2) + (a.MainPoint === "Y" && !a.CompSubAddress ? 0 : 1);
   rows.sort((a, b) => rank(a) - rank(b));
-  for (const { attributes, geometry } of rows) {
-    if (attributes.StreetAddress && geometry) index.add(attributes.StreetAddress, [geometry.x, geometry.y]);
+  for (const { attributes: a, geometry } of rows) {
+    if (!a.StreetAddress || !geometry) continue;
+    index.add(a.StreetAddress, [geometry.x, geometry.y]);
+    if (a.Status === "Active" && a.MainPoint === "Y" && !a.CompSubAddress) {
+      streets.add(a.StreetAddress, [geometry.x, geometry.y]);
+    }
   }
   console.log(`Loaded ${rows.length.toLocaleString()} City of Champaign address points.`);
-  return index;
+  return { index, streets };
 }
 
 function decodeRing(flat) {
@@ -205,17 +251,21 @@ async function loadParcelAddresses() {
 
 async function main() {
   const permits = parseCsv(await readFile(INPUT, "utf8"));
-  const [addressPoints, parcels] = await Promise.all([loadAddressPoints(), loadParcelAddresses()]);
+  const [{ index: addressPoints, streets }, parcels] = await Promise.all([loadAddressPoints(), loadParcelAddresses()]);
 
   const features = [];
   const unmatched = [];
-  const counts = { address_point: 0, parcel: 0 };
+  const counts = { address_point: 0, parcel: 0, interpolated: 0 };
   for (const permit of permits) {
     let located = "address_point";
     let point = addressPoints.find(permit.address);
     if (!point) {
       located = "parcel";
       point = parcels.find(permit.address);
+    }
+    if (!point) {
+      located = "interpolated";
+      point = streets.interpolate(permit.address);
     }
     if (!point) {
       unmatched.push(permit);
@@ -242,7 +292,7 @@ async function main() {
   await writeFile(OUTPUT, `${JSON.stringify({ type: "FeatureCollection", meta, features })}\n`);
   console.log(
     `Placed ${features.length} of ${permits.length} permits: ${counts.address_point} at city address points, ` +
-      `${counts.parcel} in matching parcels.`,
+      `${counts.parcel} in matching parcels, ${counts.interpolated} between neighboring addresses.`,
   );
   if (unmatched.length > 0) {
     console.log(`Not placed (${unmatched.length}):`);

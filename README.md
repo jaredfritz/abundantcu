@@ -176,7 +176,9 @@ npm run data:permits
 ```
 
 Each address is matched to the City of Champaign's public Address Points layer (including retired addresses), then
-to the county site addresses in the parcel data. The script lists any permits it can't place. Output goes to
+to the county site addresses in the parcel data, then placed between the nearest address points on the same side of
+the same street. Street names a permit spells differently from the city go in `SPELLINGS` in the script. The script
+lists any permits it can't place. Output goes to
 `src/data/residential-permits.json`.
 
 ## Data dates on the maps

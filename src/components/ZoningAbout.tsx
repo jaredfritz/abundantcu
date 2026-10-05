@@ -57,8 +57,8 @@ export default function ZoningAbout({
             ({Math.min(...years)}–{Math.max(...years)})
           </>
         )}
-        . Each is mapped at its address in the city&apos;s address points, or inside the matching county parcel when
-        the city has no point for it.
+        . Each is mapped at its address in the city&apos;s address points. A few the city has no point for are placed
+        inside the matching county parcel or between the neighboring addresses on the same side of the street.
         {unplaced > 0 && ` ${unplaced} permits whose addresses couldn't be matched aren't shown.`}
       </p>
       <p className="mt-2 text-gray-500">
