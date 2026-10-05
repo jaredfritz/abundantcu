@@ -26,7 +26,8 @@ import { cardClass, ErrorBlock, LoadingBlock } from "@/components/crashes/shared
 import { LandUseTable } from "./LandUseTable";
 import { ParcelMap } from "./ParcelMap";
 import { ParcelSearch } from "./ParcelSearch";
-import { AreaSelect, areaForParcel, ParcelPageHeader, toggleClass, useParcelRanks } from "./shared";
+import { AboutThisData } from "@/components/site/AboutThisData";
+import { AreaSelect, areaForParcel, ParcelCredit, ParcelPageHeader, ParcelSources, toggleClass, useParcelRanks } from "./shared";
 
 export default function ValuePerAcreDashboard() {
   const router = useRouter();
@@ -218,10 +219,8 @@ function SummaryCards({ summary }: { summary: ReturnType<typeof summarize> }) {
 
 function MethodologyNote({ data }: { data: Parcels }) {
   const { meta } = data;
-  const updated = new Date(meta.generatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   return (
-    <div className="mt-8 space-y-2 text-xs text-slate-600">
-      <h2 className="text-sm font-semibold text-[var(--color-primary)]">How this map is made</h2>
+    <AboutThisData credit={<ParcelCredit meta={meta} />}>
       <p>
         <strong>Market value</strong> is three times each parcel&apos;s equalized assessed value (EAV), since Illinois
         assesses property at one-third of market value outside Cook County. Farmland is assessed on what it can produce,
@@ -238,38 +237,7 @@ function MethodologyNote({ data }: { data: Parcels }) {
         percentile, except the top and bottom 5%. Wind and solar
         lease areas drawn over farm parcels are left out to avoid double counting.
       </p>
-      <p>
-        Data: parcel boundaries and assessments from the{" "}
-        <a href={meta.parcelSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-          Champaign County GIS Consortium via City of Champaign GIS
-        </a>
-        ; tax rates from the{" "}
-        <a href={meta.rateSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-          Champaign County Clerk&apos;s {meta.taxYear} rate book
-        </a>
-        ; site addresses from the{" "}
-        <a href={meta.addressSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-          Champaign County property tax inquiry
-        </a>
-        . Municipalities come from each parcel&apos;s tax code. Updated {updated}. Values are estimates for illustration,
-        not official tax bills.
-      </p>
-      <p>
-        Adapted from the open-source{" "}
-        <a
-          href="https://github.com/StrongTownsChicago/chicago-value-per-acre"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          Value Per Acre map
-        </a>{" "}
-        by{" "}
-        <a href="https://www.strongtownschicago.org/value-per-acre-map" target="_blank" rel="noopener noreferrer" className="underline">
-          Strong Towns Chicago
-        </a>{" "}
-        (MIT license).
-      </p>
-    </div>
+      <ParcelSources meta={meta} />
+    </AboutThisData>
   );
 }
