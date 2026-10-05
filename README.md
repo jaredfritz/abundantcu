@@ -1,29 +1,65 @@
-# Abundant CU Web Platform
+# Abundant CU
 
-Launch-ready site for Abundant CU, built with Next.js + Tailwind and a reused Champaign zoning map module.
+The source for [abundantcu.com](https://www.abundantcu.com): maps, datasets, and policy tools about land use and
+housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and MapLibre.
 
-## Implemented Launch Scope
+## What's here
 
-- `/` home page with:
-  - Swiss minimalist style tokens
-  - home map preview widget
-  - mission pillars
-  - sticky primary CTA for email signup
-- `/zoning` full interactive zoning + permits map (reused from previous app)
-- `/writings` publication card list (seed data + Sanity-ready loader)
-- `/action` with CUrbanism first, Sway second, then resources
-- global navbar/footer with repeated signup form
-- lightweight lead capture API (`/api/lead`) with:
-  - honeypot spam check
-  - simple in-memory rate limiting
-  - Google Sheets webhook submission
-  - optional owner notification webhook
+| Page | What it shows | Data |
+|---|---|---|
+| `/data/crashes` | Every reported crash in Champaign, Urbana, and Savoy since 2014, with a location report builder | IDOT crash data, CCRPC fields |
+| `/data/value-per-acre` | Property value and tax per acre for every parcel in Champaign County | County parcels and assessments, County Clerk tax rates |
+| `/data/vacant-land` | Vacant parcels by type, including land held with the house next door | Same as above |
+| `/data/zoning` | Zoning districts, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points |
+| `/data/parking` | Community-mapped parking lots and garages downtown | Supabase (live, contributor-drawn) |
 
-## Development
+Each page's "About this data" section explains its sources, methods, and caveats.
+
+## Quick start
 
 ```bash
+npm install
 npm run dev
 ```
+
+No accounts or API keys are needed. With no environment variables set, every `/data` map except the parking map
+works, address search uses OpenStreetMap's Nominatim, and writings use local seed data.
+
+## Optional services
+
+The live site uses these hosted services. All are optional; see `.env.example` for the variables.
+
+| Feature | Service | Without it |
+|---|---|---|
+| Address search | Google Geocoding and Places | Falls back to OpenStreetMap Nominatim (set `NOMINATIM_USER_AGENT` to your own app and contact) |
+| Parking map | Supabase (data and editor sign-in) and Google Maps JavaScript API | Page shows a "not configured" notice |
+| Email signup | A webhook (e.g. Google Apps Script to a Sheet) and Cloudflare Turnstile | Signups report that they aren't set up |
+| Editor access emails | Resend or a webhook | Requests are still saved to Supabase, but no email is sent |
+| Writings | Sanity | Local seed data in `src/data/writings.seed.ts` |
+| Shared rate limiting | Upstash Redis | In-memory rate limiting per server instance |
+| Scheduled jobs | Vercel Cron (`vercel.json`) | Call `/api/supabase-keepalive` from any scheduler, or skip it |
+
+Basemaps on the data maps are CARTO's free Positron style with OpenStreetMap data, loaded from CARTO's CDN; swap
+`CRASH_BASEMAP` and `PARCEL_BASEMAP` in `src/lib/*MapStyles.ts` for another MapLibre style if you prefer.
+
+## Public data tools
+
+The `/data` tools are published as open source in a separate public repository,
+[jaredfritz/cu-data-tools](https://github.com/jaredfritz/cu-data-tools); this repository (the full site) stays private.
+To publish changes to the tools:
+
+```bash
+git clone https://github.com/jaredfritz/cu-data-tools ../cu-data-tools   # once
+npm run export:public -- ../cu-data-tools
+cd ../cu-data-tools && npm install && npm run build                      # check it stands alone
+git add -A && git commit -m "Update from site" && git push
+```
+
+`scripts/export-public-tools.mjs` follows imports from each tool's page, API route, and data script, so the file list
+updates itself. `public-tools/` holds the files that differ in the public repo (README, package.json, a plain page
+shell and index, config), and `REWRITES` in the script adjusts lines that name or link the site. The parking map,
+signup, writings, and editor admin aren't exported. `LICENSE` is the MIT license the
+public repo uses.
 
 ## High-Res Map Export Tool
 
@@ -88,27 +124,18 @@ Variant IDs:
 
 ## Environment Setup
 
-Copy `.env.example` to `.env.local` and set values:
-
-- `GOOGLE_SHEETS_WEBHOOK_URL` is required for form submission storage.
-- `OWNER_EMAIL_WEBHOOK_URL` is optional.
-- `SANITY_*` values are optional. If unset, writings use local seed data.
-- For scheduled Supabase keepalive on Vercel, set `CRON_SECRET`.
+Copy `.env.example` to `.env.local` and set the values you use. Every variable is optional; the comments in
+`.env.example` say what each one turns on.
 
 ## Supabase Keepalive Cron
 
 To reduce risk of Supabase auto-pausing due inactivity, a scheduled endpoint is included:
 
 - API route: `/api/supabase-keepalive`
-- Scheduler: `vercel.json` cron every 6 hours
+- Scheduler: `vercel.json` cron, daily at 08:00 UTC
 - Protection: requires `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is set
 
 Vercel automatically attaches that authorization header to cron invocations when `CRON_SECRET` is configured.
-
-## Notes
-
-- The original map app is preserved separately and reused here.
-- This launch intentionally keeps analytics and lead infrastructure light.
 
 ## Crash Dashboard Data
 

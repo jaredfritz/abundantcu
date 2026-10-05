@@ -1,6 +1,6 @@
 import type { EditorAccessRequestRow } from "@/lib/editors/types";
 
-const DEFAULT_RECIPIENTS = ["abundantcu@gmail.com", "jaredfritz1@gmail.com"];
+const DEFAULT_RECIPIENTS = ["abundantcu@gmail.com"];
 
 function getRecipients(): string[] {
   const raw = process.env.EDITOR_NOTIFICATION_RECIPIENTS;

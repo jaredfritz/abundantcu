@@ -26,7 +26,8 @@ export async function GET(req: NextRequest) {
 
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "AbundantCU/1.0 (abundantcu@gmail.com)",
+      // Nominatim's usage policy asks for a User-Agent that identifies the app and a contact; forks should set their own.
+      "User-Agent": process.env.NOMINATIM_USER_AGENT ?? "AbundantCU/1.0 (abundantcu@gmail.com)",
       "Accept-Language": "en-US,en;q=0.9",
     },
     cache: "no-store",

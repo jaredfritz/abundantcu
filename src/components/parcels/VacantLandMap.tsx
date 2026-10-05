@@ -6,7 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronDown } from "lucide-react";
 import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
 import { boundsOfParcel } from "@/lib/parcels";
-import { areaFilter, CU_VIEW_STATE, MAX_ZOOM, MIN_ZOOM, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
+import { areaFilter, BASEMAP_ATTRIBUTION, CU_VIEW_STATE, MAX_ZOOM, MIN_ZOOM, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
 import { heldPatternId, heldPatternImage, heldSwatch, OTHER_PARCEL_COLOR, VACANT_TYPES } from "@/lib/vacant";
 import { ParcelPopup } from "./ParcelPopup";
 import { PARCEL_POPUP_CLASS, useParcelSelection } from "./shared";
@@ -70,6 +70,7 @@ export function VacantLandMap({ data, cities, bounds, focus, rankFor, areaName, 
         dragRotate={false}
         style={{ width: "100%", height: "640px", borderRadius: "4px" }}
         mapStyle={PARCEL_BASEMAP}
+        attributionControl={BASEMAP_ATTRIBUTION}
         interactiveLayerIds={["vacant-fill", "vacant-held", "other-fill"]}
         onClick={handleClick}
         onLoad={(event) => {

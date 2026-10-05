@@ -71,6 +71,10 @@ export default function ZoningAbout({
           CARTO
         </a>
         , &copy;{" "}
+        <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer" className={linkClass}>
+          OpenMapTiles
+        </a>
+        , &copy;{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className={linkClass}>
           OpenStreetMap contributors
         </a>

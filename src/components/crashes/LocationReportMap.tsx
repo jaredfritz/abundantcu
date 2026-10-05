@@ -15,6 +15,7 @@ import { bbox } from "@turf/turf";
 import type { Crash, DateRange, LocationReport } from "@/lib/crashes";
 import { formatCurrency, formatDateRange, toGeoJSON } from "@/lib/crashes";
 import {
+  BASEMAP_ATTRIBUTION,
   CRASH_BASEMAP,
   CU_VIEW_STATE,
   MAX_ZOOM,
@@ -177,6 +178,7 @@ export function LocationReportMap({
         maxZoom={MAX_ZOOM}
         style={{ width: "100%", height: "600px", borderRadius: "4px" }}
         mapStyle={CRASH_BASEMAP}
+        attributionControl={BASEMAP_ATTRIBUTION}
         interactiveLayerIds={report ? ["report-crashes"] : []}
         onClick={handleClick}
         onDblClick={handleDblClick}

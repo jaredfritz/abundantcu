@@ -4,6 +4,7 @@
 // runs in one direction, plus an optional red/blue scale centered on the selected area's average.
 
 export const PARCEL_BASEMAP = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+export { BASEMAP_ATTRIBUTION } from "./crashMapStyles";
 
 export const CU_VIEW_STATE = { longitude: -88.235, latitude: 40.105, zoom: 12.2, pitch: 0, bearing: 0 };
 export const VIEW_3D = { pitch: 55, bearing: -20 };

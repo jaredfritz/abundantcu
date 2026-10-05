@@ -287,6 +287,9 @@ export function loadParcels(): Promise<Parcels> {
   if (!parcelsPromise) {
     parcelsPromise = fetch(PARCEL_DATA_URL)
       .then((res) => {
+        if (res.status === 404) {
+          throw new Error("Parcel data not found. Build it with `npm run data:parcels` (takes about 3 minutes).");
+        }
         if (!res.ok) throw new Error(`Failed to load parcel data (${res.status})`);
         return res.json() as Promise<ParcelDataset>;
       })
