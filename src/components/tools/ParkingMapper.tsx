@@ -13,7 +13,7 @@ import {
 import * as turf from "@turf/turf";
 import type { Feature, Polygon, MultiPolygon, Position } from "geojson";
 import {
-  AlertTriangle, Check, ChevronDown, Download, Layers, LogIn, LogOut, Pencil, Plus, Satellite, Trash2, UserPlus, X,
+  AlertTriangle, Check, ChevronDown, Download, Info, Layers, LogIn, LogOut, Pencil, Plus, Satellite, Trash2, UserPlus, X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
@@ -994,6 +994,7 @@ export default function ParkingMapper({
     hasServerSeededCaptureFeatures ? initialCaptureLoadError : null
   );
   const [listOpen, setListOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTilesReady, setMapTilesReady] = useState(!captureMode);
   const [captureFitRevision, setCaptureFitRevision] = useState(0);
@@ -2513,6 +2514,14 @@ export default function ParkingMapper({
                     </button>
                   )}
                   <button
+                    onClick={() => setAboutOpen((open) => !open)}
+                    className={`rounded-lg border border-gray-200 p-1 hover:bg-gray-50 hover:text-gray-700 ${aboutOpen ? "bg-gray-100 text-gray-700" : "text-gray-500"}`}
+                    aria-label="About this data"
+                    aria-expanded={aboutOpen}
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                  <button
                     onClick={() => setListOpen((open) => !open)}
                     className="rounded-lg border border-gray-200 p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     aria-label={listOpen ? "Collapse parking list" : "Expand parking list"}
@@ -2522,6 +2531,17 @@ export default function ParkingMapper({
                   </button>
                 </div>
               </div>
+              {aboutOpen && (
+                <div className="space-y-1.5 border-b border-gray-100 px-4 py-2.5 text-[11px] leading-relaxed text-gray-600">
+                  <p className="font-semibold text-gray-800">About this data</p>
+                  <p>
+                    Surface lots and parking garages are outlined by hand on satellite imagery by Abundant CU
+                    contributors. Outlines are approximate, and the map covers downtown Champaign only, so it isn&apos;t
+                    a complete inventory. Lots built or removed since they were mapped may not be reflected.
+                  </p>
+                  <p className="text-gray-500">Map and imagery: Google.</p>
+                </div>
+              )}
               {listOpen && (
                 <ul ref={listContainerRef} className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
                   {features.map((f, i) => (

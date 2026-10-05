@@ -179,7 +179,7 @@ export default function ZonePanel({
               </a>
               .
             </div>
-            {showPermitSourceNote && <div>Permit data provided by the city.</div>}
+            {showPermitSourceNote && <div>Permit data provided by the City of Champaign.</div>}
           </div>
         </div>
       </div>
@@ -306,7 +306,7 @@ export default function ZonePanel({
             </a>
             .
           </div>
-          {showPermitSourceNote && <div>Permit data provided by the city.</div>}
+          {showPermitSourceNote && <div>Permit data provided by the City of Champaign.</div>}
         </div>
       </div>
     </div>

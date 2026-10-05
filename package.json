@@ -8,7 +8,8 @@
     "start": "next start",
     "export:maps": "node scripts/export-print-maps.mjs",
     "data:crashes": "node scripts/fetch-idot-crashes.mjs",
-    "data:parcels": "node scripts/fetch-parcel-values.mjs"
+    "data:parcels": "node scripts/fetch-parcel-values.mjs",
+    "data:permits": "node scripts/locate-permits.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",
