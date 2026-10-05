@@ -3,8 +3,6 @@
 The source for [abundantcu.com](https://www.abundantcu.com): maps, datasets, and policy tools about land use and
 housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and MapLibre.
 
-We publish it so others can check our work, reuse the data, and build similar tools for their own towns.
-
 ## What's here
 
 | Page | What it shows | Data |
@@ -44,20 +42,24 @@ The live site uses these hosted services. All are optional; see `.env.example` f
 Basemaps on the data maps are CARTO's free Positron style with OpenStreetMap data, loaded from CARTO's CDN; swap
 `CRASH_BASEMAP` and `PARCEL_BASEMAP` in `src/lib/*MapStyles.ts` for another MapLibre style if you prefer.
 
-## Licenses
+## Public data tools
 
-- **Code** is MIT-licensed; see `LICENSE`.
-- **Adapted code** keeps its original MIT notices: the crash pages are adapted from the
-  [Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline) by Michael McLean
-  (`src/components/crashes/LICENSE-chicago-crash-dashboard.txt`), and the parcel maps from the
-  [Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre)
-  (`src/components/parcels/LICENSE-chicago-value-per-acre.txt`).
-- **Data files** are covered under [Data sources and terms](#data-sources-and-terms) below.
-- **Not licensed:** the Abundant CU name and logo, and the essays and other written content of the site
-  (`src/app/writings/`, `src/data/writings.seed.ts`, `public/writings/`), are all rights reserved. Logos of other
-  organizations in `public/` belong to their owners. If you fork this project, use your own name and branding.
+The `/data` tools are published as open source in a separate public repository,
+[jaredfritz/cu-data-tools](https://github.com/jaredfritz/cu-data-tools); this repository (the full site) stays private.
+To publish changes to the tools:
 
-DATA_TERMS_PLACEHOLDER
+```bash
+git clone https://github.com/jaredfritz/cu-data-tools ../cu-data-tools   # once
+npm run export:public -- ../cu-data-tools
+cd ../cu-data-tools && npm install && npm run build                      # check it stands alone
+git add -A && git commit -m "Update from site" && git push
+```
+
+`scripts/export-public-tools.mjs` follows imports from each tool's page, API route, and data script, so the file list
+updates itself. `public-tools/` holds the files that differ in the public repo (README, package.json, a plain page
+shell and index, config), and `REWRITES` in the script adjusts lines that name or link the site. The parking map,
+signup, writings, editor admin, and CCRPC's raw crash snapshot aren't exported. `LICENSE` is the MIT license the
+public repo uses.
 
 ## High-Res Map Export Tool
 
