@@ -70,6 +70,11 @@ const REWRITES = [
     to: '<Link href="https://www.abundantcu.com/data/parking"',
   },
   { files: /^src\/app\/data\/.*page\.tsx$/, pattern: / \| Abundant CU/g, to: "" },
+  {
+    files: /^src\/components\/parcels\/shared\.tsx$/,
+    pattern: /Abundant CU&apos;s calculations/g,
+    to: "this site&apos;s calculations",
+  },
   { files: /^src\/app\/data\/.*page\.tsx$/, pattern: /\n\s*url: "https:\/\/abundantcu\.com[^"]*",/g, to: "" },
   {
     files: /^src\/app\/api\/nominatim\/.*route\.ts$/,
