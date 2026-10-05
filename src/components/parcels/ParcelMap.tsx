@@ -14,6 +14,7 @@ import { ChevronDown } from "lucide-react";
 import type { Parcel, ParcelRanks, Parcels } from "@/lib/parcels";
 import { boundsOfParcel } from "@/lib/parcels";
 import {
+  BASEMAP_ATTRIBUTION,
   areaFilter,
   colorExpression,
   CU_VIEW_STATE,
@@ -119,6 +120,7 @@ export function ParcelMap({ data, metric, scale, average, cities, bounds, is3D, 
         maxPitch={70}
         style={{ width: "100%", height: "640px", borderRadius: "4px" }}
         mapStyle={PARCEL_BASEMAP}
+        attributionControl={BASEMAP_ATTRIBUTION}
         interactiveLayerIds={INTERACTIVE_LAYERS}
         onClick={handleClick}
         onLoad={(event) => {

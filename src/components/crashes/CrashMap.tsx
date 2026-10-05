@@ -5,7 +5,7 @@ import Map, { Layer, NavigationControl, Popup, Source, type MapLayerMouseEvent }
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Crash } from "@/lib/crashes";
 import { toGeoJSON } from "@/lib/crashes";
-import { CRASH_BASEMAP, CU_VIEW_STATE, MAP_METRICS, MAX_ZOOM, MIN_ZOOM, type MapMetric } from "@/lib/crashMapStyles";
+import { BASEMAP_ATTRIBUTION, CRASH_BASEMAP, CU_VIEW_STATE, MAP_METRICS, MAX_ZOOM, MIN_ZOOM, type MapMetric } from "@/lib/crashMapStyles";
 import { CrashPopup } from "./shared";
 
 export function CrashMap({ crashes }: { crashes: Crash[] }) {
@@ -45,6 +45,7 @@ export function CrashMap({ crashes }: { crashes: Crash[] }) {
         maxZoom={MAX_ZOOM}
         style={{ width: "100%", height: "600px", borderRadius: "4px" }}
         mapStyle={CRASH_BASEMAP}
+        attributionControl={BASEMAP_ATTRIBUTION}
         interactiveLayerIds={["crashes-circle"]}
         onClick={handleClick}
         cursor="pointer"

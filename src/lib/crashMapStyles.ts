@@ -1,6 +1,8 @@
 // Map styling for the crash pages, adapted from the Chicago Crash Dashboard's mapStyles.ts.
 
 export const CRASH_BASEMAP = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+// CARTO's tiles credit CARTO and OpenStreetMap; the Positron style's license also asks for OpenMapTiles.
+export const BASEMAP_ATTRIBUTION = { customAttribution: '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>' };
 
 // Downtown Champaign / Urbana, zoomed to show both cities
 export const CU_VIEW_STATE = { longitude: -88.235, latitude: 40.11, zoom: 11.6, pitch: 0, bearing: 0 };

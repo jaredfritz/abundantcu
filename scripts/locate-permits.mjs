@@ -234,7 +234,12 @@ function parcelPoint(geom) {
 
 async function loadParcelAddresses() {
   const index = new AddressIndex();
-  const { cols } = JSON.parse(await readFile(PARCELS, "utf8"));
+  const text = await readFile(PARCELS, "utf8").catch(() => null);
+  if (!text) {
+    console.log("No parcel data (npm run data:parcels), so permits aren't matched to county parcels.");
+    return index;
+  }
+  const { cols } = JSON.parse(text);
   for (let i = 0; i < cols.pin.length; i += 1) {
     const addresses = [cols.address[i], ...(cols.otherAddresses?.[i] ? cols.otherAddresses[i].split("|") : [])];
     let point = null;

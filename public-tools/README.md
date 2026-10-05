@@ -20,9 +20,16 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. No accounts or API keys are needed: the data ships in `public/data/` and `src/data/`,
-basemaps are CARTO's free Positron style with OpenStreetMap data, and address search uses OpenStreetMap's Nominatim.
-Set `NOMINATIM_USER_AGENT` to your own app name and contact before deploying (see `.env.example`).
+Open http://localhost:3000. No accounts or API keys are needed. Crash, zoning, and permit data ship with the repo;
+basemaps are CARTO's Positron style with OpenStreetMap data, and address search uses OpenStreetMap's Nominatim. Set
+`NOMINATIM_USER_AGENT` to your own app name and contact before deploying (see `.env.example`).
+
+The Value Per Acre and Vacant Land pages need parcel data, which isn't included (see
+[Data licenses and credits](#data-licenses-and-credits)). Build it once, in about 3 minutes:
+
+```bash
+npm run data:parcels
+```
 
 Built with Next.js, React, Tailwind CSS, MapLibre GL, Turf, and Recharts.
 
@@ -55,7 +62,8 @@ npm run data:parcels -- --skip-addresses
 npm run data:parcels -- --cache=/tmp/parcel-cache   # reuse downloads while developing
 ```
 
-Takes about 3 minutes. Builds `public/data/parcels/champaign-county-parcels.json` from:
+Takes about 3 minutes. Builds `public/data/parcels/champaign-county-parcels.json`, which `.gitignore` keeps out of
+git, from:
 
 - parcel boundaries and assessments: the Champaign County GIS Consortium's tax parcels, from the City of Champaign's
   public `TaxParcels_Assessed` map service
@@ -92,35 +100,41 @@ parcel scripts update their entries; update zoning's `asOf` by hand when you rep
   `src/lib/buildTypes.ts`.
 - **Basemap:** swap `CRASH_BASEMAP` and `PARCEL_BASEMAP` in `src/lib/*MapStyles.ts` for any MapLibre style.
 
-## Data sources
+## Data licenses and credits
 
-| Data | Source |
-|---|---|
-| Crashes | [Illinois Department of Transportation](https://gis-idot.opendata.arcgis.com/) crash data |
-| Heavy-vehicle and University District crash fields (2020-2024) | [CCRPC crash dashboard](https://crashdashboard.ccrpc.org/) |
-| Municipal boundaries | U.S. Census Bureau TIGERweb |
-| Parcels and assessments | Champaign County GIS Consortium, via the [City of Champaign's map service](https://gisportal.champaignil.gov/ms/rest/services/OpenGov/Open_Gov_Map_Service/MapServer/0) |
-| Tax rates | [Champaign County Clerk](https://www.champaigncountyclerk.com/property-taxes/tax-extension-rates) rate books |
-| Site addresses | [Champaign County property tax inquiry](https://champaignil.devnetwedge.com) |
-| Zoning districts | City of Champaign [Zoning Classifications](https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore) |
-| Residential permits | Provided by the City of Champaign |
-| Address points | City of Champaign [Address Points](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/7) |
-| Basemap | © [CARTO](https://carto.com/attributions), © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) |
+The code is MIT-licensed (see `LICENSE`). Data files follow their sources' terms:
 
-The data files are estimates for illustration, not official records: property values are three times equalized
-assessed value, tax is before exemptions, and condo development areas are approximate. Check official sources before
-relying on a number.
+| Data | Source | License and terms |
+|---|---|---|
+| Crashes (`public/data/crashes/`) | [Illinois Department of Transportation](https://gis-idot.opendata.arcgis.com/) | IDOT publishes 2014-2019 under CC BY-SA 2.0, so our crash file is [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/): credit IDOT and Abundant CU, and share changes under the same license. See the notes below. |
+| Heavy-vehicle and University District crash fields, 2020-2024 (`data/ccrpc/`) | [CCRPC Champaign County Traffic Crash Dashboard](https://crashdashboard.ccrpc.org/), built from IDOT data | No terms posted. Included as CCRPC published it, for rebuilding the crash file; credit CCRPC. |
+| Municipal boundaries | U.S. Census Bureau, TIGERweb | Public domain |
+| Parcels and assessments | Champaign County GIS Consortium (CCGISC), through the [City of Champaign's map service](https://gisportal.champaignil.gov/ms/rest/services/OpenGov/Open_Gov_Map_Service/MapServer/0) | **Not included.** CCGISC's [data policy](https://www.ccgisc.org/admindocs/ccgiscdatapolicy_complete.pdf) doesn't allow redistributing data derived from its parcels without its written permission. `npm run data:parcels` builds a copy for your own use; check CCGISC's terms before publishing it. |
+| Tax rates | [Champaign County Clerk](https://www.champaigncountyclerk.com/property-taxes/tax-extension-rates) rate books | Public records |
+| Site addresses | [Champaign County property tax inquiry](https://champaignil.devnetwedge.com) | Used only inside the parcel build. The script uses the township search, which the site's robots.txt allows; don't point it at the disallowed `/parcel/` pages. |
+| Zoning districts (`public/data/zoning.geojson`) | City of Champaign [Zoning Classifications](https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore) | City of Champaign Open Data, provided "as is" without warranty; no license stated |
+| Address points | City of Champaign [Address Points](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/7) | Same as zoning |
+| Residential permits (`data/permits/`, `src/data/residential-permits.json`) | Provided by the City of Champaign; placed on the map by `npm run data:permits` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): credit the City of Champaign and Abundant CU |
+| Basemap | [CARTO](https://carto.com/attributions) Positron style, [OpenMapTiles](https://openmaptiles.org/), [OpenStreetMap](https://www.openstreetmap.org/copyright) | Keep the "© CARTO, © OpenMapTiles, © OpenStreetMap contributors" credit. CARTO now asks for an API key for its hosted basemaps (free for non-commercial use up to 5 million tile requests a month), so get one or switch styles before you deploy widely. |
 
-## Licenses
+**About the crash data.** It comes from the Illinois Department of Transportation; conclusions drawn from it are the
+user's own. It includes only crashes reported to police that meet Illinois's reporting threshold (more than $1,500 in
+damage to any one person's property when every driver is insured, $500 if any driver is uninsured), so minor crashes
+are missing. Crash reports and data may be protected from discovery or use as evidence in lawsuits under federal law
+(23 U.S.C. 407).
 
-- **Code** is MIT-licensed; see `LICENSE`.
-- **Adapted code** keeps its original MIT notices: the crash pages are adapted from the
-  [Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline) by Michael McLean
-  (`src/components/crashes/LICENSE-chicago-crash-dashboard.txt`), and the parcel maps from the
-  [Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre)
-  (`src/components/parcels/LICENSE-chicago-value-per-acre.txt`).
-- **Data files** come from the public sources above, and each source's own terms still apply.
-- The Abundant CU name and logo aren't covered by the license. If you publish a fork, use your own name.
+**Estimates, not official records.** Property values are three times equalized assessed value, tax is before
+exemptions, condo development areas are approximate, and a few permit locations are interpolated. Check official
+sources before relying on a number.
+
+**Other notices.** The crash pages are adapted from the MIT-licensed
+[Chicago Crash Dashboard](https://github.com/MisterClean/chicago-crashes-pipeline) by Michael McLean
+(`src/components/crashes/LICENSE-chicago-crash-dashboard.txt`), and the parcel maps from the MIT-licensed
+[Strong Towns Chicago Value Per Acre map](https://github.com/StrongTownsChicago/chicago-value-per-acre)
+(`src/components/parcels/LICENSE-chicago-value-per-acre.txt`). The Abundant CU name and logo aren't covered by any
+of these licenses; if you publish a fork, use your own name.
+
+This isn't legal advice. Check each source's current terms before republishing its data.
 
 ## Contributing
 

@@ -38,8 +38,9 @@ const ENTRIES = [
 const EXTRA = [
   "src/app/globals.css",
   "src/app/icon.png",
+  // Parcel data (public/data/parcels) isn't exported: the Champaign County GIS Consortium's terms don't allow
+  // redistributing files derived from its parcels. Forks build their own copy with npm run data:parcels.
   "public/data/crashes",
-  "public/data/parcels",
   "public/data/zoning.geojson",
   "public/crash-dashboard-thumbnail.png",
   "public/value-per-acre-thumbnail.png",
