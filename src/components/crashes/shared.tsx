@@ -35,7 +35,7 @@ export function CrashPageHeader({ title, description }: { title: string; descrip
       </nav>
       <h1 className="text-3xl font-extrabold md:text-4xl">{title}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">{description}</p>
-      <DataUpdated dataset="crashes" prefix="Data updated" className="mt-2" />
+      <DataUpdated dataset="crashes" className="mt-2" />
     </div>
   );
 }

@@ -165,9 +165,10 @@ Output goes to `public/data/parcels/`. The methodology is adapted from the MIT-l
 `src/components/parcels/LICENSE-chicago-value-per-acre.txt`. Planned follow-ups are in
 `docs/value-per-acre-next-steps.md`.
 
-## "Updated" dates on the data maps
+## Data dates on the maps
 
-Each map and dashboard under `/data` shows when its data last changed, from `src/data/data-updates.json`.
-`npm run data:parcels` and `npm run data:crashes` update their entries (crashes only when the data actually
-changes). Zoning and permits are static files: update their dates by hand when those files change. The parking map
-shows its most recent community addition from the live data.
+Each map and dashboard under `/data` shows what its data covers and when it was last refreshed (for example,
+"Crashes through Dec 31, 2025 · Refreshed Oct 4, 2026"), from `src/data/data-updates.json`. `npm run data:parcels`
+and `npm run data:crashes` write their entries from the data they build (crashes only when the data actually
+changes). Zoning is a static file: update its `asOf` date by hand when it changes. The permit year comes from the
+permit data itself, and the parking map shows its most recent community addition from the live data.

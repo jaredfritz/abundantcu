@@ -734,7 +734,7 @@ async function main() {
   };
 
   await writeFile(path.join(OUT_DIR, OUT_FILE), JSON.stringify(dataset));
-  await markDatasetUpdated("parcels");
+  await markDatasetUpdated("parcels", { assessmentYear: rates.taxYear });
   console.log(
     `Wrote ${stats.parcels.toLocaleString()} parcels (${stats.condoStacks.toLocaleString()} condo buildings, ` +
       `${stats.leaseDropped} lease polygons dropped, ${addresses.size.toLocaleString()} addresses).`,

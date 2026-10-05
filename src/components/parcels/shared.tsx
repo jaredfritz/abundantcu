@@ -17,7 +17,7 @@ export function ParcelPageHeader({ title, description }: { title: string; descri
     <div className="mb-8">
       <h1 className="text-3xl font-extrabold md:text-4xl">{title}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">{description}</p>
-      <DataUpdated dataset="parcels" prefix="Data updated" className="mt-2" />
+      <DataUpdated dataset="parcels" className="mt-2" />
     </div>
   );
 }

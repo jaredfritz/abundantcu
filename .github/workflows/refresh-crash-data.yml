@@ -48,6 +48,6 @@ jobs:
 
             - `public/data/crashes/` is what the crash dashboard and location report load.
             - `data/ccrpc/crash-points.json` is the saved copy of CCRPC's crash points; its diff shows exactly what CCRPC changed.
-            - `src/data/data-updates.json` records the new "updated" date shown on the crash pages.
+            - `src/data/data-updates.json` records the new coverage and refreshed dates shown on the crash pages.
 
             Check the workflow log for per-year crash counts and CCRPC match rates before merging.

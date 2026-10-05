@@ -1,10 +1,6 @@
-import { dataUpdated, type Dataset } from "@/lib/dataUpdates";
+import { DATA_STATUS, type Dataset } from "@/lib/dataUpdates";
 
-/** A small, muted "Updated <date>" line for data cards and pages. */
-export function DataUpdated({ dataset, prefix = "Updated", className = "" }: { dataset: Dataset; prefix?: string; className?: string }) {
-  return (
-    <p className={`text-xs text-slate-500 ${className}`}>
-      {prefix} {dataUpdated(dataset)}
-    </p>
-  );
+/** A small, muted line saying what a page's data covers and when it was last refreshed. */
+export function DataUpdated({ dataset, className = "" }: { dataset: Dataset; className?: string }) {
+  return <p className={`text-xs text-slate-500 ${className}`}>{DATA_STATUS[dataset]}</p>;
 }
