@@ -15,7 +15,7 @@ import type { Feature, Polygon, MultiPolygon, Position } from "geojson";
 import {
   AlertTriangle, Check, ChevronDown, Download, Info, Layers, LogIn, LogOut, Pencil, Plus, Satellite, Trash2, UserPlus, X,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
 import type { DbParkingFeature } from "@/lib/supabase";
 import { formatUpdateDate } from "@/lib/dataUpdates";
 import type {
@@ -930,7 +930,26 @@ interface ParkingMapperProps {
   initialFeatureError?: string | null;
 }
 
-export default function ParkingMapper({
+/**
+ * The parking map needs a Supabase project (lot data and editor sign-in) and a Google Maps API key. Without them,
+ * e.g. in a fork, the page explains what to configure instead of failing.
+ */
+export default function ParkingMapper(props: ParkingMapperProps) {
+  if (!supabaseConfigured || !API_KEY) {
+    return (
+      <div className="mx-auto max-w-xl px-5 py-16 text-center text-sm text-gray-600">
+        <h1 className="text-xl font-bold text-gray-900">Parking map not configured</h1>
+        <p className="mt-2">
+          This map needs a Supabase project and a Google Maps API key. Set NEXT_PUBLIC_SUPABASE_URL,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY, and NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (see .env.example).
+        </p>
+      </div>
+    );
+  }
+  return <ConfiguredParkingMapper {...props} />;
+}
+
+function ConfiguredParkingMapper({
   editMode = false,
   captureMode = false,
   captureFillParent = false,
