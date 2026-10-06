@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 import { BuildType } from "@/lib/buildTypes";
 import { SelectedPermit } from "@/lib/permits";
+import { countyParcelUrl, displayAddress, formatAcres, formatPin, propertyClassLabel } from "@/lib/parcels";
+import type { ZoningParcel } from "@/lib/zoningParcels";
 import {
   ZoneFeatureProperties,
   ZONE_DETAILS,
@@ -13,6 +15,9 @@ import {
 
 interface ZonePanelProps {
   feature: GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null;
+  parcel?: ZoningParcel | null;
+  /** Tax year for the county parcel link */
+  taxYear?: number | null;
   permit: SelectedPermit | null;
   activeBuild: BuildType | null;
   showPermitSourceNote?: boolean;
@@ -97,12 +102,14 @@ const FOURPLEX_RESTRICTION_NOTES: Record<string, FourplexRestrictionNote> = {
 
 export default function ZonePanel({
   feature,
+  parcel = null,
+  taxYear = null,
   permit,
   activeBuild,
   showPermitSourceNote = false,
   onClose,
 }: ZonePanelProps) {
-  if (!feature && !permit) {
+  if (!feature && !parcel && !permit) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-400">
         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
@@ -111,7 +118,7 @@ export default function ZonePanel({
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
           </svg>
         </div>
-        <p className="text-sm font-medium text-gray-500">Click a zone to see details</p>
+        <p className="text-sm font-medium text-gray-500">Click a parcel to see details</p>
       </div>
     );
   }
@@ -186,16 +193,27 @@ export default function ZonePanel({
     );
   }
 
-  const zoneFeature = feature!;
-  const props = zoneFeature.properties;
-  const district = getZoneDistrict(props.zoning_code);
-  const description = getZoneDescription(props.zoning_code);
+  const zoneCode = parcel ? parcel.zone : feature!.properties.zoning_code;
+  const props = { zoning_code: zoneCode };
+  const district = getZoneDistrict(zoneCode);
+  const description = getZoneDescription(zoneCode);
   const color = district?.color ?? "#d1d5db";
-  const area = props["SHAPE.STArea()"];
+  // The city's layer names this field SHAPESTArea; older exports used "SHAPE.STArea()".
+  const districtProps = feature?.properties as (ZoneFeatureProperties & { SHAPESTArea?: number }) | undefined;
+  const area = districtProps ? (districtProps.SHAPESTArea ?? districtProps["SHAPE.STArea()"]) : 0;
   const cafeRestriction =
-    activeBuild?.id === "cafe" ? CAFE_RESTRICTION_NOTES[props.zoning_code] : undefined;
+    activeBuild?.id === "cafe" ? CAFE_RESTRICTION_NOTES[zoneCode] : undefined;
   const fourplexRestriction =
-    activeBuild?.id === "fourplex" ? FOURPLEX_RESTRICTION_NOTES[props.zoning_code] : undefined;
+    activeBuild?.id === "fourplex" ? FOURPLEX_RESTRICTION_NOTES[zoneCode] : undefined;
+  const buildStatus = !activeBuild
+    ? null
+    : activeBuild.allowedCodes.includes(zoneCode)
+      ? "Allowed by right"
+      : activeBuild.provisionalCodes?.includes(zoneCode)
+        ? "Provisional; restrictions apply"
+        : activeBuild.notAllowedCodes.includes(zoneCode)
+          ? "Not allowed"
+          : null;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -206,10 +224,21 @@ export default function ZonePanel({
             className="w-10 h-10 rounded-lg flex-shrink-0 mt-0.5"
             style={{ backgroundColor: color }}
           />
-          <div>
-            <div className="text-xl font-bold text-gray-900">{props.zoning_code}</div>
-            <div className="text-sm text-gray-500">{description}</div>
-          </div>
+          {parcel ? (
+            <div>
+              <div className="text-xl font-bold text-gray-900 break-words leading-tight">
+                {parcel.address ? displayAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`}
+              </div>
+              <div className="text-sm text-gray-500 mt-0.5">
+                {zoneCode} · {description}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-xl font-bold text-gray-900">{props.zoning_code}</div>
+              <div className="text-sm text-gray-500">{description}</div>
+            </div>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -233,13 +262,75 @@ export default function ZonePanel({
       )}
 
       {/* Stats */}
-      <div className="px-5 py-3">
-        <div className="bg-gray-50 rounded-xl p-3">
-          <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Area</div>
-          <div className="text-lg font-semibold text-gray-900">{areaToAcres(area)}</div>
-          <div className="text-xs text-gray-400">acres</div>
+      {parcel ? (
+        <div className="px-5 py-3 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Lot size</div>
+              <div className="text-lg font-semibold text-gray-900">{Math.round(parcel.sqft).toLocaleString()}</div>
+              <div className="text-xs text-gray-400">sq ft{parcel.condoDevelopment ? " (approx.)" : ""}</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Acres</div>
+              <div className="text-lg font-semibold text-gray-900">{formatAcres(parcel.acres)}</div>
+              <div className="text-xs text-gray-400">acres</div>
+            </div>
+          </div>
+          {buildStatus && (
+            <div className="rounded-xl border border-gray-200 px-3 py-2.5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">{activeBuild!.label}</div>
+              <div className="text-sm font-semibold text-gray-900">{buildStatus}</div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                Based on the district alone. Lot size, setbacks, and other rules can still limit this lot.
+              </p>
+            </div>
+          )}
+          {parcel.secondaryZone && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 leading-relaxed">
+              This parcel is split between districts: about {parcel.zoneShare}% {parcel.zone} and{" "}
+              {parcel.secondaryZoneShare}% {parcel.secondaryZone}. It&apos;s shown as {parcel.zone}.
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="px-5 py-3">
+          <div className="bg-gray-50 rounded-xl p-3">
+            <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">District area</div>
+            <div className="text-lg font-semibold text-gray-900">{area ? areaToAcres(area) : "—"}</div>
+            <div className="text-xs text-gray-400">acres</div>
+          </div>
+        </div>
+      )}
+
+      {parcel && (
+        <div className="px-5 py-3 space-y-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Parcel</div>
+          <Row label="Current use (county class)" value={propertyClassLabel(parcel.useCode)} />
+          {parcel.units > 1 && (
+            <Row
+              label={parcel.condoDevelopment ? "Condo or townhome units" : "Condo units"}
+              value={parcel.units}
+            />
+          )}
+          <div className="py-1.5 border-b border-gray-50">
+            <div className="text-sm text-gray-500">Parcel number</div>
+            <a
+              href={countyParcelUrl(parcel.pin, taxYear)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-blue-600 hover:underline"
+            >
+              {formatPin(parcel.pin)}
+            </a>
+          </div>
+          {parcel.condoDevelopment && (
+            <p className="text-[11px] text-gray-500 pt-1 leading-relaxed">
+              Condo and townhome units are mapped as building footprints; this lot&apos;s outline and size are
+              reconstructed around them and approximate.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Details */}
       <div className="px-5 py-3 space-y-1">
@@ -306,6 +397,7 @@ export default function ZonePanel({
             </a>
             .
           </div>
+          {parcel && <div>Parcels and lot sizes from the Champaign County GIS Consortium.</div>}
           {showPermitSourceNote && <div>Permit data provided by the City of Champaign.</div>}
         </div>
       </div>

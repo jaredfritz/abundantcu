@@ -10,7 +10,7 @@ housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and 
 | `/data/crashes` | Every reported crash in Champaign, Urbana, and Savoy since 2014, with a location report builder | IDOT crash data, CCRPC fields |
 | `/data/value-per-acre` | Property value and tax per acre for every parcel in Champaign County | County parcels and assessments, County Clerk tax rates |
 | `/data/vacant-land` | Vacant parcels by type, including land held with the house next door | Same as above |
-| `/data/zoning` | Zoning districts, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points |
+| `/data/zoning` | Zoning by parcel, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points; county parcels |
 | `/data/parking` | Community-mapped parking lots and garages downtown | Supabase (live, contributor-drawn) |
 
 Each page's "About this data" section explains its sources, methods, and caveats.

@@ -19,6 +19,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { markDatasetUpdated } from "./data-updates.mjs";
+import { buildZoningParcels } from "./build-zoning-parcels.mjs";
 import {
   area as turfArea,
   bbox as turfBbox,
@@ -739,6 +740,10 @@ async function main() {
     `Wrote ${stats.parcels.toLocaleString()} parcels (${stats.condoStacks.toLocaleString()} condo buildings, ` +
       `${stats.leaseDropped} lease polygons dropped, ${addresses.size.toLocaleString()} addresses).`,
   );
+
+  // The zoning map's parcel layer is cut from this dataset.
+  console.log("Tagging Champaign parcels with zoning districts...");
+  await buildZoningParcels();
 }
 
 main().catch((error) => {
