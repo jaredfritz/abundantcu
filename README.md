@@ -11,6 +11,7 @@ housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and 
 | `/data/value-per-acre` | Property value and tax per acre for every parcel in Champaign County | County parcels and assessments, County Clerk tax rates |
 | `/data/vacant-land` | Vacant parcels by type, including land held with the house next door | Same as above |
 | `/data/zoning` | Zoning districts, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points |
+| `/data/city-map` | Every City of Champaign zoning layer and district boundary over county parcels, with a click-anywhere lookup | City of Champaign Open Data layers (`npm run data:city-layers`), county parcels |
 | `/data/parking` | Community-mapped parking lots and garages downtown | Supabase (live, contributor-drawn) |
 
 Each page's "About this data" section explains its sources, methods, and caveats.

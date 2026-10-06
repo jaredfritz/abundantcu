@@ -31,6 +31,13 @@ const TOOLS = [
     alt: "",
     text: "City of Champaign zoning districts, residential building permits since 2014, and where common housing types are allowed.",
   },
+  {
+    href: "/data/city-map",
+    title: "Champaign City Map",
+    image: "/city-map-thumbnail.png",
+    alt: "Map of Champaign zoning districts with council district and TIF district boundaries",
+    text: "Every City of Champaign zoning layer and district boundary on one map with parcel values. Click any spot to see them all.",
+  },
 ];
 
 export default function HomePage() {

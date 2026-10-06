@@ -2,7 +2,7 @@
 //
 //   node scripts/export-public-tools.mjs <path to a checkout of the public repo>
 //
-// The public repo holds the /data tools (crash dashboard, Value Per Acre, Vacant Land, zoning and permits), their data
+// The public repo holds the /data tools (crash dashboard, Value Per Acre, Vacant Land, zoning and permits, city map), their data
 // pipelines and data files, without the rest of the site (signup, writings, parking map, editor admin, branding).
 // The file list isn't kept by hand: starting from each tool's page, route, and script, the export follows imports, so
 // a new shared component comes along automatically. Files in public-tools/ replace their site counterparts (a plain
@@ -27,11 +27,13 @@ const ENTRIES = [
   "src/app/data/value-per-acre/page.tsx",
   "src/app/data/vacant-land/page.tsx",
   "src/app/data/zoning/page.tsx",
+  "src/app/data/city-map/page.tsx",
   "src/app/api/nominatim/autocomplete/route.ts",
   "src/app/api/nominatim/geocode/route.ts",
   "scripts/fetch-idot-crashes.mjs",
   "scripts/fetch-parcel-values.mjs",
   "scripts/locate-permits.mjs",
+  "scripts/fetch-city-layers.mjs",
 ];
 
 /** Files and folders that imports don't reach: data, images, docs, licenses, and config. */
@@ -42,9 +44,11 @@ const EXTRA = [
   // redistributing files derived from its parcels. Forks build their own copy with npm run data:parcels.
   "public/data/crashes",
   "public/data/zoning.geojson",
+  "public/data/city-layers",
   "public/crash-dashboard-thumbnail.png",
   "public/value-per-acre-thumbnail.png",
   "public/vacant-land-thumbnail.png",
+  "public/city-map-thumbnail.png",
   "data/permits",
   "data/ccrpc",
   "docs/value-per-acre-next-steps.md",
@@ -84,6 +88,11 @@ const REWRITES = [
   {
     files: /^scripts\/fetch-parcel-values\.mjs$/,
     pattern: /"AbundantCU-data\/1\.0 \(\+https:\/\/abundantcu\.com\/data\/value-per-acre\)"/g,
+    to: `"cu-data-tools/1.0 (+${PUBLIC_REPO_URL})"`,
+  },
+  {
+    files: /^scripts\/fetch-city-layers\.mjs$/,
+    pattern: /"AbundantCU-data\/1\.0 \(\+https:\/\/abundantcu\.com\/data\/city-map\)"/g,
     to: `"cu-data-tools/1.0 (+${PUBLIC_REPO_URL})"`,
   },
 ];

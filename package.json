@@ -10,6 +10,7 @@
     "data:crashes": "node scripts/fetch-idot-crashes.mjs",
     "data:parcels": "node scripts/fetch-parcel-values.mjs",
     "data:permits": "node scripts/locate-permits.mjs",
+    "data:city-layers": "node scripts/fetch-city-layers.mjs",
     "export:public": "node scripts/export-public-tools.mjs"
   },
   "dependencies": {

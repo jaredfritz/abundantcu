@@ -136,6 +136,37 @@ export default function DataHubPage() {
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <Link
+            href="/data/city-map"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/city-map-thumbnail.png"
+                alt="Map of Champaign zoning districts with council district and TIF district boundaries"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Champaign City Map</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every zoning layer
+                and district boundary the city publishes, from special use permits to TIF and council districts, on top
+                of every parcel.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> The rules for a lot
+                are spread across a dozen city maps. Click any spot to see them all in one place, with the parcel&apos;s
+                value.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Explore the City Map
+              </span>
+            </div>
+          </Link>
+
+          <Link
             href="/data/zoning"
             className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >

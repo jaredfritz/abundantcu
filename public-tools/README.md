@@ -10,6 +10,7 @@ Open-source maps and data pipelines for Champaign-Urbana, Illinois, originally b
 | `/data/value-per-acre` | Property value and property tax per acre for every parcel in Champaign County, in 2D or 3D |
 | `/data/vacant-land` | Vacant parcels by type, including subdivision land still assessed at farmland rates and lots held with the house next door |
 | `/data/zoning` | City of Champaign zoning districts, residential permits since 2014, and where common housing types are allowed |
+| `/data/city-map` | Every City of Champaign zoning layer and district boundary (council, police, TIF, neighborhood groups, and more) over county parcels; click any spot to see them all |
 
 Each page has an "About this data" section with its sources, methods, and caveats.
 
@@ -85,10 +86,19 @@ without coordinates. The script places each one at its address in the city's pub
 to the matching county parcel, then to a point between the neighboring addresses on the same side of the street. It
 writes `src/data/residential-permits.json` and lists any permits it can't place.
 
+### City layers: Champaign City Map
+
+```bash
+npm run data:city-layers
+```
+
+Downloads the City of Champaign's zoning and boundary layers from its open data map service and writes one GeoJSON file
+per layer to `public/data/city-layers/`. Takes a few seconds. The parcels underneath come from `npm run data:parcels`.
+
 ### Dates shown on the pages
 
-Each page shows what its data covers and when it was refreshed, from `src/data/data-updates.json`. The crash and
-parcel scripts update their entries; update zoning's `asOf` by hand when you replace `public/data/zoning.geojson`.
+Each page shows what its data covers and when it was refreshed, from `src/data/data-updates.json`. The crash,
+parcel, and city layer scripts update their entries; update zoning's `asOf` by hand when you replace `public/data/zoning.geojson`.
 
 ## Adapting this for another place
 
@@ -113,6 +123,7 @@ The code is MIT-licensed (see `LICENSE`). Data files follow their sources' terms
 | Tax rates | [Champaign County Clerk](https://www.champaigncountyclerk.com/property-taxes/tax-extension-rates) rate books | Public records |
 | Site addresses | [Champaign County property tax inquiry](https://champaignil.devnetwedge.com) | Used only inside the parcel build. The script uses the township search, which the site's robots.txt allows; don't point it at the disallowed `/parcel/` pages. |
 | Zoning districts (`public/data/zoning.geojson`) | City of Champaign [Zoning Classifications](https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore) | City of Champaign Open Data, provided "as is" without warranty; no license stated |
+| City layers (`public/data/city-layers/`) | City of Champaign [Open Data](https://gis-cityofchampaign.opendata.arcgis.com/): zoning, planned developments, special use permits, historic landmarks, annexation agreements, mitigation plans, council and police districts, police beats, planning areas, neighborhood organizations, TIF districts, the enterprise zone, special service areas, and fire stations | Same as zoning |
 | Address points | City of Champaign [Address Points](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/7) | Same as zoning |
 | Residential permits (`data/permits/`, `src/data/residential-permits.json`) | Provided by the City of Champaign; placed on the map by `npm run data:permits` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): credit the City of Champaign and Abundant CU |
 | Basemap | [CARTO](https://carto.com/attributions) Positron style, [OpenMapTiles](https://openmaptiles.org/), [OpenStreetMap](https://www.openstreetmap.org/copyright) | Keep the "© CARTO, © OpenMapTiles, © OpenStreetMap contributors" credit. CARTO now asks for an API key for its hosted basemaps (free for non-commercial use up to 5 million tile requests a month), so get one or switch styles before you deploy widely. |

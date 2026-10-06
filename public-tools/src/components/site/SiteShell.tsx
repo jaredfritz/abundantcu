@@ -5,6 +5,7 @@ const TOOLS = [
   { href: "/data/value-per-acre", label: "Value Per Acre" },
   { href: "/data/vacant-land", label: "Vacant Land" },
   { href: "/data/zoning", label: "Zoning & Permits" },
+  { href: "/data/city-map", label: "City Map" },
 ];
 
 /** A plain page frame for the data tools: title, links to each tool, and a credit line. */

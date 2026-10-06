@@ -1,5 +1,6 @@
 // What each dataset behind the /data maps covers and when it was last refreshed. The data scripts
-// keep their entries current (scripts/fetch-parcel-values.mjs, scripts/fetch-idot-crashes.mjs);
+// keep their entries current (scripts/fetch-parcel-values.mjs, scripts/fetch-idot-crashes.mjs,
+// scripts/fetch-city-layers.mjs);
 // zoning is a static file, so its date is set by hand when the file changes.
 import updates from "@/data/data-updates.json";
 
@@ -24,6 +25,7 @@ export const DATA_STATUS = {
   crashes: `Crashes through ${formatUpdateDate(updates.crashes.through)} · Refreshed ${formatUpdateDate(updates.crashes.refreshed)}`,
   parcels: `${updates.parcels.assessmentYear} assessments · Refreshed ${formatUpdateDate(updates.parcels.refreshed)}`,
   zoning: `Zoning as of ${formatMonth(updates.zoning.asOf)}`,
+  cityLayers: `City layers refreshed ${formatUpdateDate(updates.cityLayers.refreshed)}`,
 };
 
 export type Dataset = keyof typeof DATA_STATUS;
