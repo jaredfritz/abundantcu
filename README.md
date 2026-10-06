@@ -46,6 +46,12 @@ Basemaps on the data maps are CARTO's free Positron style with OpenStreetMap dat
 
 The `/data` tools are published as open source in a separate public repository,
 [jaredfritz/cu-data-tools](https://github.com/jaredfritz/cu-data-tools); this repository (the full site) stays private.
+
+**Build here first.** New tools and changes to existing ones are developed, reviewed, and shipped in this repository.
+Whether and when a change goes to `cu-data-tools` is a separate decision, made after it's live on the site. Never edit
+`cu-data-tools` directly; it's only ever updated by the export below. Keeping `public-tools/` and the export script in
+step with a change (so a later export works) is fine, but don't run the export or push to `cu-data-tools` unless asked.
+
 To publish changes to the tools:
 
 ```bash
