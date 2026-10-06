@@ -9,6 +9,8 @@ import { GeocodedAddress, findZoneAtPoint } from "@/lib/geo";
 import { BUILD_TYPES, BuildType } from "@/lib/buildTypes";
 import { SelectedPermit } from "@/lib/permits";
 import { useZoningData } from "@/hooks/useZoningData";
+import { ZoningParcel, ZoningParcels, loadZoningParcels, zoningParcelAt } from "@/lib/zoningParcels";
+import dataUpdates from "@/data/data-updates.json";
 import FilterBar from "./FilterBar";
 import ZonePanel from "./ZonePanel";
 import AddressSearch from "./AddressSearch";
@@ -34,7 +36,7 @@ const MAP_MODES: ModeDef[] = [
   {
     id: "zoning",
     label: "Zoning Districts",
-    hint: "Browse district boundaries and zoning codes.",
+    hint: "Browse zoning parcel by parcel, with district lines.",
     icon: "zoning",
   },
   {
@@ -92,6 +94,8 @@ function permitViewFromParam(value: string | null): "points" | "heatmap" {
 
 export default function ZoningClient({ permitsData }: ZoningClientProps) {
   const data = useZoningData();
+  const [parcels, setParcels] = useState<ZoningParcels | null>(null);
+  const [selectedParcel, setSelectedParcel] = useState<ZoningParcel | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -134,6 +138,20 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
     if (window.innerWidth >= 768) setControlsOpen(true);
   }, []);
 
+  // Districts draw first; parcels replace them once loaded. If they fail to load, the district
+  // map stays.
+  useEffect(() => {
+    let cancelled = false;
+    loadZoningParcels()
+      .then((loaded) => {
+        if (!cancelled) setParcels(loaded);
+      })
+      .catch((error) => console.warn(error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     activateMode(initialMode, { syncUrl: false });
     setPermitRenderMode(initialPermitRenderMode);
@@ -165,7 +183,7 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const hasPanelSelection = Boolean(selectedFeature || selectedPermit);
+  const hasPanelSelection = Boolean(selectedFeature || selectedParcel || selectedPermit);
   const modeDef = MAP_MODES.find((m) => m.id === mapMode) ?? MAP_MODES[0];
 
   function syncModeParam(nextMode: MapMode, nextPermitView?: "points" | "heatmap") {
@@ -187,6 +205,7 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
     const syncUrl = options?.syncUrl ?? true;
     setMapMode(nextMode);
     setSelectedFeature(null);
+    setSelectedParcel(null);
     setSelectedPermit(null);
 
     if (nextMode === "zoning") {
@@ -233,23 +252,29 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
       setActiveCodes(new Set(ALL_ZONE_CODES));
     }
     setSelectedFeature(null);
+    setSelectedParcel(null);
     setSelectedPermit(null);
     setSearchPin(null);
   }
 
   function handleSearchResult(result: GeocodedAddress) {
     setSearchPin({ lat: result.lat, lng: result.lng });
-    const zone = data ? findZoneAtPoint(data, result.lng, result.lat) : null;
     setSelectedPermit(null);
-    setSelectedFeature(
-      zone as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null
-    );
+    const parcel = parcels ? zoningParcelAt(parcels, result.lng, result.lat) : null;
+    if (parcel || parcels) {
+      setSelectedFeature(null);
+      setSelectedParcel(parcel);
+    } else {
+      const zone = data ? findZoneAtPoint(data, result.lng, result.lat) : null;
+      setSelectedFeature(zone as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties> | null);
+    }
     setSearchOpen(false);
   }
 
   function handleSearchClear() {
     setSearchPin(null);
     setSelectedFeature(null);
+    setSelectedParcel(null);
     setSelectedPermit(null);
   }
 
@@ -533,6 +558,13 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
         <div className="flex-1 relative">
           <ZoningMap
             data={data ?? { type: "FeatureCollection", features: [] }}
+            parcels={parcels}
+            selectedParcelIndex={selectedParcel?.index ?? null}
+            onSelectParcel={(parcel) => {
+              setSelectedPermit(null);
+              setSelectedFeature(null);
+              setSelectedParcel(parcel);
+            }}
             activeCodes={activeCodes}
             activeBuild={activeBuild}
             permitsData={permitsData}
@@ -546,6 +578,7 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
             }}
             onSelectPermit={(p) => {
               setSelectedFeature(null);
+              setSelectedParcel(null);
               setSelectedPermit(p);
             }}
             searchPin={searchPin}
@@ -558,11 +591,14 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
         >
           <ZonePanel
             feature={selectedFeature}
+            parcel={selectedParcel}
+            taxYear={dataUpdates.parcels.assessmentYear}
             permit={selectedPermit}
             activeBuild={activeBuild}
             showPermitSourceNote={mapMode === "permits" || mapMode === "advanced"}
             onClose={() => {
               setSelectedFeature(null);
+              setSelectedParcel(null);
               setSelectedPermit(null);
             }}
           />
@@ -576,6 +612,7 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
             className="md:hidden fixed inset-0 z-30 bg-black/30"
             onClick={() => {
               setSelectedFeature(null);
+              setSelectedParcel(null);
               setSelectedPermit(null);
             }}
           />
@@ -588,11 +625,14 @@ export default function ZoningClient({ permitsData }: ZoningClientProps) {
           >
             <ZonePanel
               feature={selectedFeature}
+              parcel={selectedParcel}
+              taxYear={dataUpdates.parcels.assessmentYear}
               permit={selectedPermit}
               activeBuild={activeBuild}
               showPermitSourceNote={mapMode === "permits" || mapMode === "advanced"}
               onClose={() => {
                 setSelectedFeature(null);
+                setSelectedParcel(null);
                 setSelectedPermit(null);
               }}
             />

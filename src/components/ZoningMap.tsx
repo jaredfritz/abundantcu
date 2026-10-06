@@ -17,6 +17,8 @@ import {
 import { BuildType, BUILD_COLORS } from "@/lib/buildTypes";
 import { findZoneAtPointOrNearest } from "@/lib/geo";
 import { PermitFeatureProperties, SelectedPermit } from "@/lib/permits";
+import { displayAddress, formatPin } from "@/lib/parcels";
+import { ZoningParcel, ZoningParcels, zoningParcelAt } from "@/lib/zoningParcels";
 
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const CHAMPAIGN_CENTER = { lng: -88.2434, lat: 40.1164 };
@@ -243,12 +245,18 @@ function buildHoverColorExpr(
   return ["match", ["get", "zoning_code"], ...arms, "#9ca3af"] as unknown as DataDrivenPropertyValueSpecification<string>;
 }
 
-function buildVisibilityFilter(activeCodes: Set<string>): FilterSpecification {
+function buildVisibilityFilter(activeCodes: Set<string>, idKey: string): FilterSpecification {
   const codes = Array.from(activeCodes);
   if (codes.length === 0) {
-    return ["==", ["get", "OBJECTID"], -1] as unknown as FilterSpecification;
+    return ["==", ["get", idKey], -1] as unknown as FilterSpecification;
   }
   return ["in", ["get", "zoning_code"], ["literal", codes]] as unknown as FilterSpecification;
+}
+
+// District lines drawn over parcels: all districts in build mode, else just the active codes.
+function visibilityFilterForDistricts(inBuildMode: boolean, activeCodes: Set<string>): FilterSpecification {
+  if (inBuildMode) return ["has", "zoning_code"] as unknown as FilterSpecification;
+  return buildVisibilityFilter(activeCodes, "OBJECTID");
 }
 
 // Build mode: blue for by-right, amber for provisional, rose for not-allowed, gray for others
@@ -298,6 +306,10 @@ function buildPermitRadiusExpression(hoveredPermitId: number | null, scale: numb
 
 interface ZoningMapProps {
   data: GeoJSON.FeatureCollection;
+  /** When loaded, zones are drawn parcel by parcel, with district lines on top. */
+  parcels?: ZoningParcels | null;
+  selectedParcelIndex?: number | null;
+  onSelectParcel?: (parcel: ZoningParcel | null) => void;
   activeCodes: Set<string>;
   activeBuild: BuildType | null;
   permitsData: GeoJSON.FeatureCollection;
@@ -320,6 +332,9 @@ interface ZoningMapProps {
 
 export default function ZoningMap({
   data,
+  parcels = null,
+  selectedParcelIndex = null,
+  onSelectParcel,
   activeCodes,
   activeBuild,
   permitsData,
@@ -351,8 +366,11 @@ export default function ZoningMap({
     code: string;
     description: string;
     districtLabel: string;
+    address: string | null;
     buildStatus: "allowed" | "provisional" | "notAllowed" | null;
   } | null>(null);
+  const parcelMode = parcels !== null;
+  const fillLayerId = parcelMode ? "zoning-parcel-fill" : "zoning-fill";
 
   const applyPrintViewportAndLabels = useCallback(
     (map: MapLibreMap) => {
@@ -452,14 +470,15 @@ export default function ZoningMap({
         }
       }
       if (hoveredPermitId !== null) setHoveredPermitId(null);
-      const zoningLayerReady = Boolean(map.getLayer("zoning-fill"));
+      const zoningLayerReady = Boolean(map.getLayer(fillLayerId));
       const features = zoningLayerReady
-        ? map.queryRenderedFeatures(e.point, { layers: ["zoning-fill"] })
+        ? map.queryRenderedFeatures(e.point, { layers: [fillLayerId] })
         : [];
       if (features.length > 0) {
         const f = features[0];
-        const id = f.properties?.OBJECTID as number;
+        const id = (parcelMode ? f.properties?.i : f.properties?.OBJECTID) as number;
         const code = f.properties?.zoning_code as string;
+        const parcel = parcelMode ? parcels!.parcels[id] : null;
         map.getCanvas().style.cursor = "pointer";
         if (id !== hoveredId) setHoveredId(id);
 
@@ -476,6 +495,7 @@ export default function ZoningMap({
           code,
           description: getZoneDescription(code),
           districtLabel: getZoneDistrict(code)?.shortLabel ?? "",
+          address: parcel ? (parcel.address ? displayAddress(parcel.address) : `Parcel ${formatPin(parcel.pin)}`) : null,
           buildStatus,
         });
       } else {
@@ -484,7 +504,7 @@ export default function ZoningMap({
         setTooltip(null);
       }
     },
-    [hoveredId, hoveredPermitId, activeBuild, showPermits, permitRenderMode]
+    [hoveredId, hoveredPermitId, activeBuild, showPermits, permitRenderMode, fillLayerId, parcelMode, parcels]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -510,17 +530,20 @@ export default function ZoningMap({
           let zoneCode: string | null = null;
           let zoneCodeLabel = "—";
           let zoneDescription = "—";
-          if (lngLat && lngLat.length >= 2) {
+          const permitParcel = lngLat && lngLat.length >= 2 && parcels ? zoningParcelAt(parcels, lngLat[0], lngLat[1]) : null;
+          if (permitParcel) {
+            zoneCode = permitParcel.zone;
+          } else if (lngLat && lngLat.length >= 2) {
             const containingZone = findZoneAtPointOrNearest(data, lngLat[0], lngLat[1]) as GeoJSON.Feature<
               GeoJSON.Geometry,
               ZoneFeatureProperties
             > | null;
             zoneCode = containingZone?.properties?.zoning_code ?? null;
-            if (zoneCode) {
-              const fullName = getZoneDescription(zoneCode);
-              zoneCodeLabel = `${zoneCode} — ${fullName}`;
-              zoneDescription = ZONE_DETAILS[zoneCode] ?? fullName;
-            }
+          }
+          if (zoneCode) {
+            const fullName = getZoneDescription(zoneCode);
+            zoneCodeLabel = `${zoneCode} — ${fullName}`;
+            zoneDescription = ZONE_DETAILS[zoneCode] ?? fullName;
           }
           onSelectPermit({
             permitNo: p.permit_no ?? "—",
@@ -535,19 +558,23 @@ export default function ZoningMap({
           return;
         }
       }
-      const zoningLayerReady = Boolean(map.getLayer("zoning-fill"));
+      const zoningLayerReady = Boolean(map.getLayer(fillLayerId));
       const features = zoningLayerReady
-        ? map.queryRenderedFeatures(e.point, { layers: ["zoning-fill"] })
+        ? map.queryRenderedFeatures(e.point, { layers: [fillLayerId] })
         : [];
-      if (features.length > 0) {
-        onSelectPermit(null);
+      onSelectPermit(null);
+      if (parcelMode) {
+        // Streets and other land outside any parcel select nothing.
+        const index = features[0]?.properties?.i;
+        onSelectFeature(null);
+        onSelectParcel?.(typeof index === "number" ? parcels!.parcels[index] : null);
+      } else if (features.length > 0) {
         onSelectFeature(features[0] as unknown as GeoJSON.Feature<GeoJSON.Geometry, ZoneFeatureProperties>);
       } else {
-        onSelectPermit(null);
         onSelectFeature(null);
       }
     },
-    [data, onSelectFeature, onSelectPermit, showPermits, permitRenderMode]
+    [data, parcels, parcelMode, fillLayerId, onSelectFeature, onSelectParcel, onSelectPermit, showPermits, permitRenderMode]
   );
 
   const inBuildMode = activeBuild !== null;
@@ -571,7 +598,9 @@ export default function ZoningMap({
   // Normal mode expressions
   const fillColor = buildFillColorExpr(activeCodes, resolvedZoneColors);
   const hoverColor = buildHoverColorExpr(activeCodes, resolvedZoneColors);
-  const visibilityFilter = buildVisibilityFilter(activeCodes);
+  const idKey = parcelMode ? "i" : "OBJECTID";
+  const activeSelectedId = parcelMode ? selectedParcelIndex : selectedId;
+  const visibilityFilter = buildVisibilityFilter(activeCodes, idKey);
 
   // Build mode expressions
   const buildFillColor = inBuildMode ? buildModeFillColor(activeBuild!, resolvedBuildColors) : null;
@@ -582,7 +611,7 @@ export default function ZoningMap({
     : [];
   const hachureFilter = inBuildMode && hachureCodes.length > 0
     ? (["in", ["get", "zoning_code"], ["literal", hachureCodes]] as unknown as FilterSpecification)
-    : (["==", ["get", "OBJECTID"], -1] as unknown as FilterSpecification);
+    : (["==", ["get", idKey], -1] as unknown as FilterSpecification);
   const provisionalLegendLabel =
     inBuildMode && activeBuild!.id === "fourplex"
       ? "Provisional; ground-floor restrictions"
@@ -618,15 +647,15 @@ export default function ZoningMap({
 
   const fillColorExpr: DataDrivenPropertyValueSpecification<string> = [
     "case",
-    ["==", ["get", "OBJECTID"], hoveredId ?? -1], activeHoverBase as unknown as string,
+    ["==", ["get", idKey], hoveredId ?? -1], activeHoverBase as unknown as string,
     activeFillBase as unknown as string,
   ] as unknown as DataDrivenPropertyValueSpecification<string>;
 
   const opacityExpr: ExpressionSpecification = [
     "case",
-    ["==", ["get", "OBJECTID"], selectedId ?? -1], 0.9,
-    ["==", ["get", "OBJECTID"], hoveredId ?? -1], 0.85,
-    inBuildMode ? 0.7 : 0.55,
+    ["==", ["get", idKey], activeSelectedId ?? -1], 0.9,
+    ["==", ["get", idKey], hoveredId ?? -1], 0.85,
+    inBuildMode ? 0.7 : parcelMode ? 0.65 : 0.55,
   ];
 
   const lineColorExpr: ExpressionSpecification = [
@@ -634,6 +663,27 @@ export default function ZoningMap({
     ["==", ["get", "OBJECTID"], selectedId ?? -1], "#1b2b3c",
     ["==", ["get", "OBJECTID"], hoveredId ?? -1], "#374151",
     "#6b7280",
+  ];
+
+  // Parcel mode: thin lot lines once zoomed in, a dark outline on the hovered and selected parcel.
+  const parcelLineColorExpr: ExpressionSpecification = [
+    "case",
+    ["==", ["get", "i"], selectedParcelIndex ?? -1], "#1b2b3c",
+    ["==", ["get", "i"], hoveredId ?? -1], "#374151",
+    "#ffffff",
+  ];
+  // MapLibre only allows ["zoom"] in a top-level interpolate, so the case goes inside each stop.
+  const parcelLineWidthAt = (lotLine: number): ExpressionSpecification => [
+    "case",
+    ["==", ["get", "i"], selectedParcelIndex ?? -1], 2.5,
+    ["==", ["get", "i"], hoveredId ?? -1], 1.5,
+    lotLine,
+  ];
+  const parcelLineWidthExpr: ExpressionSpecification = [
+    "interpolate", ["linear"], ["zoom"],
+    13, parcelLineWidthAt(0),
+    14, parcelLineWidthAt(0.4),
+    17, parcelLineWidthAt(1),
   ];
 
   const lineWidthExpr: ExpressionSpecification = [
@@ -674,7 +724,42 @@ export default function ZoningMap({
         doubleClickZoom={interactive}
         touchZoomRotate={interactive}
       >
+        {parcels && (
+          <Source id="zoning-parcels" type="geojson" data={parcels.geojson}>
+            <Layer
+              id="zoning-parcel-fill"
+              type="fill"
+              filter={activeFilter}
+              paint={{
+                "fill-color": fillColorExpr,
+                "fill-opacity": opacityExpr,
+              }}
+            />
+            {SHOW_BUILD_HACHURE && (
+              <Layer
+                id="zoning-parcel-hachure"
+                type="fill"
+                filter={hachureFilter}
+                paint={{
+                  "fill-pattern": "hachure",
+                  "fill-opacity": 0.45,
+                } as object}
+              />
+            )}
+            <Layer
+              id="zoning-parcel-outline"
+              type="line"
+              filter={activeFilter}
+              paint={{
+                "line-color": parcelLineColorExpr,
+                "line-width": parcelLineWidthExpr,
+                "line-opacity": 0.9,
+              }}
+            />
+          </Source>
+        )}
         <Source id="zoning" type="geojson" data={data}>
+          {!parcelMode && (
           <Layer
             id="zoning-fill"
             type="fill"
@@ -684,7 +769,8 @@ export default function ZoningMap({
               "fill-opacity": opacityExpr,
             }}
           />
-          {SHOW_BUILD_HACHURE && (
+          )}
+          {SHOW_BUILD_HACHURE && !parcelMode && (
             <Layer
               id="zoning-hachure"
               type="fill"
@@ -698,11 +784,11 @@ export default function ZoningMap({
           <Layer
             id="zoning-outline"
             type="line"
-            filter={activeFilter}
+            filter={parcelMode ? visibilityFilterForDistricts(inBuildMode, activeCodes) : activeFilter}
             paint={{
-              "line-color": lineColorExpr,
-              "line-width": lineWidthExpr,
-              "line-opacity": 0.7,
+              "line-color": parcelMode ? "#4b5563" : lineColorExpr,
+              "line-width": parcelMode ? 0.8 : lineWidthExpr,
+              "line-opacity": parcelMode ? 0.55 : 0.7,
             }}
           />
         </Source>
@@ -1114,6 +1200,7 @@ export default function ZoningMap({
             )}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">{tooltip.description}</div>
+          {tooltip.address && <div className="text-xs text-gray-700 mt-0.5">{tooltip.address}</div>}
         </div>
       )}
     </div>

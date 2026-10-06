@@ -45,6 +45,12 @@ export default function ZoningAbout({
         , the official versions govern.
       </p>
       <p className="mt-2">
+        <strong>Parcels</strong> are the Champaign County GIS Consortium&apos;s tax parcels. Each is colored by the
+        district covering most of it; the few split between districts note both shares when you click them. Lot
+        sizes are the county&apos;s GIS areas. Streets and other land outside any parcel aren&apos;t shaded; thin gray
+        lines mark district boundaries.
+      </p>
+      <p className="mt-2">
         <strong>Where can I build</strong> is our reading of what Chapter 37 allows in each district. It isn&apos;t
         legal advice or a zoning determination: lot size, setbacks, overlays, planned developments, and other rules can
         change what&apos;s allowed on a specific lot. Check with the city&apos;s Planning and Development Department

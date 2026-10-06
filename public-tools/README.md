@@ -62,8 +62,10 @@ npm run data:parcels -- --skip-addresses
 npm run data:parcels -- --cache=/tmp/parcel-cache   # reuse downloads while developing
 ```
 
-Takes about 3 minutes. Builds `public/data/parcels/champaign-county-parcels.json`, which `.gitignore` keeps out of
-git, from:
+Takes about 3 minutes, plus a few more to tag the zoning map's parcels. Builds
+`public/data/parcels/champaign-county-parcels.json` and `public/data/zoning-parcels.json` (each parcel in the City of
+Champaign's zoning map, with the district covering it), which `.gitignore` keeps out of git. Without them the zoning
+map draws whole districts instead of parcels. Both are built from:
 
 - parcel boundaries and assessments: the Champaign County GIS Consortium's tax parcels, from the City of Champaign's
   public `TaxParcels_Assessed` map service

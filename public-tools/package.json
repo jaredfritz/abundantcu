@@ -10,7 +10,8 @@
     "start": "next start",
     "data:crashes": "node scripts/fetch-idot-crashes.mjs",
     "data:parcels": "node scripts/fetch-parcel-values.mjs",
-    "data:permits": "node scripts/locate-permits.mjs"
+    "data:permits": "node scripts/locate-permits.mjs",
+    "data:zoning-parcels": "node scripts/build-zoning-parcels.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.3.4",

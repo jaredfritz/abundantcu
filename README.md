@@ -10,7 +10,7 @@ housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and 
 | `/data/crashes` | Every reported crash in Champaign, Urbana, and Savoy since 2014, with a location report builder | IDOT crash data, CCRPC fields |
 | `/data/value-per-acre` | Property value and tax per acre for every parcel in Champaign County | County parcels and assessments, County Clerk tax rates |
 | `/data/vacant-land` | Vacant parcels by type, including land held with the house next door | Same as above |
-| `/data/zoning` | Zoning districts, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points |
+| `/data/zoning` | Zoning by parcel, residential permits since 2014, and where common housing types are allowed | City of Champaign zoning, permits, and address points; county parcels |
 | `/data/parking` | Community-mapped parking lots and garages downtown | Supabase (live, contributor-drawn) |
 
 Each page's "About this data" section explains its sources, methods, and caveats.
@@ -46,6 +46,12 @@ Basemaps on the data maps are CARTO's free Positron style with OpenStreetMap dat
 
 The `/data` tools are published as open source in a separate public repository,
 [jaredfritz/cu-data-tools](https://github.com/jaredfritz/cu-data-tools); this repository (the full site) stays private.
+
+**Build here first.** New tools and changes to existing ones are developed, reviewed, and shipped in this repository.
+Whether and when a change goes to `cu-data-tools` is a separate decision, made after it's live on the site. Never edit
+`cu-data-tools` directly; it's only ever updated by the export below. Keeping `public-tools/` and the export script in
+step with a change (so a later export works) is fine, but don't run the export or push to `cu-data-tools` unless asked.
+
 To publish changes to the tools:
 
 ```bash
