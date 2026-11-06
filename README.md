@@ -242,10 +242,14 @@ request when the city's zones or dates change.
 
 ### Add to calendar
 
-After a search, people can add the current season's remaining pickups to a calendar, one at a time or all at once:
-Google gets a prefilled event link per pickup, and Apple Calendar and Outlook get a calendar file from
-`/api/yard-waste/calendar?zone=O-5[&date=YYYY-MM-DD]`, which iPhones and Macs open in Calendar. These are one-time
-events; nothing subscribes, so later schedule changes can't silently go wrong in someone's calendar.
+After a search, people can add the current season's remaining pickups to a calendar. Each pickup becomes a "Put yard
+waste at the curb" event from 6:00 to 6:30 p.m. the evening before (bags must be out by 6 a.m.), so calendars give their
+usual timed reminder: Google applies the person's default, and the calendar file includes an alert for Apple Calendar
+and Outlook. The button guesses the calendar from the device: Apple devices add every remaining pickup to Apple
+Calendar in one tap (a calendar file from `/api/yard-waste/calendar?zone=O-5[&date=YYYY-MM-DD]`), Android opens Google
+Calendar, and other devices get a menu. "Use a different calendar" offers Google, Outlook.com, and Microsoft 365 links
+(one pickup each) and the all-at-once file. These are one-time events; nothing subscribes, so later schedule changes
+can't silently go wrong in someone's calendar.
 
 When every pickup of the season has passed, the page says so, keeps the zones and dates for reference, and hides the
 calendar and reminder options until the next season's data is merged.
