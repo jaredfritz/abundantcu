@@ -52,6 +52,18 @@ function distanceToRingMeters(lng: number, lat: number, ring: number[][]): numbe
   return min;
 }
 
+/** Meters from [lng, lat] to the nearest edge of a polygon feature, counting holes and every part of a multipolygon. */
+export function distanceToFeatureEdgeMeters(feature: GeoJSON.Feature, lng: number, lat: number): number {
+  const geom = feature.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
+  if (!geom) return Number.POSITIVE_INFINITY;
+  const polygons = geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
+  let min = Number.POSITIVE_INFINITY;
+  for (const polygon of polygons) {
+    for (const ring of polygon) min = Math.min(min, distanceToRingMeters(lng, lat, ring));
+  }
+  return min;
+}
+
 /** Returns true if [lng, lat] is inside the polygon (respecting holes). */
 function pointInPolygon(lng: number, lat: number, coords: number[][][]): boolean {
   const [exterior, ...holes] = coords;

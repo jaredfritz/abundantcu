@@ -31,6 +31,13 @@ const TOOLS = [
     alt: "",
     text: "City of Champaign zoning districts, residential building permits since 2014, and where common housing types are allowed.",
   },
+  {
+    href: "/data/yard-waste",
+    title: "Yard Waste Pickup",
+    image: "/yard-waste-thumbnail.png",
+    alt: "Map of Champaign's yard waste collection zones, labeled by pickup day",
+    text: "City of Champaign yard waste collection zones and pickup dates, searchable by address, with a calendar download.",
+  },
 ];
 
 export default function HomePage() {
