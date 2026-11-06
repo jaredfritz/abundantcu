@@ -32,6 +32,17 @@ export default function HomePage() {
           <p className="mt-4 max-w-xl text-base text-slate-700 md:text-lg">
             We leverage data and policy to build a resilient city that works for everyone.
           </p>
+          <p className="mt-3 max-w-xl text-sm text-slate-600 md:text-base">
+            We also build practical tools, like{" "}
+            <a href="/data/yard-waste" className="font-semibold text-[var(--color-primary)] hover:underline">
+              yard waste reminders
+            </a>{" "}
+            and{" "}
+            <a href="/adopt-a-drain" className="font-semibold text-[var(--color-primary)] hover:underline">
+              Adopt a Drain
+            </a>
+            , that make city services easier to use.
+          </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a
               href="/data"
