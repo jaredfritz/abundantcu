@@ -46,11 +46,15 @@ export async function POST(request: Request) {
     return json({ error: "We've already asked the City to email that address a few times. Check your inbox, or try again in an hour." }, 429);
   }
 
-  const turnstileOk = await verifyTurnstileToken(
-    typeof body.turnstileToken === "string" ? body.turnstileToken : "",
-    getRequestIp(request)
-  );
-  if (!turnstileOk) return json({ error: "Please complete the verification challenge." }, 400);
+  // The Cloudflare check runs only when Turnstile is configured; without it, the rate limits above and the honeypot
+  // still keep this from being used to flood the City's email.
+  if (process.env.TURNSTILE_SECRET_KEY) {
+    const turnstileOk = await verifyTurnstileToken(
+      typeof body.turnstileToken === "string" ? body.turnstileToken : "",
+      getRequestIp(request)
+    );
+    if (!turnstileOk) return json({ error: "Please complete the verification challenge." }, 400);
+  }
 
   const appUrl = appUrlFor(origin);
   try {
