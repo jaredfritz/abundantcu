@@ -11,7 +11,8 @@
     "data:crashes": "node scripts/fetch-idot-crashes.mjs",
     "data:parcels": "node scripts/fetch-parcel-values.mjs",
     "data:permits": "node scripts/locate-permits.mjs",
-    "data:zoning-parcels": "node scripts/build-zoning-parcels.mjs"
+    "data:zoning-parcels": "node scripts/build-zoning-parcels.mjs",
+    "data:yard-waste": "node scripts/fetch-yard-waste.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.3.4",

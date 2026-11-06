@@ -1,0 +1,51 @@
+# Weekly check of the City of Champaign's yard waste zones and pickup dates. Rebuilds src/data/yard-waste.json and opens
+# a pull request only when the city's data changed (for example, when it posts the next season's dates).
+name: Refresh yard waste data
+
+on:
+  schedule:
+    - cron: "41 15 * * 1" # Mondays, 15:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-yard-waste
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download the city's yard waste zones and dates
+        run: npm run data:yard-waste
+
+      - name: Open a pull request if anything changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automated/refresh-yard-waste
+          delete-branch: true
+          commit-message: Refresh yard waste zones and pickup dates
+          title: Refresh yard waste zones and pickup dates
+          add-paths: |
+            src/data/yard-waste.json
+            src/data/data-updates.json
+          body: |
+            The weekly check found changes in the City of Champaign's yard waste collection zones or pickup dates.
+
+            - `src/data/yard-waste.json` is what `/data/yard-waste` and the reminder emails use.
+            - `src/data/data-updates.json` records the season and refreshed date shown on the page.
+
+            Compare the dates with https://champaignil.gov/public-works/yard-waste/ before merging. Reminder emails use
+            the merged data from the next daily run.

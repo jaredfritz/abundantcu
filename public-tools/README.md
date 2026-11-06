@@ -10,6 +10,7 @@ Open-source maps and data pipelines for Champaign-Urbana, Illinois, originally b
 | `/data/value-per-acre` | Property value and property tax per acre for every parcel in Champaign County, in 2D or 3D |
 | `/data/vacant-land` | Vacant parcels by type, including subdivision land still assessed at farmland rates and lots held with the house next door |
 | `/data/zoning` | City of Champaign zoning districts, residential permits since 2014, and where common housing types are allowed |
+| `/data/yard-waste` | City of Champaign yard waste collection zones and pickup dates, searchable by address, with a calendar download |
 
 Each page has an "About this data" section with its sources, methods, and caveats.
 
@@ -87,6 +88,17 @@ without coordinates. The script places each one at its address in the city's pub
 to the matching county parcel, then to a point between the neighboring addresses on the same side of the street. It
 writes `src/data/residential-permits.json` and lists any permits it can't place.
 
+### Yard waste
+
+```bash
+npm run data:yard-waste
+```
+
+Downloads the zones and pickup dates from the City of Champaign Public Works map services behind its
+[Yard Waste Collection map](https://experience.arcgis.com/experience/8133ffc42b9741aea6e9a1f3d49b7a4f). The dates have
+no year, so the script works it out from the weekdays, keeps the season under way or coming up next, and writes
+`src/data/yard-waste.json`.
+
 ### Dates shown on the pages
 
 Each page shows what its data covers and when it was refreshed, from `src/data/data-updates.json`. The crash and
@@ -115,6 +127,7 @@ The code is MIT-licensed (see `LICENSE`). Data files follow their sources' terms
 | Tax rates | [Champaign County Clerk](https://www.champaigncountyclerk.com/property-taxes/tax-extension-rates) rate books | Public records |
 | Site addresses | [Champaign County property tax inquiry](https://champaignil.devnetwedge.com) | Used only inside the parcel build. The script uses the township search, which the site's robots.txt allows; don't point it at the disallowed `/parcel/` pages. |
 | Zoning districts (`public/data/zoning.geojson`) | City of Champaign [Zoning Classifications](https://gis-cityofchampaign.opendata.arcgis.com/datasets/a24e403a9fa245dbaaaf46f766860c40_15/explore) | City of Champaign Open Data, provided "as is" without warranty; no license stated |
+| Yard waste zones and dates (`src/data/yard-waste.json`) | City of Champaign Public Works [yard waste map services](https://gisportal.champaignil.gov/ms/rest/services/PWD/Yardwaste_fall/MapServer) | Same as zoning |
 | Address points | City of Champaign [Address Points](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/7) | Same as zoning |
 | Residential permits (`data/permits/`, `src/data/residential-permits.json`) | Provided by the City of Champaign; placed on the map by `npm run data:permits` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): credit the City of Champaign and Abundant CU |
 | Basemap | [CARTO](https://carto.com/attributions) Positron style, [OpenMapTiles](https://openmaptiles.org/), [OpenStreetMap](https://www.openstreetmap.org/copyright) | Keep the "© CARTO, © OpenMapTiles, © OpenStreetMap contributors" credit. CARTO now asks for an API key for its hosted basemaps (free for non-commercial use up to 5 million tile requests a month), so get one or switch styles before you deploy widely. |

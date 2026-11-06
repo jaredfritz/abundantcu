@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** A table the anon key can read, queried to count as database activity. */
+const KEEPALIVE_TABLE = "parking_features";
+
 type KeepaliveResult = {
   name: string;
   url: string;
@@ -74,12 +77,19 @@ export async function GET(request: NextRequest) {
   const baseUrl = normalizeBaseUrl(supabaseUrl);
   const startedAt = Date.now();
 
+  // The database query is what keeps the project awake: Supabase pauses free projects after a week of low activity,
+  // and the auth settings and REST root endpoints answer from config and cache without querying Postgres. The parking
+  // map's table is readable with the anon key, so one row from it is a real query.
   const results = await Promise.all([
+    pingSupabaseTarget(
+      "database-query",
+      `${baseUrl}/rest/v1/${KEEPALIVE_TABLE}?select=*&limit=1`,
+      anonKey
+    ),
     pingSupabaseTarget("auth-settings", `${baseUrl}/auth/v1/settings`, anonKey),
-    pingSupabaseTarget("rest-root", `${baseUrl}/rest/v1/`, anonKey),
   ]);
 
-  const ok = results.some((result) => result.ok);
+  const ok = results[0].ok;
 
   return NextResponse.json(
     {

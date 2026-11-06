@@ -11,6 +11,7 @@
     "data:parcels": "node scripts/fetch-parcel-values.mjs",
     "data:permits": "node scripts/locate-permits.mjs",
     "data:zoning-parcels": "node scripts/build-zoning-parcels.mjs",
+    "data:yard-waste": "node scripts/fetch-yard-waste.mjs",
     "export:public": "node scripts/export-public-tools.mjs"
   },
   "dependencies": {

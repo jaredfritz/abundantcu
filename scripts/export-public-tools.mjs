@@ -2,8 +2,9 @@
 //
 //   node scripts/export-public-tools.mjs <path to a checkout of the public repo>
 //
-// The public repo holds the /data tools (crash dashboard, Value Per Acre, Vacant Land, zoning and permits), their data
-// pipelines and data files, without the rest of the site (signup, writings, parking map, editor admin, branding).
+// The public repo holds the /data tools (crash dashboard, Value Per Acre, Vacant Land, zoning and permits, yard waste),
+// their data pipelines and data files, without the rest of the site (signup, writings, parking map, editor admin,
+// yard waste email reminders, branding).
 // The file list isn't kept by hand: starting from each tool's page, route, and script, the export follows imports, so
 // a new shared component comes along automatically. Files in public-tools/ replace their site counterparts (a plain
 // page shell and layout, package.json, README, config), and REWRITES adjusts the lines that point at or name the site.
@@ -27,11 +28,13 @@ const ENTRIES = [
   "src/app/data/value-per-acre/page.tsx",
   "src/app/data/vacant-land/page.tsx",
   "src/app/data/zoning/page.tsx",
+  "src/app/data/yard-waste/page.tsx",
   "src/app/api/nominatim/autocomplete/route.ts",
   "src/app/api/nominatim/geocode/route.ts",
   "scripts/fetch-idot-crashes.mjs",
   "scripts/fetch-parcel-values.mjs",
   "scripts/locate-permits.mjs",
+  "scripts/fetch-yard-waste.mjs",
 ];
 
 /** Files and folders that imports don't reach: data, images, docs, licenses, and config. */
@@ -45,6 +48,7 @@ const EXTRA = [
   "public/crash-dashboard-thumbnail.png",
   "public/value-per-acre-thumbnail.png",
   "public/vacant-land-thumbnail.png",
+  "public/yard-waste-thumbnail.png",
   "data/permits",
   "data/ccrpc",
   "docs/value-per-acre-next-steps.md",
@@ -80,6 +84,19 @@ const REWRITES = [
     files: /^src\/app\/api\/nominatim\/.*route\.ts$/,
     pattern: /"AbundantCU\/1\.0 \(abundantcu@gmail\.com\)"/g,
     to: `"cu-data-tools/1.0 (${PUBLIC_REPO_URL})"`,
+  },
+  // Yard waste email reminders (Supabase, Resend, cron) stay on the site; public-tools/ swaps the sign-up form for a
+  // link to the city's notification emails.
+  {
+    files: /^src\/app\/data\/yard-waste\/page\.tsx$/,
+    pattern: /\n\s*\/\/ Email reminders need[^\n]*\n[^\n]*\n\s*const remindersEnabled = Boolean\([\s\S]*?\);/g,
+    to: "\n  const remindersEnabled = false;",
+  },
+  {
+    files: /^(src\/lib\/yardWaste\.ts|scripts\/fetch-yard-waste\.mjs)$/,
+    pattern: /Abundant CU\/\/Yard Waste|@abundantcu\.com|"AbundantCU-data\/1\.0 \(\+https:\/\/abundantcu\.com\/data\/yard-waste\)"/g,
+    to: (match) =>
+      match.startsWith("Abundant") ? "cu-data-tools//Yard Waste" : match.startsWith("@") ? "@cu-data-tools" : `"cu-data-tools/1.0 (+${PUBLIC_REPO_URL})"`,
   },
   {
     files: /^scripts\/fetch-parcel-values\.mjs$/,
@@ -170,9 +187,9 @@ async function main() {
       if (!fileFilter.test(relative.split(path.sep).join("/"))) continue;
       const full = path.join(targetDir, relative);
       const text = await readFile(full, "utf8");
-      const next = text.replace(pattern, () => {
+      const next = text.replace(pattern, (match) => {
         matched += 1;
-        return to;
+        return typeof to === "function" ? to(match) : to;
       });
       if (next !== text) await writeFile(full, next);
     }

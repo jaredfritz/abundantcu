@@ -46,6 +46,13 @@ using (
 alter table public.parking_features enable row level security;
 
 -- Replace permissive policies (if present) with editor-gated policies.
+-- Permissive policies are OR'd, so older ones that let any signed-in user write their own rows would bypass the
+-- editor check. Drop them (and a duplicate read policy) wherever they exist.
+drop policy if exists "auth insert parking_features" on public.parking_features;
+drop policy if exists "owner update parking_features" on public.parking_features;
+drop policy if exists "owner delete parking_features" on public.parking_features;
+drop policy if exists "public read parking_features" on public.parking_features;
+
 drop policy if exists "parking_select_all" on public.parking_features;
 create policy "parking_select_all"
 on public.parking_features

@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/data/zoning/studio", "/data/zoning/print"],
+      disallow: ["/data/zoning/studio", "/data/zoning/print", "/data/yard-waste/reminders"],
     },
     sitemap: "https://abundantcu.com/sitemap.xml",
   };

@@ -4,6 +4,10 @@
     {
       "path": "/api/supabase-keepalive",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/yard-waste/reminders/send",
+      "schedule": "13 21 * * *"
     }
   ]
 }
