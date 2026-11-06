@@ -1,8 +1,8 @@
 "use client";
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { BellRing } from "lucide-react";
 import { REMINDER_DAY_OPTIONS, YARD_WASTE, type YardWasteZone } from "@/lib/yardWaste";
+import { InfoTip } from "./InfoTip";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -22,10 +22,14 @@ interface YardWasteReminderFormProps {
   enabled: boolean;
 }
 
-/** Sign-up for an email reminder a few days before each pickup in the searched address's zone. */
+/**
+ * Sign-up for an email reminder a few days before each of this season's remaining pickups in the searched address's
+ * zone, with an opt-in (unchecked) to hear when reminders open for a future season.
+ */
 export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: YardWasteReminderFormProps) {
   const [email, setEmail] = useState("");
   const [daysBefore, setDaysBefore] = useState<number>(1);
+  const [futureUpdates, setFutureUpdates] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -73,19 +77,13 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
 
   if (!enabled) {
     return (
-      <div className="rounded-[4px] border border-[var(--color-border)] bg-slate-50 p-4 text-sm text-slate-700">
-        <p className="flex items-center gap-2 font-semibold">
-          <BellRing aria-hidden className="h-4 w-4" />
-          Get reminders
-        </p>
-        <p className="mt-1">
-          Add the dates to your calendar, or sign up for the city&apos;s{" "}
-          <a href={YARD_WASTE.meta.cityEmailListUrl} target="_blank" rel="noopener noreferrer" className="underline">
-            Public Works notification emails
-          </a>
-          .
-        </p>
-      </div>
+      <p className="border-t border-[var(--color-border)] pt-4 text-sm text-slate-600">
+        Prefer email? Sign up for the city&apos;s{" "}
+        <a href={YARD_WASTE.meta.cityEmailListUrl} target="_blank" rel="noopener noreferrer" className="underline">
+          Public Works notification emails
+        </a>
+        .
+      </p>
     );
   }
 
@@ -99,7 +97,16 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
       const response = await fetch("/api/yard-waste/reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, address, lat, lng, daysBefore, honeypot, turnstileToken: turnstileToken.current }),
+        body: JSON.stringify({
+          email,
+          address,
+          lat,
+          lng,
+          daysBefore,
+          futureUpdates,
+          honeypot,
+          turnstileToken: turnstileToken.current,
+        }),
       });
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) throw new Error(body?.error ?? "Couldn't sign you up. Please try again.");
@@ -115,22 +122,23 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="rounded-[4px] border border-[var(--color-border)] bg-slate-50 p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold">
-        <BellRing aria-hidden className="h-4 w-4" />
-        Email me before each pickup
-      </p>
-      <p className="mt-1 text-xs text-slate-600">
-        For zone {zone.id}. We&apos;ll keep reminding you in future seasons until you unsubscribe.
+    <form onSubmit={handleSubmit} noValidate className="border-t border-[var(--color-border)] pt-4 text-sm">
+      <p className="flex items-center gap-1 font-semibold">
+        Email reminders
+        <InfoTip label="About email reminders">
+          For zone {zone.id}&apos;s remaining {YARD_WASTE.meta.label} pickups; they stop after the last one. We email you
+          to confirm first. We keep your email and this address to send these reminders and, only if you check the box,
+          to tell you when you can sign up again. Every email has an unsubscribe link.
+        </InfoTip>
       </p>
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {status === "sent" ? (
-        <p role="status" className="mt-3 text-sm text-emerald-700">
+        <p role="status" className="mt-2 text-emerald-700">
           {message}
         </p>
       ) : (
         <>
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-2 flex flex-col gap-2">
             <label htmlFor="yard-waste-email" className="sr-only">
               Email address
             </label>
@@ -142,7 +150,7 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-[4px] border border-[var(--color-border)] bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-[var(--color-accent-secondary)]"
+              className="w-full rounded-[4px] border border-[var(--color-border)] bg-white px-3 py-2 outline-none placeholder:text-slate-400 focus:border-[var(--color-accent-secondary)]"
             />
             <div className="flex gap-2">
             <label htmlFor="yard-waste-days" className="sr-only">
@@ -152,7 +160,7 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
               id="yard-waste-days"
               value={daysBefore}
               onChange={(event) => setDaysBefore(Number(event.target.value))}
-              className="min-w-0 flex-1 rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-2 text-sm"
+              className="min-w-0 flex-1 rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-2"
             >
               {REMINDER_DAY_OPTIONS.map((days) => (
                 <option key={days} value={days}>
@@ -163,22 +171,27 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
             <button
               type="submit"
               disabled={status === "submitting" || !email}
-              className="shrink-0 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="shrink-0 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {status === "submitting" ? "Sending…" : "Remind me"}
             </button>
             </div>
           </div>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-slate-700">
+            <input
+              type="checkbox"
+              checked={futureUpdates}
+              onChange={(event) => setFutureUpdates(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+            />
+            Email me when reminders open for future seasons
+          </label>
           {TURNSTILE_SITE_KEY && <div ref={turnstileRef} className="mt-2" />}
           {message && (
-            <p role="alert" className="mt-2 text-sm text-red-700">
+            <p role="alert" className="mt-2 text-red-700">
               {message}
             </p>
           )}
-          <p className="mt-2 text-[11px] leading-snug text-slate-500">
-            We&apos;ll email you to confirm first. We keep your email and this address only to send these reminders,
-            and every email has an unsubscribe link.
-          </p>
         </>
       )}
     </form>

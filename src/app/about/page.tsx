@@ -24,7 +24,8 @@ export default function AboutPage() {
         <p className="mt-4 text-sm leading-relaxed text-slate-700 md:text-base">
           Abundant CU is a local policy and data publication focused on abundance and affordability in
           Champaign-Urbana. We publish maps, analysis, and writings about housing supply, land use, and the economics
-          of city growth.
+          of city growth. We also build practical tools that make city services easier to find and use, because a city
+          that works well day to day is part of an abundant one.
           <span className="block mt-3">Abundant CU is published by Jared Fritz.</span>
         </p>
 

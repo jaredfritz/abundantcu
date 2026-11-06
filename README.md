@@ -1,7 +1,7 @@
 # Abundant CU
 
 The source for [abundantcu.com](https://www.abundantcu.com): maps, datasets, and policy tools about land use and
-housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and MapLibre.
+housing in Champaign-Urbana, Illinois, plus practical tools for using city services. Built with Next.js, React, Tailwind, and MapLibre.
 
 ## What's here
 
@@ -240,9 +240,27 @@ next, and writes `src/data/yard-waste.json`. It stops with the text it couldn't 
 The **Refresh yard waste data** GitHub Action (`.github/workflows/refresh-yard-waste.yml`) runs weekly and opens a pull
 request when the city's zones or dates change.
 
+### Add to calendar
+
+After a search, people can add the current season's remaining pickups to a calendar. Each pickup becomes a "Put yard
+waste at the curb" event from 6:00 to 6:30 p.m. the evening before (bags must be out by 6 a.m.), so calendars give their
+usual timed reminder: Google applies the person's default, and the calendar file includes an alert for Apple Calendar
+and Outlook. Each remaining pickup has its own "Add to calendar" button, which opens a short list (Apple Calendar,
+Google Calendar, Outlook.com, Microsoft 365), with the likely calendar for the device listed first. Apple Calendar gets
+a calendar file from `/api/yard-waste/calendar?zone=O-5&date=YYYY-MM-DD`, which iPhones and Macs open in Calendar; the
+others open a prefilled event. These are one-time events; nothing subscribes, so later schedule changes
+can't silently go wrong in someone's calendar.
+
+When every pickup of the season has passed, the page says so, keeps the zones and dates for reference, and hides the
+calendar and reminder options until the next season's data is merged.
+
 ### Email reminders
 
-People can sign up on the page for an email a chosen number of days (1 to 7) before each pickup. To turn it on:
+People can sign up on the page for an email a chosen number of days (1 to 7) before each of the **current season's**
+remaining pickups. Each sign-up records its season (`season`, e.g. `fall-2026`), and the daily job only sends for the
+season the site's data covers, so reminders stop when the season ends. An optional, unchecked box ("Email me when
+reminders open for future seasons") sets `future_updates`; those are the only people to contact about a later season.
+Unsubscribing clears it. To turn reminders on:
 
 1. Run `supabase/yard_waste_reminders_schema.sql` in the Supabase SQL editor.
 2. Set `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (a sender on a
@@ -253,8 +271,7 @@ the geocoded address, and emails a confirmation link. Nothing else is sent until
 `/data/yard-waste/reminders`. Vercel Cron calls `/api/yard-waste/reminders/send` daily at 21:13 UTC (3 or 4 p.m. in
 Champaign); it sends each reminder whose next pickup is within its lead time and records it in
 `yard_waste_reminder_sends`, so a pickup is reminded once even if the job runs again, and a missed day catches up.
-Zones are looked up from each sign-up's saved location at send time, so reminders carry over to the next season once the
-data is refreshed. Every reminder has an unsubscribe link and one-click `List-Unsubscribe` headers.
+Zones are looked up from each sign-up's saved location at send time. Every reminder has an unsubscribe link and one-click `List-Unsubscribe` headers.
 
 ## Data dates on the maps
 

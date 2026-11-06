@@ -46,6 +46,14 @@ export interface YardWasteData {
 
 export const YARD_WASTE = data as unknown as YardWasteData;
 
+/** The season the site's data covers, e.g. "fall-2026". Reminder sign-ups are tied to it. */
+export const SEASON_ID = `${YARD_WASTE.meta.season}-${YARD_WASTE.meta.year}`;
+
+/** Every pickup this season has passed (or no data). Sign-ups and calendar links close until new dates arrive. */
+export function seasonOver(today: string): boolean {
+  return today > YARD_WASTE.meta.end;
+}
+
 export const TIME_ZONE = "America/Chicago";
 
 /** Reminder lead times offered on the sign-up form, in days before a pickup. */
@@ -181,38 +189,116 @@ export function relativeDays(days: number): string {
   return `in ${days} days`;
 }
 
-const icsDate = (isoDate: string) => isoDate.replace(/-/g, "");
-const icsEscape = (text: string) => text.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+const icsEscape = (text: string) => text.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
 
-/**
- * An iCalendar file with an all-day event for each remaining pickup in a zone, each with an alert at 6 p.m. the
- * evening before (materials must be at the curb by 6 a.m.).
- */
-export function zoneCalendar(zone: YardWasteZone, today: string, address?: string): string {
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  const description = [
-    `City of Champaign yard waste collection, zone ${zone.id}.`,
-    "Put yard waste in 30-gallon paper yard waste bags within 10 feet of the curb by 6 a.m.",
+/** Calendar events start at 6 p.m. the evening before a pickup and last half an hour. */
+const EVENT_HOUR = 18;
+const EVENT_MINUTES = 30;
+
+/** The UTC instant of a wall-clock time in Champaign, accounting for daylight saving time on that date. */
+function champaignTime(isoDate: string, hour: number): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const guess = Date.UTC(year, month - 1, day, hour);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TIME_ZONE,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .formatToParts(new Date(guess))
+      .map((part) => [part.type, part.value]),
+  );
+  const shown = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+  return new Date(guess - (shown - guess));
+}
+
+/** When the calendar event for a pickup starts and ends: 6:00-6:30 p.m. the evening before. */
+export function setOutWindow(pickup: Pickup): { start: Date; end: Date } {
+  const start = champaignTime(addDays(pickup.start, -1), EVENT_HOUR);
+  return { start, end: new Date(start.getTime() + EVENT_MINUTES * 60_000) };
+}
+
+/** "20261113T000000Z" */
+const icsUtc = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+
+const eventTitle = (zone: YardWasteZone) => `Put yard waste at the curb (zone ${zone.id})`;
+const eventDescription = (zone: YardWasteZone, pickup: Pickup) =>
+  [
+    `City of Champaign yard waste pickup ${pickup.start === pickup.end ? "is tomorrow" : `starts ${formatPickupLong(pickup)}`} for zone ${zone.id}.`,
+    "Have bags within 10 feet of the curb by 6 a.m., in 30-gallon paper yard waste bags, 5 feet from obstacles.",
     YARD_WASTE.meta.cityPageUrl,
   ].join("\n");
-  const events = upcomingPickups(zone, today).map((pickup) =>
-    [
+
+/**
+ * A Google Calendar link that opens one pickup's set-out event (6 p.m. the evening before), ready to save. Google
+ * applies the person's default reminder for timed events. Its links hold one event each.
+ */
+export function googleCalendarUrl(zone: YardWasteZone, pickup: Pickup, address?: string): string {
+  const { start, end } = setOutWindow(pickup);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: eventTitle(zone),
+    dates: `${icsUtc(start)}/${icsUtc(end)}`,
+    details: eventDescription(zone, pickup),
+    ctz: TIME_ZONE,
+  });
+  if (address) params.set("location", address);
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+/**
+ * Outlook on the web: `personal` opens Outlook.com, otherwise Microsoft 365 (work or school accounts). One event per
+ * link, like Google's.
+ */
+export function outlookCalendarUrl(
+  zone: YardWasteZone,
+  pickup: Pickup,
+  account: "personal" | "work",
+  address?: string,
+): string {
+  const { start, end } = setOutWindow(pickup);
+  const params = new URLSearchParams({
+    path: "/calendar/action/compose",
+    rru: "addevent",
+    subject: eventTitle(zone),
+    startdt: start.toISOString(),
+    enddt: end.toISOString(),
+    body: eventDescription(zone, pickup),
+  });
+  if (address) params.set("location", address);
+  const host = account === "personal" ? "https://outlook.live.com" : "https://outlook.office.com";
+  return `${host}/calendar/0/deeplink/compose?${params}`;
+}
+
+/**
+ * An iCalendar file with a set-out event at 6 p.m. the evening before each given pickup, each with an alert when it
+ * starts. Apple Calendar and Outlook keep the alert. These are one-time additions: nothing subscribes or updates later.
+ */
+export function zoneCalendar(zone: YardWasteZone, pickups: Pickup[], address?: string): string {
+  const stamp = icsUtc(new Date());
+  const events = pickups.map((pickup) => {
+    const { start, end } = setOutWindow(pickup);
+    return [
       "BEGIN:VEVENT",
       `UID:yard-waste-${zone.id}-${pickup.start}@abundantcu.com`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;VALUE=DATE:${icsDate(pickup.start)}`,
-      `DTEND;VALUE=DATE:${icsDate(addDays(pickup.end, 1))}`,
-      `SUMMARY:${icsEscape(`Yard waste pickup (${zone.id})`)}`,
-      `DESCRIPTION:${icsEscape(description)}`,
+      `DTSTART:${icsUtc(start)}`,
+      `DTEND:${icsUtc(end)}`,
+      `SUMMARY:${icsEscape(eventTitle(zone))}`,
+      `DESCRIPTION:${icsEscape(eventDescription(zone, pickup))}`,
       ...(address ? [`LOCATION:${icsEscape(address)}`] : []),
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
-      `DESCRIPTION:${icsEscape("Put yard waste at the curb by 6 a.m. tomorrow")}`,
-      "TRIGGER:-PT6H",
+      `DESCRIPTION:${icsEscape("Put yard waste at the curb tonight: pickup is tomorrow by 6 a.m.")}`,
+      "TRIGGER:-PT0M",
       "END:VALARM",
       "END:VEVENT",
-    ].join("\r\n"),
-  );
+    ].join("\r\n");
+  });
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
