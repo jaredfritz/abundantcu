@@ -252,6 +252,35 @@ export default function DataHubPage() {
               </span>
             </div>
           </Link>
+
+          <Link
+            href="/adopt-a-drain"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/adopt-a-drain-thumbnail.png"
+                alt="Map of Champaign's storm drains, with available drains as blue dots and adopted drains as gray rings"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Adopt a Drain</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> Every storm drain
+                in the city&apos;s Adopt-a-Drain program, and which ones still need a volunteer.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> Clear drains
+                prevent street flooding. Adopt one near you through the city&apos;s program and log each cleaning.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Find a Drain
+              </span>
+            </div>
+          </Link>
         </div>
 
         <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
