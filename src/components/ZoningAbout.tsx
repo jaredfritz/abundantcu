@@ -42,7 +42,8 @@ export default function ZoningAbout({
         >
           Zoning Ordinance (Chapter 37)
         </a>
-        , the official versions govern.
+        , the official versions govern. The City Council adopted a comprehensive update to the Zoning Ordinance on
+        September 23, 2026; this map and the build-type rules below haven&apos;t been updated for it yet.
       </p>
       <p className="mt-2">
         <strong>Parcels</strong> are the Champaign County GIS Consortium&apos;s tax parcels. Each is colored by the
