@@ -143,6 +143,8 @@ To reduce risk of Supabase auto-pausing due inactivity, a scheduled endpoint is 
 - API route: `/api/supabase-keepalive`
 - Scheduler: `vercel.json` cron, daily at 08:00 UTC
 - Protection: requires `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is set
+- What it does: reads one row from `parking_features` with the anon key. It has to be a real database query: the auth
+  settings and REST root endpoints answer from config and cache, so pinging only those let the project pause anyway.
 
 Vercel automatically attaches that authorization header to cron invocations when `CRON_SECRET` is configured.
 
