@@ -264,7 +264,7 @@ export default function DataHubPage() {
           </Link>
 
           <Link
-            href="/adopt-a-drain"
+            href="/data/adopt-a-drain"
             className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
           >
             <div className="relative h-44 border-b border-[var(--color-border)]">

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { appUrlFor, CityServiceError, isPlausibleToken, normalizeUserId, validateUser } from "./adoptADrain.server";
 import { getRequestIp, rateLimit } from "./security/rateLimit";
 
-/** Origins whose /adopt-a-drain page the City's sign-in emails may link to. */
+/** Origins whose Adopt a Drain page the City's sign-in emails may link to. */
 const ALLOWED_ORIGINS = [
   "https://abundantcu.com",
   "https://www.abundantcu.com",

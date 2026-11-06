@@ -9,13 +9,13 @@ const description =
 export const metadata: Metadata = {
   title: "Adopt a Drain — City of Champaign",
   description,
-  alternates: { canonical: "https://abundantcu.com/adopt-a-drain" },
+  alternates: { canonical: "https://abundantcu.com/data/adopt-a-drain" },
   // Sign-in links carry a token in the URL; don't send it to other sites.
   referrer: "no-referrer",
   openGraph: {
     title: "Adopt a Drain — City of Champaign | Abundant CU",
     description,
-    url: "https://abundantcu.com/adopt-a-drain",
+    url: "https://abundantcu.com/data/adopt-a-drain",
   },
 };
 
