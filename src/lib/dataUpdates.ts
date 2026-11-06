@@ -35,3 +35,10 @@ export function permitsThrough(permits: GeoJSON.FeatureCollection): string {
   const latest = permits.features.reduce((max, feature) => Math.max(max, Number(feature.properties?.year) || 0), 0);
   return `Permits through ${latest}`;
 }
+
+/**
+ * Shown on the zoning map until it's redrawn for the comprehensive Zoning Ordinance update the Champaign City
+ * Council adopted on Sep 23, 2026. Remove it (and its uses) once the zoning data reflects the new ordinance.
+ */
+export const ZONING_ORDINANCE_UPDATE_NOTE =
+  "Not yet updated for the new Zoning Ordinance the City Council adopted Sep 23, 2026.";

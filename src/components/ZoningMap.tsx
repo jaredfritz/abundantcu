@@ -19,6 +19,7 @@ import { findZoneAtPointOrNearest } from "@/lib/geo";
 import { PermitFeatureProperties, SelectedPermit } from "@/lib/permits";
 import { displayAddress, formatPin } from "@/lib/parcels";
 import { ZoningParcel, ZoningParcels, zoningParcelAt } from "@/lib/zoningParcels";
+import { ZONING_ORDINANCE_UPDATE_NOTE } from "@/lib/dataUpdates";
 
 const TILE_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const CHAMPAIGN_CENTER = { lng: -88.2434, lat: 40.1164 };
@@ -927,6 +928,9 @@ export default function ZoningMap({
                     </div>
                   ))}
                 </div>
+                <p className="mt-2 w-0 min-w-full text-[11px] leading-snug text-gray-500">
+                  {ZONING_ORDINANCE_UPDATE_NOTE}
+                </p>
               </div>
             )}
 
@@ -1050,6 +1054,7 @@ export default function ZoningMap({
                       </div>
                     ))}
                   </div>
+                  <p className="mt-2 text-[11px] leading-snug text-gray-500">{ZONING_ORDINANCE_UPDATE_NOTE}</p>
                 </div>
               )}
               {inBuildMode && (
