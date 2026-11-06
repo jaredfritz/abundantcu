@@ -1,135 +1,114 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarPlus, ChevronDown } from "lucide-react";
-import {
-  formatPickup,
-  googleCalendarUrl,
-  outlookCalendarUrl,
-  type Pickup,
-  type YardWasteZone,
-} from "@/lib/yardWaste";
+import { useEffect, useRef, useState } from "react";
+import { CalendarPlus } from "lucide-react";
+import { googleCalendarUrl, outlookCalendarUrl, type Pickup, type YardWasteZone } from "@/lib/yardWaste";
 
 type Platform = "apple" | "android" | "other";
 
 /**
  * A best guess at the calendar someone uses, from their device. Websites can't see which calendar app is set up, so
- * this only picks the first button; every other calendar is one tap away.
+ * this only decides which option is listed first.
  */
 function detectPlatform(): Platform {
   const ua = navigator.userAgent;
   if (/android/i.test(ua)) return "android";
-  // iPadOS reports itself as a Mac; touch support tells them apart, and both use Apple Calendar.
+  // iPadOS reports itself as a Mac; both use Apple Calendar.
   if (/iphone|ipad|ipod|macintosh/i.test(ua)) return "apple";
   return "other";
 }
 
-const icsUrl = (zone: YardWasteZone, pickup?: Pickup) =>
-  `/api/yard-waste/calendar?zone=${encodeURIComponent(zone.id)}${pickup ? `&date=${pickup.start}` : ""}`;
+interface CalendarOption {
+  id: "apple" | "google" | "outlook" | "office";
+  label: string;
+  href: string;
+  external: boolean;
+}
 
-const primaryClass =
-  "inline-flex w-full items-center justify-center gap-2 rounded-[4px] bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90";
-const chipClass =
-  "inline-flex items-center rounded-[4px] border border-[var(--color-border)] bg-white px-2 py-1 text-xs font-medium hover:bg-slate-50";
+function calendarOptions(zone: YardWasteZone, pickup: Pickup, address: string, platform: Platform): CalendarOption[] {
+  const options: CalendarOption[] = [
+    {
+      id: "apple",
+      label: "Apple Calendar",
+      href: `/api/yard-waste/calendar?zone=${encodeURIComponent(zone.id)}&date=${pickup.start}`,
+      external: false,
+    },
+    { id: "google", label: "Google Calendar", href: googleCalendarUrl(zone, pickup, address), external: true },
+    { id: "outlook", label: "Outlook.com", href: outlookCalendarUrl(zone, pickup, "personal", address), external: true },
+    { id: "office", label: "Microsoft 365", href: outlookCalendarUrl(zone, pickup, "work", address), external: true },
+  ];
+  const first = platform === "android" ? "google" : platform === "apple" ? "apple" : null;
+  return first ? [...options.filter((o) => o.id === first), ...options.filter((o) => o.id !== first)] : options;
+}
 
 /**
- * Adds this season's remaining pickups to a calendar as "Put yard waste at the curb" events at 6 p.m. the evening
- * before each pickup. On Apple devices one tap adds them all to Apple Calendar; on Android it opens Google Calendar;
- * elsewhere it opens a short menu. "Other calendars" lists every option.
+ * "Add to calendar" for one pickup: a small button that opens a list of calendars, the likely one for this device
+ * first. Apple Calendar gets a calendar file (iPhones and Macs open it in Calendar); the others open a prefilled event.
  */
-export function AddToCalendar({ zone, upcoming, address }: { zone: YardWasteZone; upcoming: Pickup[]; address: string }) {
+export function AddToCalendar({
+  zone,
+  pickup,
+  address,
+  open,
+  onOpenChange,
+}: {
+  zone: YardWasteZone;
+  pickup: Pickup;
+  address: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [platform, setPlatform] = useState<Platform>("other");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const wrapper = useRef<HTMLDivElement>(null);
   useEffect(() => setPlatform(detectPlatform()), []);
-  if (upcoming.length === 0) return null;
 
-  const all =
-    upcoming.length > 2 ? `all ${upcoming.length} pickups` : upcoming.length === 2 ? "both pickups" : "the next pickup";
-  const [next, ...later] = upcoming;
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | TouchEvent) => {
+      if (!wrapper.current?.contains(event.target as Node)) onOpenChange(false);
+    };
+    const escape = (event: KeyboardEvent) => event.key === "Escape" && onOpenChange(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open, onOpenChange]);
 
   return (
-    <div className="space-y-2">
-      {platform === "apple" && (
-        <a href={icsUrl(zone)} className={primaryClass}>
-          <CalendarPlus aria-hidden className="h-4 w-4" />
-          Add {all} to Apple Calendar
-        </a>
-      )}
-      {platform === "android" && (
-        <>
-          <a href={googleCalendarUrl(zone, next, address)} target="_blank" rel="noopener noreferrer" className={primaryClass}>
-            <CalendarPlus aria-hidden className="h-4 w-4" />
-            Add {formatPickup(next)} to Google Calendar
-          </a>
-          {later.length > 0 && (
-            <p className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
-              Also add:
-              {later.map((pickup) => (
-                <a key={pickup.start} href={googleCalendarUrl(zone, pickup, address)} target="_blank" rel="noopener noreferrer" className={chipClass}>
-                  {formatPickup(pickup)}
-                </a>
-              ))}
-            </p>
-          )}
-        </>
-      )}
-
-      <div className={platform === "other" ? "" : "text-center"}>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-controls="yard-waste-calendar-menu"
-          className={
-            platform === "other"
-              ? "inline-flex w-full items-center justify-between gap-2 rounded-[4px] border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
-              : "inline-flex items-center gap-1 text-xs text-slate-600 underline hover:text-slate-900"
-          }
+    <div ref={wrapper} className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-sm font-medium hover:bg-slate-50"
+      >
+        <CalendarPlus aria-hidden className="h-4 w-4" />
+        Add to calendar
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white py-1 shadow-lg"
         >
-          <span className="flex items-center gap-2">
-            {platform === "other" && <CalendarPlus aria-hidden className="h-4 w-4" />}
-            {platform === "other" ? "Add to calendar" : "Use a different calendar"}
-          </span>
-          <ChevronDown aria-hidden className={`h-3.5 w-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
-        </button>
-      </div>
-
-      {menuOpen && (
-        <div id="yard-waste-calendar-menu" className="space-y-3 rounded-[4px] border border-[var(--color-border)] p-3">
-          <div>
-            <p className="text-xs font-semibold text-slate-700">Apple Calendar or another app</p>
-            <a href={icsUrl(zone)} className={`${chipClass} mt-1`}>
-              Add {all} at once
+          {calendarOptions(zone, pickup, address, platform).map((option) => (
+            <a
+              key={option.id}
+              role="menuitem"
+              href={option.href}
+              {...(option.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              onClick={() => onOpenChange(false)}
+              className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+            >
+              {option.label}
             </a>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-700">Google or Outlook (one pickup per link)</p>
-            <ul className="mt-1 space-y-1.5">
-              {upcoming.map((pickup) => (
-                <li key={pickup.start} className="flex flex-wrap items-center justify-between gap-1.5">
-                  <span className="text-sm text-slate-800">{formatPickup(pickup)}</span>
-                  <span className="flex flex-wrap gap-1.5">
-                    <a href={googleCalendarUrl(zone, pickup, address)} target="_blank" rel="noopener noreferrer" className={chipClass}>
-                      Google
-                    </a>
-                    <a href={outlookCalendarUrl(zone, pickup, "personal", address)} target="_blank" rel="noopener noreferrer" className={chipClass}>
-                      Outlook.com
-                    </a>
-                    <a href={outlookCalendarUrl(zone, pickup, "work", address)} target="_blank" rel="noopener noreferrer" className={chipClass}>
-                      Microsoft 365
-                    </a>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          ))}
         </div>
       )}
-
-      <p className="text-[11px] leading-snug text-slate-500">
-        Adds a &ldquo;Put yard waste at the curb&rdquo; event at 6 p.m. the evening before each pickup, with your
-        calendar&apos;s usual reminder. Added once: it won&apos;t change if the city updates its schedule.
-      </p>
     </div>
   );
 }

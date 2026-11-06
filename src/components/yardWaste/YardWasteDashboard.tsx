@@ -24,6 +24,7 @@ import {
   type ZoneMatch,
 } from "@/lib/yardWaste";
 import { AddToCalendar } from "./AddToCalendar";
+import { InfoTip } from "./InfoTip";
 import { YardWasteMap } from "./YardWasteMap";
 import { YardWasteReminderForm } from "./YardWasteReminderForm";
 
@@ -91,7 +92,7 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
           <div className={`${cardClass} p-4 md:p-5`}>
             <h2 className="text-lg font-semibold">Find your pickup dates</h2>
             <p className="mt-1 mb-3 text-sm text-slate-600">Search your address, or click the map.</p>
-            <AddressSearch onResult={handleResult} onClear={() => setResult(null)} />
+            <AddressSearch onResult={handleResult} onClear={() => setResult(null)} showResolved={false} />
           </div>
 
           {result && <ResultCard result={result} today={today} remindersEnabled={remindersEnabled} />}
@@ -242,16 +243,31 @@ function ResultCard({
     );
   }
 
+  return <ZoneResult match={match} address={address} today={today} remindersEnabled={remindersEnabled} />;
+}
+
+function ZoneResult({
+  match,
+  address,
+  today,
+  remindersEnabled,
+}: {
+  match: ZoneMatch;
+  address: GeocodedAddress;
+  today: string | null;
+  remindersEnabled: boolean;
+}) {
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const { zone, nearBoundary } = match;
   const upcoming = today ? upcomingPickups(zone, today) : [];
   const next = upcoming[0];
   const days = next && today ? daysBetween(today, next.start) : null;
 
   return (
-    <div className={`${cardClass} overflow-hidden`}>
+    <div className={cardClass}>
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] p-4 md:px-5">
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[4px] text-sm font-bold"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] text-sm font-bold"
           style={{ backgroundColor: zoneFill(zone.id), color: zoneTextColor(zone.id) }}
         >
           {zone.id}
@@ -260,24 +276,23 @@ function ResultCard({
           <p className="font-semibold">
             Zone {zone.id} · {colorLabel(zone.color)}
           </p>
-          <p className="truncate text-xs text-slate-500" title={address.displayName}>
+          <p className="truncate text-sm text-slate-500" title={address.displayName}>
             {address.displayName}
           </p>
         </div>
       </div>
 
-      <div className="space-y-4 p-4 md:p-5">
+      <div className="space-y-4 p-4 text-sm md:p-5">
         {today && next && days !== null && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Next pickup</p>
-            <p className="text-2xl font-bold text-[var(--color-primary)]">{formatPickupLong(next)}</p>
-            <p className="text-sm text-slate-600">
-              {days <= 0 ? "Today. Materials needed to be out by 6 a.m." : `${relativeDays(days)[0].toUpperCase()}${relativeDays(days).slice(1)}. Have it at the curb by 6 a.m.`}
+            <p className="text-lg font-semibold text-[var(--color-primary)]">Next pickup: {formatPickupLong(next)}</p>
+            <p className="text-slate-600">
+              {days <= 0 ? "Today. Bags needed to be out by 6 a.m." : `${relativeDays(days)[0].toUpperCase()}${relativeDays(days).slice(1)}. Bags at the curb by 6 a.m.`}
             </p>
           </div>
         )}
         {today && !next && (
-          <p className="text-sm text-slate-700">
+          <p className="text-slate-700">
             All {meta.label} pickups for zone {zone.id} have passed. The city will post next season&apos;s dates on its{" "}
             <a href={meta.cityPageUrl} target="_blank" rel="noopener noreferrer" className="underline">
               yard waste page
@@ -287,23 +302,35 @@ function ResultCard({
         )}
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{meta.label} pickups</p>
-          <ul className="mt-1 flex flex-wrap gap-1.5">
+          <p className="flex items-center gap-1 font-semibold">
+            {meta.label} pickups
+            {upcoming.length > 0 && (
+              <InfoTip label="About adding pickups to your calendar">
+                Adds a &ldquo;Put yard waste at the curb&rdquo; event at 6 p.m. the evening before, with your
+                calendar&apos;s usual reminder. It&apos;s added once and won&apos;t change if the city updates its
+                schedule.
+              </InfoTip>
+            )}
+          </p>
+          <ul className="mt-1 divide-y divide-slate-100">
             {zone.pickups.map((pickup) => {
               const past = today !== null && pickup.end < today;
-              const isNext = pickup === next;
+              const remaining = today !== null && !past;
               return (
-                <li
-                  key={pickup.start}
-                  className={`rounded-[4px] px-2 py-1 text-sm ${
-                    past
-                      ? "bg-slate-100 text-slate-400 line-through"
-                      : isNext
-                        ? "bg-[var(--color-primary)] font-semibold text-white"
-                        : "bg-slate-100 text-slate-800"
-                  }`}
-                >
-                  {formatPickup(pickup)}
+                <li key={pickup.start} className="flex min-h-11 items-center justify-between gap-3 py-1.5">
+                  <span className={past ? "text-slate-400 line-through" : pickup === next ? "font-semibold" : ""}>
+                    {formatPickup(pickup)}
+                  </span>
+                  {past && <span className="text-slate-400">Passed</span>}
+                  {remaining && (
+                    <AddToCalendar
+                      zone={zone}
+                      pickup={pickup}
+                      address={address.displayName}
+                      open={menuFor === pickup.start}
+                      onOpenChange={(open) => setMenuFor(open ? pickup.start : null)}
+                    />
+                  )}
                 </li>
               );
             })}
@@ -311,25 +338,22 @@ function ResultCard({
         </div>
 
         {nearBoundary && (
-          <p className="flex gap-2 rounded-[4px] bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="flex gap-2 rounded-[4px] bg-amber-50 p-3 text-amber-900">
             <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
             This address is close to the line with another zone. Check that the pin is on your home, or confirm with
             Public Works at 217-403-4700.
           </p>
         )}
 
-        {/* Calendar and reminders are for this season's remaining pickups only. */}
+        {/* Reminders are for this season's remaining pickups only. */}
         {upcoming.length > 0 && (
-          <>
-            <AddToCalendar zone={zone} upcoming={upcoming} address={address.displayName} />
-            <YardWasteReminderForm
-              address={address.displayName}
-              lat={address.lat}
-              lng={address.lng}
-              zone={zone}
-              enabled={remindersEnabled}
-            />
-          </>
+          <YardWasteReminderForm
+            address={address.displayName}
+            lat={address.lat}
+            lng={address.lng}
+            zone={zone}
+            enabled={remindersEnabled}
+          />
         )}
       </div>
     </div>
