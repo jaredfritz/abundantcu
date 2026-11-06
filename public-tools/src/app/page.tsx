@@ -33,7 +33,7 @@ const TOOLS = [
   },
   {
     href: "/data/yard-waste",
-    title: "Yard Waste Pickup",
+    title: "Yard Waste Collection",
     image: "/yard-waste-thumbnail.png",
     alt: "Map of Champaign's yard waste collection zones, labeled by pickup day",
     text: "City of Champaign yard waste collection zones and pickup dates, searchable by address, with a calendar download.",

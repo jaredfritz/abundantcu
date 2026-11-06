@@ -191,8 +191,8 @@ export function relativeDays(days: number): string {
 
 const icsEscape = (text: string) => text.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
 
-/** Calendar events start at 6 p.m. the evening before a pickup and last half an hour. */
-const EVENT_HOUR = 18;
+/** Calendar events start at 5 p.m. the evening before a pickup and last half an hour. */
+const EVENT_HOUR = 17;
 const EVENT_MINUTES = 30;
 
 /** The UTC instant of a wall-clock time in Champaign, accounting for daylight saving time on that date. */
@@ -216,7 +216,7 @@ function champaignTime(isoDate: string, hour: number): Date {
   return new Date(guess - (shown - guess));
 }
 
-/** When the calendar event for a pickup starts and ends: 6:00-6:30 p.m. the evening before. */
+/** When the calendar event for a pickup starts and ends: 5:00-5:30 p.m. the evening before. */
 export function setOutWindow(pickup: Pickup): { start: Date; end: Date } {
   const start = champaignTime(addDays(pickup.start, -1), EVENT_HOUR);
   return { start, end: new Date(start.getTime() + EVENT_MINUTES * 60_000) };
@@ -225,23 +225,28 @@ export function setOutWindow(pickup: Pickup): { start: Date; end: Date } {
 /** "20261113T000000Z" */
 const icsUtc = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
 
-const eventTitle = (zone: YardWasteZone) => `Put yard waste at the curb (zone ${zone.id})`;
+/** The page people add reminders from, linked in each event. */
+const REMINDER_SOURCE_URL = "https://www.abundantcu.com/data/yard-waste";
+
+// The zone is in the description, so the title stays short enough to read in a phone notification.
+const eventTitle = () => "Put yard waste at the curb by 6am tomorrow";
 const eventDescription = (zone: YardWasteZone, pickup: Pickup) =>
   [
-    `City of Champaign yard waste pickup ${pickup.start === pickup.end ? "is tomorrow" : `starts ${formatPickupLong(pickup)}`} for zone ${zone.id}.`,
-    "Have bags within 10 feet of the curb by 6 a.m., in 30-gallon paper yard waste bags, 5 feet from obstacles.",
-    YARD_WASTE.meta.cityPageUrl,
+    // A pickup week (spring) starts tomorrow rather than happening tomorrow.
+    `City of Champaign yard waste collection ${pickup.start === pickup.end ? "is" : "starts"} tomorrow for zone ${zone.id}.`,
+    "Have bags within 10 feet of the curb by 6 a.m.",
+    `Reminder added from: ${REMINDER_SOURCE_URL}`,
   ].join("\n");
 
 /**
- * A Google Calendar link that opens one pickup's set-out event (6 p.m. the evening before), ready to save. Google
+ * A Google Calendar link that opens one pickup's set-out event (5 p.m. the evening before), ready to save. Google
  * applies the person's default reminder for timed events. Its links hold one event each.
  */
 export function googleCalendarUrl(zone: YardWasteZone, pickup: Pickup, address?: string): string {
   const { start, end } = setOutWindow(pickup);
   const params = new URLSearchParams({
     action: "TEMPLATE",
-    text: eventTitle(zone),
+    text: eventTitle(),
     dates: `${icsUtc(start)}/${icsUtc(end)}`,
     details: eventDescription(zone, pickup),
     ctz: TIME_ZONE,
@@ -264,7 +269,7 @@ export function outlookCalendarUrl(
   const params = new URLSearchParams({
     path: "/calendar/action/compose",
     rru: "addevent",
-    subject: eventTitle(zone),
+    subject: eventTitle(),
     startdt: start.toISOString(),
     enddt: end.toISOString(),
     body: eventDescription(zone, pickup),
@@ -275,7 +280,7 @@ export function outlookCalendarUrl(
 }
 
 /**
- * An iCalendar file with a set-out event at 6 p.m. the evening before each given pickup, each with an alert when it
+ * An iCalendar file with a set-out event at 5 p.m. the evening before each given pickup, each with an alert when it
  * starts. Apple Calendar and Outlook keep the alert. These are one-time additions: nothing subscribes or updates later.
  */
 export function zoneCalendar(zone: YardWasteZone, pickups: Pickup[], address?: string): string {
@@ -288,12 +293,12 @@ export function zoneCalendar(zone: YardWasteZone, pickups: Pickup[], address?: s
       `DTSTAMP:${stamp}`,
       `DTSTART:${icsUtc(start)}`,
       `DTEND:${icsUtc(end)}`,
-      `SUMMARY:${icsEscape(eventTitle(zone))}`,
+      `SUMMARY:${icsEscape(eventTitle())}`,
       `DESCRIPTION:${icsEscape(eventDescription(zone, pickup))}`,
       ...(address ? [`LOCATION:${icsEscape(address)}`] : []),
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
-      `DESCRIPTION:${icsEscape("Put yard waste at the curb tonight: pickup is tomorrow by 6 a.m.")}`,
+      `DESCRIPTION:${icsEscape(eventTitle())}`,
       "TRIGGER:-PT0M",
       "END:VALARM",
       "END:VEVENT",

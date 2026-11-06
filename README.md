@@ -243,7 +243,7 @@ request when the city's zones or dates change.
 ### Add to calendar
 
 After a search, people can add the current season's remaining pickups to a calendar. Each pickup becomes a "Put yard
-waste at the curb" event from 6:00 to 6:30 p.m. the evening before (bags must be out by 6 a.m.), so calendars give their
+waste at the curb" event from 5:00 to 5:30 p.m. the evening before (bags must be out by 6 a.m.), so calendars give their
 usual timed reminder: Google applies the person's default, and the calendar file includes an alert for Apple Calendar
 and Outlook. Each remaining pickup has its own "Add to calendar" button, which opens a short list (Apple Calendar,
 Google Calendar, Outlook.com, Microsoft 365), with the likely calendar for the device listed first. Apple Calendar gets
