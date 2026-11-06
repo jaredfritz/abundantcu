@@ -19,10 +19,10 @@ export function YardWasteReminderForm(_props: YardWasteReminderFormProps) {
     <div className="rounded-[4px] border border-[var(--color-border)] bg-slate-50 p-4 text-sm text-slate-700">
       <p className="flex items-center gap-2 font-semibold">
         <BellRing aria-hidden className="h-4 w-4" />
-        Get reminders
+        Email updates
       </p>
       <p className="mt-1">
-        Add the dates to your calendar, or sign up for the city&apos;s{" "}
+        For email notices about yard waste collection, sign up for the city&apos;s{" "}
         <a href={YARD_WASTE.meta.cityEmailListUrl} target="_blank" rel="noopener noreferrer" className="underline">
           Public Works notification emails
         </a>
