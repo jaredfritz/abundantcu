@@ -641,7 +641,7 @@ export default function AdoptADrainClient() {
                     <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Signed in</p>
                     <p className="truncate text-sm font-semibold">{account.email ?? "Volunteer"}</p>
                   </div>
-                  <button type="button" className={secondaryButton} onClick={signOut} aria-label="Sign out">
+                  <button type="button" className={secondaryButton} onClick={signOut} aria-label="Sign out" title="Sign out">
                     <LogOut className="h-4 w-4" />
                   </button>
                 </div>
