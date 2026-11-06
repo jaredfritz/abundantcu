@@ -248,7 +248,7 @@ export default function DataHubPage() {
               />
             </div>
             <div className="p-6">
-              <h3 className="text-xl font-bold">Yard Waste Pickup</h3>
+              <h3 className="text-xl font-bold">Yard Waste Collection</h3>
               <p className="mt-3 text-sm text-slate-700">
                 <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> The city&apos;s
                 yard waste collection zones and pickup dates. Search your address to find your next pickup.
