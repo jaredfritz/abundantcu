@@ -4,7 +4,7 @@ import SiteShell from "@/components/site/SiteShell";
 
 export const metadata: Metadata = {
   title: "Abundant CU",
-  description: "Making Champaign-Urbana Affordable and Abundant. We leverage data and policy to build a resilient city that works for everyone.",
+  description: "Making Champaign-Urbana Affordable and Abundant. We use data, policy, and practical tools to build a resilient city that works for everyone.",
   openGraph: {
     title: "Abundant CU",
     description: "Making Champaign-Urbana Affordable and Abundant.",
