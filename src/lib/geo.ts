@@ -148,59 +148,74 @@ export interface AddressSuggestion {
   secondaryText: string;
 }
 
-export async function autocompleteAddress(query: string): Promise<AddressSuggestion[]> {
-  const q = query.trim();
-  if (q.length < 3) return [];
-  try {
-    const res = await fetch(`/api/google/autocomplete?q=${encodeURIComponent(q)}`);
-    if (!res.ok) throw new Error("google autocomplete request failed");
-    const data = await res.json();
-    const googlePredictions = Array.isArray(data.predictions) ? data.predictions : [];
-    if (googlePredictions.length > 0) return googlePredictions;
-  } catch {
-    // Continue to fallback provider.
-  }
+export type SuggestionSource = "champaign" | "google" | "openstreetmap";
 
+async function fetchPredictions(url: string): Promise<AddressSuggestion[]> {
   try {
-    const fallbackQuery = /champaign|urbana|savoy/i.test(q) ? q : `${q}, Champaign, IL`;
-    const fallbackRes = await fetch(`/api/nominatim/autocomplete?q=${encodeURIComponent(fallbackQuery)}`);
-    if (!fallbackRes.ok) return [];
-    const payload = await fallbackRes.json();
-    const predictions = Array.isArray(payload?.predictions) ? payload.predictions : [];
-    return predictions;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.predictions) ? data.predictions : [];
   } catch {
     return [];
   }
 }
 
-/** Geocodes an address string using Google first, then Nominatim fallback. */
-export async function geocodeAddress(
+const withCity = (q: string) => (/champaign|urbana|savoy/i.test(q) ? q : `${q}, Champaign, IL`);
+
+/**
+ * Address suggestions: the City of Champaign's own locator first (forgiving, and placed on the city's address
+ * points), then Google, then OpenStreetMap.
+ */
+export async function autocompleteAddressWithSource(
   query: string,
-  placeId?: string
-): Promise<GeocodedAddress | null> {
+): Promise<{ predictions: AddressSuggestion[]; source: SuggestionSource | null }> {
+  const q = query.trim();
+  if (q.length < 3) return { predictions: [], source: null };
+  const city = await fetchPredictions(`/api/champaign/suggest?q=${encodeURIComponent(q)}`);
+  if (city.length > 0) return { predictions: city, source: "champaign" };
+  const google = await fetchPredictions(`/api/google/autocomplete?q=${encodeURIComponent(q)}`);
+  if (google.length > 0) return { predictions: google, source: "google" };
+  const osm = await fetchPredictions(`/api/nominatim/autocomplete?q=${encodeURIComponent(withCity(q))}`);
+  return { predictions: osm, source: osm.length > 0 ? "openstreetmap" : null };
+}
+
+export async function autocompleteAddress(query: string): Promise<AddressSuggestion[]> {
+  return (await autocompleteAddressWithSource(query)).predictions;
+}
+
+async function fetchResult(url: string): Promise<GeocodedAddress | null> {
   try {
-    const params = placeId
-      ? `placeId=${encodeURIComponent(placeId)}`
-      : `q=${encodeURIComponent(query)}`;
-    const googleRes = await fetch(`/api/google/geocode?${params}`);
-    if (googleRes.ok) {
-      const googleData = await googleRes.json();
-      if (googleData?.result) {
-        return googleData.result as GeocodedAddress;
-      }
-    }
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.result as GeocodedAddress | undefined) ?? null;
   } catch {
-    // Fall through to Nominatim fallback.
+    return null;
   }
+}
 
-  /** Fallback: Geocodes an address string using Nominatim, biased toward Champaign IL. */
-  // Append city/state if not already present to bias results
-  const fullQuery = /champaign|urbana|savoy/i.test(query)
-    ? query
-    : `${query}, Champaign, IL`;
+/**
+ * Places an address: a picked city suggestion goes straight to the city locator; typed text tries the city locator,
+ * then Google, then OpenStreetMap (biased toward Champaign).
+ */
+export async function geocodeAddress(query: string, placeId?: string): Promise<GeocodedAddress | null> {
+  if (placeId?.startsWith("coc:")) {
+    const params = new URLSearchParams({ q: query, magicKey: placeId.slice(4) });
+    const picked = await fetchResult(`/api/champaign/geocode?${params}`);
+    if (picked) return picked;
+  }
+  if (!placeId || placeId.startsWith("coc:")) {
+    const city = await fetchResult(`/api/champaign/geocode?q=${encodeURIComponent(query)}`);
+    if (city) return city;
+  }
+  const googleParams = placeId && !placeId.startsWith("coc:") && !placeId.startsWith("nominatim-")
+    ? `placeId=${encodeURIComponent(placeId)}`
+    : `q=${encodeURIComponent(query)}`;
+  const google = await fetchResult(`/api/google/geocode?${googleParams}`);
+  if (google) return google;
 
-  const res = await fetch(`/api/nominatim/geocode?q=${encodeURIComponent(fullQuery)}`);
-
+  const res = await fetch(`/api/nominatim/geocode?q=${encodeURIComponent(withCity(query))}`);
   if (!res.ok) throw new Error(`Geocoding failed: ${res.status}`);
   const payload = await res.json();
   return payload?.result ?? null;

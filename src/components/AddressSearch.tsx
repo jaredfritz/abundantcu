@@ -5,9 +5,16 @@ import { Search, X, Loader2 } from "lucide-react";
 import {
   AddressSuggestion,
   GeocodedAddress,
-  autocompleteAddress,
+  SuggestionSource,
+  autocompleteAddressWithSource,
   geocodeAddress,
 } from "@/lib/geo";
+
+const SOURCE_LABELS: Record<SuggestionSource, string> = {
+  champaign: "City of Champaign addresses",
+  google: "Powered by Google",
+  openstreetmap: "OpenStreetMap",
+};
 
 interface AddressSearchProps {
   onResult: (result: GeocodedAddress) => void;
@@ -23,8 +30,17 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [openSuggestions, setOpenSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [source, setSource] = useState<SuggestionSource | null>(null);
+  // Picking a suggestion fills the box with its text; that change shouldn't fetch (and reopen) suggestions again.
+  const skipNextLookup = useRef(false);
+  // Ignore answers to older keystrokes that arrive after newer ones.
+  const lookupId = useRef(0);
 
   useEffect(() => {
+    if (skipNextLookup.current) {
+      skipNextLookup.current = false;
+      return;
+    }
     const q = query.trim();
     if (q.length < 3) {
       setSuggestions([]);
@@ -34,9 +50,12 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
     }
 
     const timer = setTimeout(async () => {
-      const results = await autocompleteAddress(q);
-      setSuggestions(results);
-      setOpenSuggestions(results.length > 0);
+      const id = ++lookupId.current;
+      const { predictions, source: from } = await autocompleteAddressWithSource(q);
+      if (id !== lookupId.current) return;
+      setSuggestions(predictions);
+      setSource(from);
+      setOpenSuggestions(predictions.length > 0);
       setHighlightedIndex(-1);
     }, 220);
 
@@ -76,11 +95,14 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
   async function handleSearch() {
     const q = query.trim();
     if (!q) return;
+    lookupId.current += 1;
     setOpenSuggestions(false);
     await runGeocode(q);
   }
 
   async function handleSelectSuggestion(suggestion: AddressSuggestion) {
+    lookupId.current += 1;
+    if (suggestion.description !== query) skipNextLookup.current = true;
     setQuery(suggestion.description);
     setOpenSuggestions(false);
     setSuggestions([]);
@@ -192,7 +214,7 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
             </button>
           ))}
           <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">
-            Powered by Google
+            {source ? SOURCE_LABELS[source] : ""}
           </div>
         </div>
       )}

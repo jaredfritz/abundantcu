@@ -32,6 +32,8 @@ const ENTRIES = [
   "src/app/api/yard-waste/calendar/route.ts",
   "src/app/api/nominatim/autocomplete/route.ts",
   "src/app/api/nominatim/geocode/route.ts",
+  "src/app/api/champaign/suggest/route.ts",
+  "src/app/api/champaign/geocode/route.ts",
   "scripts/fetch-idot-crashes.mjs",
   "scripts/fetch-parcel-values.mjs",
   "scripts/locate-permits.mjs",
