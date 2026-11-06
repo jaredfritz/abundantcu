@@ -11,6 +11,7 @@ import {
   formatPickup,
   formatPickupLong,
   relativeDays,
+  SEASON_ID,
   todayInChampaign,
   upcomingPickups,
   YARD_WASTE,
@@ -34,6 +35,10 @@ export interface ReminderRow {
   lng: number;
   zone_id: string;
   days_before: number;
+  /** The season this sign-up is for, e.g. "fall-2026". Reminders go out only while it's the current season. */
+  season: string | null;
+  /** Opted in to hear when reminders open for a future season. */
+  future_updates: boolean;
   confirm_token: string;
   unsubscribe_token: string;
   created_at: string;
@@ -105,12 +110,16 @@ const RULES = [
 function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail {
   const url = confirmUrl(row);
   const text = [
-    `Confirm to get an email ${daysLabel(row.days_before)} each City of Champaign yard waste pickup at:`,
+    `Confirm to get an email ${daysLabel(row.days_before)} each remaining ${YARD_WASTE.meta.label} City of Champaign yard waste pickup at:`,
     "",
     `${row.address}`,
     `(${zoneSummary(zone)})`,
     "",
     `Confirm: ${url}`,
+    "",
+    row.future_updates
+      ? "You also asked to hear when reminders open for future seasons."
+      : "Reminders stop after this season's last pickup.",
     "",
     "If you didn't ask for this, ignore this email. You won't get any reminders.",
     "",
@@ -118,9 +127,10 @@ function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail
   ].join("\n");
   const html = emailShell(
     `<h1 style="margin:0 0 12px;font-size:20px">Confirm your yard waste reminders</h1>
-<p style="margin:0 0 12px;line-height:1.5">Confirm to get an email ${daysLabel(row.days_before)} each City of Champaign yard waste pickup at:</p>
+<p style="margin:0 0 12px;line-height:1.5">Confirm to get an email ${daysLabel(row.days_before)} each remaining ${escapeHtml(YARD_WASTE.meta.label)} City of Champaign yard waste pickup at:</p>
 <p style="margin:0 0 16px;line-height:1.5"><strong>${escapeHtml(row.address)}</strong><br><span style="color:#475569">${escapeHtml(zoneSummary(zone))}</span></p>
 <p style="margin:0 0 16px">${button(url, "Confirm reminders")}</p>
+<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#475569">${row.future_updates ? "You also asked to hear when reminders open for future seasons." : "Reminders stop after this season's last pickup."}</p>
 <p style="margin:0;font-size:13px;line-height:1.5;color:#475569">If you didn't ask for this, ignore this email. You won't get any reminders.</p>`,
     `Sent by <a href="${escapeHtml(pageUrl())}" style="color:#64748b">Abundant CU</a> because someone entered this address on our yard waste map. Abundant CU isn't the City of Champaign; check the <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">city's yard waste page</a> for official information.`,
   );
@@ -157,7 +167,7 @@ function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, to
 <ul style="margin:0 0 16px;padding-left:20px;line-height:1.5">${RULES.map((rule) => `<li>${escapeHtml(rule)}</li>`).join("")}</ul>
 <p style="margin:0 0 16px;line-height:1.5;color:#475569">${escapeHtml(laterText)}</p>
 <p style="margin:0">${button(pageUrl(), "See the map and schedule")}</p>`,
-    `You asked <a href="${escapeHtml(pageUrl())}" style="color:#64748b">Abundant CU</a> for a reminder ${daysLabel(row.days_before)} each pickup. Dates come from the <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">City of Champaign</a>; if they differ, the city's are right. <a href="${escapeHtml(manageUrl(row))}" style="color:#64748b">Unsubscribe</a>.`,
+    `You asked <a href="${escapeHtml(pageUrl())}" style="color:#64748b">Abundant CU</a> for a reminder ${daysLabel(row.days_before)} each ${escapeHtml(YARD_WASTE.meta.label)} pickup. Dates come from the <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">City of Champaign</a>; if they differ, the city's are right. <a href="${escapeHtml(manageUrl(row))}" style="color:#64748b">Unsubscribe</a>.`,
   );
   return {
     to: row.email,
@@ -178,6 +188,7 @@ export async function createReminder(input: {
   lat: number;
   lng: number;
   daysBefore: number;
+  futureUpdates: boolean;
 }): Promise<{ zone: YardWasteZone }> {
   const email = input.email.trim().toLowerCase();
   const address = input.address.trim().slice(0, 200);
@@ -189,6 +200,11 @@ export async function createReminder(input: {
   const match = findYardWasteZone(input.lng, input.lat);
   if (!match) {
     throw new ReminderError("That address isn't in a City of Champaign yard waste zone. Collection is only inside city limits.");
+  }
+  // Sign-ups are for this season only, so there has to be a pickup left to remind about.
+  const today = todayInChampaign();
+  if (!upcomingPickups(match.zone, today).some((pickup) => pickup.start > today)) {
+    throw new ReminderError(`All of zone ${match.zone.id}'s ${YARD_WASTE.meta.label} pickups have passed.`);
   }
 
   const client = db();
@@ -219,6 +235,8 @@ export async function createReminder(input: {
     lng: input.lng,
     zone_id: match.zone.id,
     days_before: input.daysBefore,
+    season: SEASON_ID,
+    future_updates: input.futureUpdates,
     confirm_token: token(),
     unsubscribe_token: token(),
   };
@@ -278,7 +296,7 @@ export async function unsubscribeReminder(unsubscribeToken: string): Promise<{ a
   if (!row.unsubscribed_at) {
     const { error: updateError } = await client
       .from(REMINDERS)
-      .update({ unsubscribed_at: new Date().toISOString() })
+      .update({ unsubscribed_at: new Date().toISOString(), future_updates: false })
       .eq("id", row.id);
     if (updateError) throw new Error(`Couldn't unsubscribe: ${updateError.message}`);
   }
@@ -294,6 +312,7 @@ async function activeReminders(): Promise<ReminderRow[]> {
       .select("*")
       .not("confirmed_at", "is", null)
       .is("unsubscribed_at", null)
+      .eq("season", SEASON_ID)
       .order("id")
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(`Couldn't load reminders: ${error.message}`);
@@ -323,7 +342,11 @@ export interface SendSummary {
   errors: string[];
 }
 
-/** Sends every reminder due today. Safe to run more than once a day: each pickup is reminded once. */
+/**
+ * Sends every reminder due today, for sign-ups made for the current season. Safe to run more than once a day: each
+ * pickup is reminded once. When the data moves to a new season, earlier sign-ups stop; people who opted in to
+ * future_updates can be told to sign up again.
+ */
 export async function sendDueReminders(now: Date = new Date()): Promise<SendSummary> {
   const today = todayInChampaign(now);
   const rows = await activeReminders();

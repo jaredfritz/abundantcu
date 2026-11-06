@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     lat?: unknown;
     lng?: unknown;
     daysBefore?: unknown;
+    futureUpdates?: unknown;
     honeypot?: unknown;
     turnstileToken?: unknown;
   };
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       lat: Number(body.lat),
       lng: Number(body.lng),
       daysBefore: Number(body.daysBefore),
+      futureUpdates: body.futureUpdates === true,
     });
     return NextResponse.json({ ok: true, zoneId: zone.id });
   } catch (error) {

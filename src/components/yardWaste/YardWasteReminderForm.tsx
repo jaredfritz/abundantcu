@@ -22,10 +22,14 @@ interface YardWasteReminderFormProps {
   enabled: boolean;
 }
 
-/** Sign-up for an email reminder a few days before each pickup in the searched address's zone. */
+/**
+ * Sign-up for an email reminder a few days before each of this season's remaining pickups in the searched address's
+ * zone, with an opt-in (unchecked) to hear when reminders open for a future season.
+ */
 export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: YardWasteReminderFormProps) {
   const [email, setEmail] = useState("");
   const [daysBefore, setDaysBefore] = useState<number>(1);
+  const [futureUpdates, setFutureUpdates] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -99,7 +103,16 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
       const response = await fetch("/api/yard-waste/reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, address, lat, lng, daysBefore, honeypot, turnstileToken: turnstileToken.current }),
+        body: JSON.stringify({
+          email,
+          address,
+          lat,
+          lng,
+          daysBefore,
+          futureUpdates,
+          honeypot,
+          turnstileToken: turnstileToken.current,
+        }),
       });
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) throw new Error(body?.error ?? "Couldn't sign you up. Please try again.");
@@ -121,7 +134,7 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
         Email me before each pickup
       </p>
       <p className="mt-1 text-xs text-slate-600">
-        For zone {zone.id}. We&apos;ll keep reminding you in future seasons until you unsubscribe.
+        For zone {zone.id}&apos;s remaining {YARD_WASTE.meta.label} pickups. Reminders stop after the last one.
       </p>
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {status === "sent" ? (
@@ -169,6 +182,15 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
             </button>
             </div>
           </div>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-slate-700">
+            <input
+              type="checkbox"
+              checked={futureUpdates}
+              onChange={(event) => setFutureUpdates(event.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 accent-[var(--color-primary)]"
+            />
+            Email me when reminders open for future seasons
+          </label>
           {TURNSTILE_SITE_KEY && <div ref={turnstileRef} className="mt-2" />}
           {message && (
             <p role="alert" className="mt-2 text-sm text-red-700">
@@ -176,8 +198,9 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
             </p>
           )}
           <p className="mt-2 text-[11px] leading-snug text-slate-500">
-            We&apos;ll email you to confirm first. We keep your email and this address only to send these reminders,
-            and every email has an unsubscribe link.
+            We&apos;ll email you to confirm first. We keep your email and this address to send this season&apos;s
+            reminders and, only if you check the box, to tell you when you can sign up again. Every email has an
+            unsubscribe link.
           </p>
         </>
       )}
