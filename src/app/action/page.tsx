@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { Facebook, Instagram, Linkedin } from "lucide-react";
 import SiteShell from "@/components/site/SiteShell";
 
@@ -66,6 +67,21 @@ export default function ActionPage() {
           >
             Send a Letter →
           </a>
+        </section>
+
+        <section className="mt-8 rounded-[4px] border border-[var(--color-border)] bg-white p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">City of Champaign program</p>
+          <h2 className="mt-2 text-2xl font-bold md:text-3xl">Adopt a storm drain</h2>
+          <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
+            Keep the drain on your block clear of leaves and trash to prevent street flooding and keep debris out of
+            local streams. Find an available drain, sign up with the City, and log each cleaning.
+          </p>
+          <Link
+            href="/adopt-a-drain"
+            className="cta-primary mt-5 inline-flex rounded-[4px] px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+          >
+            Find a Drain →
+          </Link>
         </section>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">

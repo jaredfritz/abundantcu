@@ -15,6 +15,11 @@ housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and 
 
 Each page's "About this data" section explains its sources, methods, and caveats.
 
+`/adopt-a-drain` is a front end on the City of Champaign's Adopt-a-Drain program. It reads and writes the City's
+ArcGIS drain layer and uses the City's sign-in service (`AuthGP`), which emails volunteers a link back to this page;
+see `src/lib/adoptADrain.server.ts`. It needs no keys. Edits are checked server-side: the City's sign-in token must
+validate, and only a drain's adopter can release, rename, or mark it cleaned. It isn't part of the public data tools.
+
 ## Quick start
 
 ```bash
