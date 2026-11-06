@@ -1,5 +1,5 @@
 /**
- * Shared constants and types for /adopt-a-drain, a front end on the City of Champaign's Adopt-a-Drain program.
+ * Shared constants and types for /data/adopt-a-drain, a front end on the City of Champaign's Adopt-a-Drain program.
  *
  * Everything here is safe to ship to the browser. The server side (talking to the City's ArcGIS services) lives in
  * adoptADrain.server.ts.
@@ -11,7 +11,7 @@ export const CITY_WAIVER_URL =
   "https://cityofchampaign.sharepoint.com/:w:/g/EXXPO2o4NwlNgTow86oRWdUB7M2l74n2aKUpwsmxgzYpmw";
 
 /** The page path the City's sign-in emails link back to. */
-export const ADOPT_PAGE_PATH = "/adopt-a-drain";
+export const ADOPT_PAGE_PATH = "/data/adopt-a-drain";
 
 /** The City's Nickname field holds 50 characters. */
 export const NICKNAME_MAX = 50;

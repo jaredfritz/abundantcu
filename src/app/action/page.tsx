@@ -77,7 +77,7 @@ export default function ActionPage() {
             local streams. Find an available drain, sign up with the City, and log each cleaning.
           </p>
           <Link
-            href="/adopt-a-drain"
+            href="/data/adopt-a-drain"
             className="cta-primary mt-5 inline-flex rounded-[4px] px-4 py-2 text-sm font-semibold transition hover:opacity-90"
           >
             Find a Drain →

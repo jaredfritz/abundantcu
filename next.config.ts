@@ -24,6 +24,13 @@ const nextConfig: NextConfig = {
     "/api/map-export": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/parking-map-export": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
+  async redirects() {
+    return [
+      // Adopt a Drain moved under /data. Sign-in links the City already emailed point at the old path; the redirect
+      // keeps their query string (userid, usertoken, and any drain action).
+      { source: "/adopt-a-drain", destination: "/data/adopt-a-drain", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {
