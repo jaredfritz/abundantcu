@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Droplets, ExternalLink, Loader2, LogOut, MapPin, Sparkles } from "lucide-react";
+import { CheckCircle2, Droplets, ExternalLink, Info, Loader2, LogOut, MapPin, Sparkles, X } from "lucide-react";
 import AddressSearch from "@/components/AddressSearch";
 import {
   CITY_APP_URL,
@@ -18,7 +18,7 @@ import {
   type MyDrain,
   type SessionResponse,
 } from "@/lib/adoptADrain";
-import { DRAIN_COLORS } from "./DrainMap";
+import { DRAIN_COLORS, type DrainFilter } from "./DrainMap";
 
 const DrainMap = dynamic(() => import("./DrainMap"), {
   ssr: false,
@@ -100,6 +100,8 @@ export default function AdoptADrainClient() {
   const [busy, setBusy] = useState<DrainAction | null>(null);
   const [nickname, setNickname] = useState("");
   const [confirmRelease, setConfirmRelease] = useState(false);
+  const [filter, setFilter] = useState<DrainFilter>("all");
+  const [showSignIn, setShowSignIn] = useState(false);
 
   // Email / sign-up form
   const [step, setStep] = useState<EmailStep>("email");
@@ -116,6 +118,8 @@ export default function AdoptADrainClient() {
   const emailInput = useRef<HTMLInputElement>(null);
   const urlHandled = useRef(false);
   const drainPanel = useRef<HTMLDivElement>(null);
+  const accountPanel = useRef<HTMLDivElement>(null);
+  const focusEmail = useRef(false);
 
   const mine = useMemo(
     () => new Set(account.state === "signedIn" ? account.myDrains.map((drain) => drain.id) : []),
@@ -173,7 +177,10 @@ export default function AdoptADrainClient() {
           { id, action, nickname: name }
         );
         if (!ok) {
-          if (data.signedOut) setAccount({ state: "signedOut" });
+          if (data.signedOut) {
+            setAccount({ state: "signedOut" });
+            setShowSignIn(true);
+          }
           setNotice({ tone: "error", text: data.error ?? "That didn't work. Please try again." });
           return false;
         }
@@ -220,6 +227,7 @@ export default function AdoptADrainClient() {
         );
         if (!ok) {
           setAccount({ state: "signedOut" });
+          if (!data.expired) setShowSignIn(true);
           setNotice({ tone: data.expired ? "info" : "error", text: data.error ?? "Sign-in didn't work." });
           if (assignId) setSelectedId(assignId);
           return;
@@ -324,14 +332,23 @@ export default function AdoptADrainClient() {
     await postJson("/api/adopt-a-drain/session", undefined, "DELETE").catch(() => null);
     setAccount({ state: "signedOut" });
     setStep("email");
+    setShowSignIn(false);
     setNotice({ tone: "info", text: "Signed out." });
   }
 
   function startSignIn() {
     setStep((current) => (current === "sent" ? "email" : current));
-    emailInput.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    emailInput.current?.focus({ preventScroll: true });
+    setShowSignIn(true);
+    focusEmail.current = true;
   }
+
+  // Bring the sign-in form into view once it renders.
+  useEffect(() => {
+    if (!showSignIn || !focusEmail.current || !emailInput.current) return;
+    focusEmail.current = false;
+    emailInput.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    emailInput.current.focus({ preventScroll: true });
+  }, [showSignIn, step]);
 
   const signedIn = account.state === "signedIn";
   const selectedIsMine = selected ? mine.has(selected[0]) : false;
@@ -345,27 +362,18 @@ export default function AdoptADrainClient() {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8 md:py-12">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">City of Champaign program</p>
-      <h1 className="mt-2 text-3xl font-extrabold md:text-4xl">Adopt a Drain</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">
-        Storm drains carry rain straight to local streams. When leaves and trash clog them, streets flood and debris
-        washes downstream. Adopt a drain near you, keep it clear (the City asks for at least four times a year and
-        before big storms), and log each cleaning here.
-      </p>
-
-      <div className="mt-5 rounded-[4px] border border-[var(--color-accent-secondary)]/30 bg-blue-50 p-4 text-sm leading-relaxed text-slate-800">
-        <strong>This is the City of Champaign&apos;s Adopt-a-Drain program.</strong> Abundant CU built this page as
-        another way to take part. Sign-ups, sign-in emails, and adoptions go straight to the City&apos;s system, so
-        your drain shows up on the{" "}
-        <a href={CITY_APP_URL} target="_blank" rel="noreferrer" className="font-semibold underline">
-          City&apos;s official map
-        </a>{" "}
-        too, and you can use either one. Questions about the program go to the{" "}
+      <h1 className="text-3xl font-extrabold md:text-4xl">Adopt a Drain</h1>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">
+        Keep a storm drain near you clear of leaves and trash to help prevent street flooding. Part of the{" "}
         <a href={CITY_PROGRAM_URL} target="_blank" rel="noreferrer" className="font-semibold underline">
-          City&apos;s Adopt-a-Drain page
+          City of Champaign&apos;s program
+        </a>
+        ; adoptions here also show on the{" "}
+        <a href={CITY_APP_URL} target="_blank" rel="noreferrer" className="font-semibold underline">
+          City&apos;s map
         </a>
         .
-      </div>
+      </p>
 
       {notice ? (
         <div
@@ -388,13 +396,48 @@ export default function AdoptADrainClient() {
             onResult={(result) => setFlyTo((current) => ({ lng: result.lng, lat: result.lat, key: (current?.key ?? 0) + 1 }))}
             onClear={() => undefined}
           />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div role="group" aria-label="Show drains" className="inline-flex rounded-[4px] border border-[var(--color-border)] bg-white p-0.5 text-sm">
+              {(
+                [
+                  ["all", "All"],
+                  ["available", "Available"],
+                  ["adopted", "Adopted"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={`rounded-[3px] px-3 py-1.5 font-semibold transition ${
+                    filter === value ? "bg-[var(--color-primary)] text-white" : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-600">
+              {drains ? (
+                <span>
+                  {adoptedCount.toLocaleString()} of {drains.length.toLocaleString()} adopted
+                </span>
+              ) : null}
+              {account.state === "signedOut" && !showSignIn && step !== "sent" ? (
+                <button type="button" className="font-semibold text-[var(--color-primary)] underline" onClick={startSignIn}>
+                  Sign in
+                </button>
+              ) : null}
+            </div>
+          </div>
           <div className="relative mt-3 h-[60vh] min-h-[380px] overflow-hidden rounded-[4px] border border-[var(--color-border)] lg:h-[640px]">
             {loadError ? (
               <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-800">
                 {loadError}
               </div>
             ) : drains ? (
-              <DrainMap drains={drains} mine={mine} selectedId={selectedId} onSelect={selectFromMap} flyTo={flyTo} />
+              <DrainMap drains={drains} mine={mine} filter={filter} selectedId={selectedId} onSelect={selectFromMap} flyTo={flyTo} />
             ) : (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-600">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading the City&apos;s drains…
@@ -418,23 +461,20 @@ export default function AdoptADrainClient() {
               }`}
             >
               {[
-                { color: DRAIN_COLORS.available, label: "Available" },
-                { color: DRAIN_COLORS.adopted, label: "Adopted" },
-                ...(signedIn ? [{ color: DRAIN_COLORS.mine, label: "Yours" }] : []),
+                { style: DRAIN_COLORS.available, label: "Available" },
+                { style: DRAIN_COLORS.adopted, label: "Adopted" },
+                ...(signedIn ? [{ style: DRAIN_COLORS.mine, label: "Yours" }] : []),
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2 py-0.5">
-                  <span className="inline-block h-3 w-3 rounded-full border border-white" style={{ background: item.color }} />
+                  <span
+                    className="inline-block h-3.5 w-3.5 rounded-full"
+                    style={{ background: item.style.fill, border: `2px solid ${item.style.stroke}` }}
+                  />
                   {item.label}
                 </div>
               ))}
             </div>
           </div>
-          {drains ? (
-            <p className="mt-2 text-xs text-slate-600">
-              {adoptedCount.toLocaleString()} of {drains.length.toLocaleString()} drains adopted. Click a dot to see a
-              drain.
-            </p>
-          ) : null}
         </div>
 
         <aside className="space-y-4">
@@ -443,7 +483,7 @@ export default function AdoptADrainClient() {
             {!selected ? (
               <div className="flex items-start gap-3 text-sm text-slate-700">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-accent-secondary)]" />
-                <p>Search your address or click a drain on the map. Blue drains are available to adopt.</p>
+                <p>Click a blue drain on the map to adopt it.</p>
               </div>
             ) : (
               <div>
@@ -578,13 +618,23 @@ export default function AdoptADrainClient() {
             )}
           </div>
 
-          {/* Account */}
-          <div className="rounded-[4px] border border-[var(--color-border)] bg-white p-4">
-            {account.state === "loading" ? (
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Loader2 className="h-4 w-4 animate-spin" /> Checking sign-in…
-              </div>
-            ) : account.state === "signedIn" ? (
+          {/* Account: shown once signed in, or when someone starts signing in */}
+          {account.state === "signedIn" || (account.state === "signedOut" && (showSignIn || step === "sent")) ? (
+          <div ref={accountPanel} className="relative scroll-mt-20 rounded-[4px] border border-[var(--color-border)] bg-white p-4">
+            {account.state !== "signedIn" ? (
+              <button
+                type="button"
+                aria-label="Close"
+                className="absolute right-2 top-2 rounded-[4px] p-1 text-slate-500 hover:bg-slate-100"
+                onClick={() => {
+                  setShowSignIn(false);
+                  setStep("email");
+                }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+            {account.state === "signedIn" ? (
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -619,7 +669,7 @@ export default function AdoptADrainClient() {
                       ))}
                   </ul>
                 ) : (
-                  <p className="mt-1 text-sm text-slate-600">Pick a blue drain on the map to adopt your first one.</p>
+                  <p className="mt-1 text-sm text-slate-600">Click a blue drain on the map to adopt one.</p>
                 )}
               </div>
             ) : step === "sent" ? (
@@ -628,8 +678,8 @@ export default function AdoptADrainClient() {
                   <CheckCircle2 className="h-5 w-5" /> Check your email
                 </div>
                 <p className="mt-2">
-                  The City of Champaign (no-reply@champaignil.gov) is emailing <strong>{email}</strong> a link. Click
-                  it to come back here signed in. The link works for 24 hours.
+                  The City (no-reply@champaignil.gov) is emailing <strong>{email}</strong> a sign-in link. It works
+                  for 24 hours.
                 </p>
                 <button type="button" className="mt-3 text-sm font-semibold underline" onClick={() => setStep("email")}>
                   Use a different email
@@ -637,11 +687,11 @@ export default function AdoptADrainClient() {
               </div>
             ) : (
               <form onSubmit={submitEmail} noValidate>
-                <h3 className="text-base font-bold">{step === "signup" ? "Sign up with the City" : "Sign in or sign up"}</h3>
+                <h3 className="pr-6 text-base font-bold">{step === "signup" ? "New here? Sign up" : "Sign in or sign up"}</h3>
                 <p className="mt-1 text-sm text-slate-600">
                   {step === "signup"
-                    ? "This email isn't registered yet. Add your name and accept the City's waiver, and the City will email you a link to confirm."
-                    : "No password. Enter your email and the City will email you a sign-in link."}
+                    ? "Add your name and accept the City's waiver."
+                    : "The City will email you a sign-in link. No password needed."}
                 </p>
                 <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
                 <label className="sr-only" htmlFor="aad-email">
@@ -766,40 +816,25 @@ export default function AdoptADrainClient() {
               </form>
             )}
           </div>
+          ) : null}
         </aside>
       </div>
 
-      <div className="mt-10 grid gap-6 text-sm leading-relaxed text-slate-700 md:grid-cols-2">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--color-primary)]">How it works</h2>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>Find a blue (available) drain near you and click it.</li>
-            <li>
-              Enter your email. The first time, you&apos;ll add your name and accept the City&apos;s waiver. The City
-              emails you a link, with no password needed.
-            </li>
-            <li>Open the link, then adopt the drain and give it a name if you like.</li>
-            <li>Clear leaves and trash from the grate, and log each cleaning here or on the City&apos;s map.</li>
-          </ol>
-          <p className="mt-3">
-            Only clear what&apos;s on top of the grate. Never lift a grate or reach into a drain. Wear gloves, watch for
-            traffic, and report anything you can&apos;t clear safely to the City.
+      <details className="group mt-8 max-w-3xl text-sm leading-relaxed text-slate-700">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 font-semibold text-[var(--color-primary)]">
+          <Info className="h-4 w-4" /> More info
+        </summary>
+        <div className="mt-3 space-y-2">
+          <p>
+            Adopters keep their drain&apos;s grate clear of leaves and trash, at least four times a year and before big
+            storms. Clear only what&apos;s on top of the grate, and watch for traffic.
+          </p>
+          <p>
+            The City of Champaign runs the program; Abundant CU isn&apos;t affiliated with it. Sign-ups, emails, and
+            adoptions go straight to the City&apos;s system. We don&apos;t keep your email or name.
           </p>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-[var(--color-primary)]">About this page</h2>
-          <p className="mt-2">
-            Adopt-a-Drain is run by the City of Champaign. Abundant CU isn&apos;t affiliated with the City; this page
-            uses the same system as the City&apos;s own map, so adoptions here and there are the same records.
-          </p>
-          <p className="mt-2">
-            Your email, name, and team go straight to the City; Abundant CU doesn&apos;t keep them. After you open a
-            sign-in link, a cookie on this site holds the City&apos;s sign-in token for up to 24 hours so you stay
-            signed in.
-          </p>
-          <p className="mt-2">Covers drains in the City of Champaign only. Urbana and Savoy aren&apos;t part of the program.</p>
-        </div>
-      </div>
+      </details>
     </section>
   );
 }

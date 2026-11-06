@@ -7,11 +7,17 @@ import type { FeatureCollection, Point } from "geojson";
 import type { DrainRow } from "@/lib/adoptADrain";
 import { BASEMAP_ATTRIBUTION, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
 
+/**
+ * Drains differ by fill and lightness, not hue alone: available is solid blue, adopted is a hollow gray ring, and
+ * yours is orange. Blue and orange stay distinct for the common kinds of color blindness.
+ */
 export const DRAIN_COLORS = {
-  available: "#0047ab",
-  adopted: "#94a3b8",
-  mine: "#ffc107",
+  available: { fill: "#0072b2", stroke: "#ffffff" },
+  adopted: { fill: "#ffffff", stroke: "#6b7280" },
+  mine: { fill: "#e69f00", stroke: "#002147" },
 };
+
+export type DrainFilter = "all" | "available" | "adopted";
 
 /** Champaign, where the City's drains are */
 const CHAMPAIGN_VIEW = { longitude: -88.26, latitude: 40.11, zoom: 12.3, pitch: 0, bearing: 0 };
@@ -19,6 +25,7 @@ const CHAMPAIGN_VIEW = { longitude: -88.26, latitude: 40.11, zoom: 12.3, pitch: 
 interface DrainMapProps {
   drains: DrainRow[];
   mine: Set<number>;
+  filter: DrainFilter;
   selectedId: number | null;
   onSelect: (id: number | null) => void;
   /** Fly here when it changes; `key` lets a repeat request refire. */
@@ -27,7 +34,7 @@ interface DrainMapProps {
 
 type DrainProps = { id: number; s: 0 | 1 | 2 };
 
-export default function DrainMap({ drains, mine, selectedId, onSelect, flyTo }: DrainMapProps) {
+export default function DrainMap({ drains, mine, filter, selectedId, onSelect, flyTo }: DrainMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [cursor, setCursor] = useState("");
@@ -79,7 +86,11 @@ export default function DrainMap({ drains, mine, selectedId, onSelect, flyTo }: 
     onSelect(Number(best.properties?.id));
   }
 
-  const radius = ["interpolate", ["linear"], ["zoom"], 11, 1.6, 14, 3.5, 16, 6, 18, 9];
+  const radius = ["interpolate", ["linear"], ["zoom"], 11, 2.4, 14, 5, 16, 8.5, 18, 12.5];
+  const layerFilter =
+    filter === "available" ? ["==", ["get", "s"], 0] : filter === "adopted" ? [">", ["get", "s"], 0] : ["has", "s"];
+  const byStatus = (available: string, adopted: string, mineValue: string) =>
+    ["match", ["get", "s"], 2, mineValue, 1, adopted, available] as never;
 
   return (
     <Map
@@ -114,19 +125,16 @@ export default function DrainMap({ drains, mine, selectedId, onSelect, flyTo }: 
         <Layer
           id="drains"
           type="circle"
+          filter={layerFilter as never}
           paint={{
             "circle-radius": radius as never,
-            "circle-color": [
-              "match",
-              ["get", "s"],
-              2,
-              DRAIN_COLORS.mine,
-              1,
-              DRAIN_COLORS.adopted,
-              DRAIN_COLORS.available,
-            ] as never,
-            "circle-stroke-color": ["match", ["get", "s"], 2, "#002147", "#ffffff"] as never,
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 0, 14, 0.8, 17, 1.5] as never,
+            "circle-color": byStatus(DRAIN_COLORS.available.fill, DRAIN_COLORS.adopted.fill, DRAIN_COLORS.mine.fill),
+            "circle-stroke-color": byStatus(
+              DRAIN_COLORS.available.stroke,
+              DRAIN_COLORS.adopted.stroke,
+              DRAIN_COLORS.mine.stroke
+            ),
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1, 14, 1.5, 17, 2.5] as never,
           }}
           layout={{ "circle-sort-key": ["get", "s"] as never }}
         />
@@ -135,7 +143,7 @@ export default function DrainMap({ drains, mine, selectedId, onSelect, flyTo }: 
           type="circle"
           filter={["==", ["get", "id"], selectedId ?? -1]}
           paint={{
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 16, 11, 18, 15] as never,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 16, 14, 18, 19] as never,
             "circle-color": "rgba(0,0,0,0)",
             "circle-stroke-color": "#002147",
             "circle-stroke-width": 3,
