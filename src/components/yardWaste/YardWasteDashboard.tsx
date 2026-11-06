@@ -306,9 +306,8 @@ function ZoneResult({
             {meta.label} pickups
             {upcoming.length > 0 && (
               <InfoTip label="About adding pickups to your calendar">
-                Adds a &ldquo;Put yard waste at the curb&rdquo; event at 6 p.m. the evening before, with your
-                calendar&apos;s usual reminder. It&apos;s added once and won&apos;t change if the city updates its
-                schedule.
+                &ldquo;Add to calendar&rdquo; adds a &ldquo;Put yard waste at the curb&rdquo; reminder at 5 p.m. the
+                evening before. It&apos;s added once and won&apos;t change if the city updates its schedule.
               </InfoTip>
             )}
           </p>
