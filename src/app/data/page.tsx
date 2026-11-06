@@ -223,6 +223,35 @@ export default function DataHubPage() {
               </span>
             </div>
           </Link>
+
+          <Link
+            href="/data/yard-waste"
+            className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
+          >
+            <div className="relative h-44 border-b border-[var(--color-border)]">
+              <Image
+                src="/yard-waste-thumbnail.png"
+                alt="Map of Champaign's yard waste collection zones, in orange and blue, labeled by pickup day"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold">Yard Waste Pickup</h3>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">What this shows:</span> The city&apos;s
+                yard waste collection zones and pickup dates. Search your address to find your next pickup.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                <span className="font-semibold text-[var(--color-primary)]">Why it matters:</span> City services
+                should be easy to use. Add the dates to your calendar, or get an email before each pickup.
+              </p>
+              <span className="mt-5 inline-flex rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">
+                Find Your Pickup Dates
+              </span>
+            </div>
+          </Link>
         </div>
 
         <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">

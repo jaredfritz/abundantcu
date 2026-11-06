@@ -9,5 +9,9 @@
   "parcels": {
     "assessmentYear": 2025,
     "refreshed": "2026-10-05"
+  },
+  "yardWaste": {
+    "season": "Fall 2026",
+    "refreshed": "2026-11-06"
   }
 }
