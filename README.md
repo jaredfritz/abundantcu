@@ -1,7 +1,7 @@
 # Abundant CU
 
 The source for [abundantcu.com](https://www.abundantcu.com): maps, datasets, and policy tools about land use and
-housing in Champaign-Urbana, Illinois. Built with Next.js, React, Tailwind, and MapLibre.
+housing in Champaign-Urbana, Illinois, plus practical tools for using city services. Built with Next.js, React, Tailwind, and MapLibre.
 
 ## What's here
 

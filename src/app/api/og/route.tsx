@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   );
   const subtitle = clamp(
     searchParams.get("subtitle")?.trim() ||
-      "We leverage data and policy to build a resilient city that works for everyone.",
+      "We use data, policy, and practical tools to build a resilient city that works for everyone.",
     120
   );
 

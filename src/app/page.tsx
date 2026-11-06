@@ -4,7 +4,7 @@ import SiteShell from "@/components/site/SiteShell";
 
 export const metadata: Metadata = {
   title: "Abundant CU",
-  description: "Making Champaign-Urbana Affordable and Abundant. We leverage data and policy to build a resilient city that works for everyone.",
+  description: "Making Champaign-Urbana Affordable and Abundant. We use data, policy, and practical tools to build a resilient city that works for everyone.",
   openGraph: {
     title: "Abundant CU",
     description: "Making Champaign-Urbana Affordable and Abundant.",
@@ -30,7 +30,7 @@ export default function HomePage() {
             Making Champaign-Urbana Affordable and Abundant.
           </h1>
           <p className="mt-4 max-w-xl text-base text-slate-700 md:text-lg">
-            We leverage data and policy to build a resilient city that works for everyone.
+            We use data, policy, and practical tools to build a resilient city that works for everyone.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a

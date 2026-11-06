@@ -7,10 +7,10 @@ import permitsData from "@/data/residential-permits.json";
 
 export const metadata: Metadata = {
   title: "Data Hub",
-  description: "Maps, datasets, and policy tools for Champaign-Urbana land use and urban policy.",
+  description: "Maps, datasets, and tools for Champaign-Urbana land use, urban policy, and city services.",
   openGraph: {
     title: "Data Hub | Abundant CU",
-    description: "Maps, datasets, and policy tools for Champaign-Urbana land use and urban policy.",
+    description: "Maps, datasets, and tools for Champaign-Urbana land use, urban policy, and city services.",
     url: "https://abundantcu.com/data",
     images: [
       {
@@ -30,8 +30,8 @@ export default function DataHubPage() {
       <section className="mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14">
         <h1 className="text-3xl font-extrabold md:text-4xl">Data Hub</h1>
         <p className="mt-3 max-w-3xl text-balance text-sm leading-relaxed text-slate-700 md:text-base">
-          Data Hub is where we publish maps, datasets, and policy tools for Champaign-Urbana. These tools are built
-          to make local land use and urban policy easier to explore and understand.
+          Data Hub is where we publish maps, datasets, and tools for Champaign-Urbana. They make local land use and
+          urban policy easier to explore and understand, and city services easier to use.
         </p>
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
           Champaign-Urbana
@@ -223,7 +223,17 @@ export default function DataHubPage() {
               </span>
             </div>
           </Link>
+        </div>
 
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-[0.12em] text-slate-600 md:text-base">
+          City Services
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-700">
+          Practical tools for using City of Champaign services. A city that works well day to day is part of an
+          abundant one.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
           <Link
             href="/data/yard-waste"
             className="overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white transition hover:-translate-y-0.5"
