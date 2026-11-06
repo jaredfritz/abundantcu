@@ -42,3 +42,10 @@ alter table public.yard_waste_reminder_sends enable row level security;
 -- Keep the tables out of the public GraphQL schema too: only the service role uses them.
 revoke all on public.yard_waste_reminders from anon, authenticated;
 revoke all on public.yard_waste_reminder_sends from anon, authenticated;
+
+-- Sign-ups are for one season: reminders go out only while the site's current season matches.
+alter table public.yard_waste_reminders add column if not exists season text;
+-- Opt-in, unchecked by default: may we email this person when reminders open for a future season?
+alter table public.yard_waste_reminders add column if not exists future_updates boolean not null default false;
+create index if not exists yard_waste_reminders_season_idx on public.yard_waste_reminders (season)
+  where confirmed_at is not null and unsubscribed_at is null;

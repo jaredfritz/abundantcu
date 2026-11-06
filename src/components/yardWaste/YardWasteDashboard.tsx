@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarPlus, MapPin } from "lucide-react";
+import { AlertTriangle, CalendarCheck, MapPin } from "lucide-react";
 import AddressSearch from "@/components/AddressSearch";
 import { cardClass } from "@/components/crashes/shared";
 import { AboutThisData } from "@/components/site/AboutThisData";
@@ -15,15 +15,15 @@ import {
   formatPickupLong,
   formatShortDate,
   relativeDays,
+  seasonOver as isSeasonOver,
   todayInChampaign,
   upcomingPickups,
   YARD_WASTE,
-  zoneCalendar,
   zoneFill,
   zoneTextColor,
-  type YardWasteZone,
   type ZoneMatch,
 } from "@/lib/yardWaste";
+import { AddToCalendar } from "./AddToCalendar";
 import { YardWasteMap } from "./YardWasteMap";
 import { YardWasteReminderForm } from "./YardWasteReminderForm";
 
@@ -45,7 +45,7 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
     setResult({ address, match: findYardWasteZone(address.lng, address.lat) });
   };
 
-  const seasonOver = today !== null && today > meta.end;
+  const seasonOver = today !== null && isSeasonOver(today);
   const seasonNotStarted = today !== null && today < meta.start;
 
   return (
@@ -54,8 +54,12 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
         <h1 className="text-3xl font-extrabold md:text-4xl">Yard Waste Collection</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">
           The City of Champaign picks up bagged leaves and yard waste for free from every residential property inside
-          city limits, each spring and fall. Find your zone and next pickup date, and add the dates to your calendar
-          {remindersEnabled ? " or get an email before each pickup" : ""}.
+          city limits, each spring and fall.{" "}
+          {seasonOver
+            ? "Find your zone and see the dates from the season just ended."
+            : `Find your zone and next pickup date, and add this season's dates to your calendar${
+                remindersEnabled ? " or get an email before each pickup" : ""
+              }.`}
         </p>
         <DataUpdated dataset="yardWaste" className="mt-2" />
       </div>
@@ -63,15 +67,17 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
       {(seasonOver || seasonNotStarted) && (
         <div className="mb-6 rounded-[4px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           {seasonOver ? (
-            <>
-              The {meta.label} collection ended {formatShortDate(meta.end)}. The city posts the next season&apos;s dates on
-              its{" "}
-              <a href={meta.cityPageUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                yard waste page
-              </a>
-              ; this map updates once they&apos;re published.
-              {remindersEnabled && " Reminders you sign up for now start with the next season."}
-            </>
+            <p className="flex gap-2">
+              <CalendarCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                <strong>All {meta.label} collection dates have passed</strong> (the last was {formatShortDate(meta.end)}).
+                The zones and dates below are kept for reference. The city posts the next season&apos;s dates on its{" "}
+                <a href={meta.cityPageUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                  yard waste page
+                </a>
+                , and this page will update once they&apos;re published.
+              </span>
+            </p>
           ) : (
             <>
               The {meta.label} collection runs {formatShortDate(meta.start)} to {formatShortDate(meta.end)}.
@@ -168,10 +174,12 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
         </p>
         {remindersEnabled && (
         <p>
-          <strong>Email reminders</strong> go out in the afternoon, the number of days before each pickup that you choose.
-          We store your email, the address you searched and its map location, and your reminder timing, only to send
-          these reminders. We don&apos;t share them or add you to any other list, and you can unsubscribe from any
-          reminder. Reminders aren&apos;t sent by the city; the city has its own{" "}
+          <strong>Email reminders</strong> are for the {meta.label} collection only. They go out in the afternoon, the
+          number of days before each pickup that you choose, and stop after the season&apos;s last pickup. We store
+          your email, the address you searched and its map location, and your reminder timing to send them. If you
+          check &ldquo;Email me when reminders open for future seasons,&rdquo; we keep them to let you know when you can
+          sign up again; otherwise we use them only for this season. We don&apos;t share them or add you to any other
+          list, and every email has an unsubscribe link. Reminders aren&apos;t sent by the city; the city has its own{" "}
           <a href={meta.cityEmailListUrl} target="_blank" rel="noopener noreferrer" className="underline">
             Public Works notification emails
           </a>
@@ -206,18 +214,6 @@ function SeasonCard({ today }: { today: string | null }) {
       )}
     </div>
   );
-}
-
-function downloadCalendar(zone: YardWasteZone, today: string, address: string) {
-  const blob = new Blob([zoneCalendar(zone, today, address)], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `yard-waste-${zone.id}.ics`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function ResultCard({
@@ -282,8 +278,11 @@ function ResultCard({
         )}
         {today && !next && (
           <p className="text-sm text-slate-700">
-            The {meta.label} collection is over for this zone.
-            {remindersEnabled && " Sign up below to be reminded when next season's pickups start."}
+            All {meta.label} pickups for zone {zone.id} have passed. The city will post next season&apos;s dates on its{" "}
+            <a href={meta.cityPageUrl} target="_blank" rel="noopener noreferrer" className="underline">
+              yard waste page
+            </a>
+            .
           </p>
         )}
 
@@ -319,24 +318,19 @@ function ResultCard({
           </p>
         )}
 
-        {today && upcoming.length > 0 && (
-          <button
-            type="button"
-            onClick={() => downloadCalendar(zone, today, address.displayName)}
-            className="inline-flex items-center gap-2 rounded-[4px] border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
-          >
-            <CalendarPlus aria-hidden className="h-4 w-4" />
-            Add to calendar
-          </button>
+        {/* Calendar and reminders are for this season's remaining pickups only. */}
+        {upcoming.length > 0 && (
+          <>
+            <AddToCalendar zone={zone} upcoming={upcoming} address={address.displayName} />
+            <YardWasteReminderForm
+              address={address.displayName}
+              lat={address.lat}
+              lng={address.lng}
+              zone={zone}
+              enabled={remindersEnabled}
+            />
+          </>
         )}
-
-        <YardWasteReminderForm
-          address={address.displayName}
-          lat={address.lat}
-          lng={address.lng}
-          zone={zone}
-          enabled={remindersEnabled}
-        />
       </div>
     </div>
   );

@@ -29,6 +29,7 @@ const ENTRIES = [
   "src/app/data/vacant-land/page.tsx",
   "src/app/data/zoning/page.tsx",
   "src/app/data/yard-waste/page.tsx",
+  "src/app/api/yard-waste/calendar/route.ts",
   "src/app/api/nominatim/autocomplete/route.ts",
   "src/app/api/nominatim/geocode/route.ts",
   "scripts/fetch-idot-crashes.mjs",

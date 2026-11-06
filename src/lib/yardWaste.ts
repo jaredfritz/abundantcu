@@ -46,6 +46,14 @@ export interface YardWasteData {
 
 export const YARD_WASTE = data as unknown as YardWasteData;
 
+/** The season the site's data covers, e.g. "fall-2026". Reminder sign-ups are tied to it. */
+export const SEASON_ID = `${YARD_WASTE.meta.season}-${YARD_WASTE.meta.year}`;
+
+/** Every pickup this season has passed (or no data). Sign-ups and calendar links close until new dates arrive. */
+export function seasonOver(today: string): boolean {
+  return today > YARD_WASTE.meta.end;
+}
+
 export const TIME_ZONE = "America/Chicago";
 
 /** Reminder lead times offered on the sign-up form, in days before a pickup. */
@@ -184,25 +192,45 @@ export function relativeDays(days: number): string {
 const icsDate = (isoDate: string) => isoDate.replace(/-/g, "");
 const icsEscape = (text: string) => text.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
 
-/**
- * An iCalendar file with an all-day event for each remaining pickup in a zone, each with an alert at 6 p.m. the
- * evening before (materials must be at the curb by 6 a.m.).
- */
-export function zoneCalendar(zone: YardWasteZone, today: string, address?: string): string {
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  const description = [
+const eventTitle = (zone: YardWasteZone) => `Yard waste pickup (${zone.id})`;
+const eventDescription = (zone: YardWasteZone) =>
+  [
     `City of Champaign yard waste collection, zone ${zone.id}.`,
     "Put yard waste in 30-gallon paper yard waste bags within 10 feet of the curb by 6 a.m.",
     YARD_WASTE.meta.cityPageUrl,
   ].join("\n");
-  const events = upcomingPickups(zone, today).map((pickup) =>
+
+/**
+ * A Google Calendar link that opens one pickup as a new all-day event, ready to save. Google's links hold one event,
+ * so "all remaining pickups" for Google is one link per pickup.
+ */
+export function googleCalendarUrl(zone: YardWasteZone, pickup: Pickup, address?: string): string {
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: eventTitle(zone),
+    dates: `${icsDate(pickup.start)}/${icsDate(addDays(pickup.end, 1))}`,
+    details: eventDescription(zone),
+    ctz: TIME_ZONE,
+  });
+  if (address) params.set("location", address);
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+/**
+ * An iCalendar file with an all-day event for each given pickup, each with an alert at 6 p.m. the evening before
+ * (materials must be at the curb by 6 a.m.). These are one-time additions: nothing subscribes or updates later.
+ */
+export function zoneCalendar(zone: YardWasteZone, pickups: Pickup[], address?: string): string {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  const description = eventDescription(zone);
+  const events = pickups.map((pickup) =>
     [
       "BEGIN:VEVENT",
       `UID:yard-waste-${zone.id}-${pickup.start}@abundantcu.com`,
       `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${icsDate(pickup.start)}`,
       `DTEND;VALUE=DATE:${icsDate(addDays(pickup.end, 1))}`,
-      `SUMMARY:${icsEscape(`Yard waste pickup (${zone.id})`)}`,
+      `SUMMARY:${icsEscape(eventTitle(zone))}`,
       `DESCRIPTION:${icsEscape(description)}`,
       ...(address ? [`LOCATION:${icsEscape(address)}`] : []),
       "BEGIN:VALARM",
