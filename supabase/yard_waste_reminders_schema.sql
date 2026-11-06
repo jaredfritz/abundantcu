@@ -38,3 +38,7 @@ create table if not exists public.yard_waste_reminder_sends (
 
 alter table public.yard_waste_reminders enable row level security;
 alter table public.yard_waste_reminder_sends enable row level security;
+
+-- Keep the tables out of the public GraphQL schema too: only the service role uses them.
+revoke all on public.yard_waste_reminders from anon, authenticated;
+revoke all on public.yard_waste_reminder_sends from anon, authenticated;
