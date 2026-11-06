@@ -19,9 +19,11 @@ const SOURCE_LABELS: Record<SuggestionSource, string> = {
 interface AddressSearchProps {
   onResult: (result: GeocodedAddress) => void;
   onClear: () => void;
+  /** Show the matched address under the box (pages that repeat it elsewhere can turn this off). */
+  showResolved?: boolean;
 }
 
-export default function AddressSearch({ onResult, onClear }: AddressSearchProps) {
+export default function AddressSearch({ onResult, onClear, showResolved = true }: AddressSearchProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -219,7 +221,7 @@ export default function AddressSearch({ onResult, onClear }: AddressSearchProps)
         </div>
       )}
 
-      {(error || resolved) && (
+      {(error || (showResolved && resolved)) && (
         <div className="pt-1.5 px-3">
           {error ? (
             <div className="text-xs text-red-500">{error}</div>
