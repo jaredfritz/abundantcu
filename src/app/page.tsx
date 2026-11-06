@@ -30,8 +30,7 @@ export default function HomePage() {
             Making Champaign-Urbana Affordable and Abundant.
           </h1>
           <p className="mt-4 max-w-xl text-base text-slate-700 md:text-lg">
-            We leverage data and policy to build a resilient city that works for everyone, and we make practical tools
-            that help city services work better day to day.
+            We use data, policy, and practical tools to build a resilient city that works for everyone.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a
