@@ -97,6 +97,10 @@ ${bodyHtml}
 </body></html>`;
 }
 
+/** "Dates come from the City of Champaign and are subject to change. Confirm here for the latest information." */
+const datesNotice = () =>
+  `Dates come from the City of Champaign and are subject to change. Confirm <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">here</a> for the latest information.`;
+
 const button = (href: string, label: string) =>
   `<a href="${escapeHtml(href)}" style="display:inline-block;background:#002147;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 18px;border-radius:4px">${escapeHtml(label)}</a>`;
 
@@ -107,7 +111,7 @@ const RULES = [
   "Branches bundled with non-metal twine, no more than 2 inches thick and 3½ feet long.",
 ];
 
-function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail {
+export function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail {
   const url = confirmUrl(row);
   const text = [
     `Confirm to get an email ${daysLabel(row.days_before)} each remaining ${YARD_WASTE.meta.label} City of Champaign yard waste pickup at:`,
@@ -117,27 +121,21 @@ function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail
     "",
     `Confirm: ${url}`,
     "",
-    row.future_updates
-      ? "You also asked to hear when reminders open for future seasons."
-      : "Reminders stop after this season's last pickup.",
+    `Sent by Abundant CU because a reminder was requested here: ${pageUrl()}`,
     "",
-    "If you didn't ask for this, ignore this email. You won't get any reminders.",
-    "",
-    `Abundant CU · ${pageUrl()}`,
+    `Dates come from the City of Champaign and are subject to change. Confirm here for the latest information: ${YARD_WASTE.meta.cityPageUrl}`,
   ].join("\n");
   const html = emailShell(
     `<h1 style="margin:0 0 12px;font-size:20px">Confirm your yard waste reminders</h1>
 <p style="margin:0 0 12px;line-height:1.5">Confirm to get an email ${daysLabel(row.days_before)} each remaining ${escapeHtml(YARD_WASTE.meta.label)} City of Champaign yard waste pickup at:</p>
 <p style="margin:0 0 16px;line-height:1.5"><strong>${escapeHtml(row.address)}</strong><br><span style="color:#475569">${escapeHtml(zoneSummary(zone))}</span></p>
-<p style="margin:0 0 16px">${button(url, "Confirm reminders")}</p>
-<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#475569">${row.future_updates ? "You also asked to hear when reminders open for future seasons." : "Reminders stop after this season's last pickup."}</p>
-<p style="margin:0;font-size:13px;line-height:1.5;color:#475569">If you didn't ask for this, ignore this email. You won't get any reminders.</p>`,
-    `Sent by <a href="${escapeHtml(pageUrl())}" style="color:#64748b">Abundant CU</a> because someone entered this address on our yard waste map. Abundant CU isn't the City of Champaign; check the <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">city's yard waste page</a> for official information.`,
+<p style="margin:0">${button(url, "Confirm reminders")}</p>`,
+    `Sent by Abundant CU because a reminder was requested here: <a href="${escapeHtml(pageUrl())}" style="color:#64748b">${escapeHtml(pageUrl().replace(/^https?:\/\//, ""))}</a><br><br>${datesNotice()}`,
   );
   return { to: row.email, subject: "Confirm your yard waste reminders", text, html };
 }
 
-function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, today: string): OutgoingEmail {
+export function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, today: string): OutgoingEmail {
   const days = daysBetween(today, pickup.start);
   const when = formatPickupLong(pickup);
   const later = upcomingPickups(zone, today).filter((next) => next.start > pickup.start);
@@ -155,8 +153,8 @@ function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, to
     laterText,
     "",
     `Map and full schedule: ${pageUrl()}`,
-    `City yard waste page: ${YARD_WASTE.meta.cityPageUrl}`,
     "",
+    `Dates come from the City of Champaign and are subject to change. Confirm here for the latest information: ${YARD_WASTE.meta.cityPageUrl}`,
     `Unsubscribe: ${manageUrl(row)}`,
   ].join("\n");
   const html = emailShell(
@@ -167,7 +165,7 @@ function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, to
 <ul style="margin:0 0 16px;padding-left:20px;line-height:1.5">${RULES.map((rule) => `<li>${escapeHtml(rule)}</li>`).join("")}</ul>
 <p style="margin:0 0 16px;line-height:1.5;color:#475569">${escapeHtml(laterText)}</p>
 <p style="margin:0">${button(pageUrl(), "See the map and schedule")}</p>`,
-    `You asked <a href="${escapeHtml(pageUrl())}" style="color:#64748b">Abundant CU</a> for a reminder ${daysLabel(row.days_before)} each ${escapeHtml(YARD_WASTE.meta.label)} pickup. Dates come from the <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">City of Champaign</a>; if they differ, the city's are right. <a href="${escapeHtml(manageUrl(row))}" style="color:#64748b">Unsubscribe</a>.`,
+    `${datesNotice()} <a href="${escapeHtml(manageUrl(row))}" style="color:#64748b">Unsubscribe</a>.`,
   );
   return {
     to: row.email,
