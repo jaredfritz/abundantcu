@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import MapEmbed from "@/components/map/MapEmbed";
+import Image from "next/image";
+import Link from "next/link";
 import SiteShell from "@/components/site/SiteShell";
 
 export const metadata: Metadata = {
@@ -47,9 +48,19 @@ export default function HomePage() {
             </a>
           </div>
         </div>
-        <div className="h-[320px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white md:h-[420px]">
-          <MapEmbed mode="home" interactive={false} className="h-full w-full" />
-        </div>
+        <Link
+          href="/data/value-per-acre"
+          className="relative block h-[320px] overflow-hidden rounded-[4px] border border-[var(--color-border)] bg-white md:h-[420px]"
+        >
+          <Image
+            src="/home-value-per-acre.png"
+            alt="3D map of property value per acre in Champaign, with tall spikes downtown and in Campustown"
+            fill
+            priority
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </Link>
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-5 py-6 md:px-8 md:py-10">
