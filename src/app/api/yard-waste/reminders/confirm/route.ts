@@ -5,8 +5,8 @@ import { confirmReminder, remindersConfigured } from "@/lib/yardWasteReminders.s
 export const runtime = "nodejs";
 
 /**
- * Confirms a reminder sign-up. The emailed link opens /data/yard-waste/reminders, which POSTs here when the person
- * clicks Confirm, so link scanners that open every URL in an email don't confirm on their own.
+ * Confirms a reminder sign-up. The emailed link opens /data/yard-waste/reminders, which POSTs here from JavaScript as
+ * soon as the page loads. A GET of the link (what most email link scanners do) never confirms on its own.
  */
 export async function POST(request: Request) {
   if (!remindersConfigured()) {
