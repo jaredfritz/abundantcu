@@ -37,6 +37,18 @@ export const writingSeed: WritingItem[] = [
     thumbnailFocus: "50% 50%",
   },
   {
+    slug: "curbanism-policy-of-possibility",
+    title: "CUrbanism Club uses data and art to draw attention to Champaign-Urbana’s housing needs",
+    publicationName: "Illinois Newsroom",
+    publishedAt: "2026-04-15",
+    summary:
+      "Coverage of \"The Policy of Possibility,\" CUrbanism Club's Boneyard Arts Festival exhibit at Quality in downtown Champaign, which paired city housing data with photography, paintings, collages and student architecture to show the zoning barriers behind C-U's housing needs and how residents can push for change.",
+    externalUrl:
+      "https://ipmnewsroom.org/curbanism-club-uses-data-and-art-to-draw-attention-to-champaign-urbanas-housing-needs/",
+    thumbnailSrc: "/writings/curbanism-policy-of-possibility.jpg",
+    thumbnailFocus: "56% 45%",
+  },
+  {
     slug: "illinois-statewide-housing-shortage",
     title: "My Turn: Illinois statewide housing shortage needs statewide fix",
     publicationName: "The News-Gazette",
