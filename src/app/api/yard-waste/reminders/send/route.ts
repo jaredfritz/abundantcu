@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { remindersConfigured, sendDueReminders } from "@/lib/yardWasteReminders.server";
+import { logJobRun, remindersConfigured, sendDueReminders } from "@/lib/yardWasteReminders.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const summary = await sendDueReminders();
+    await logJobRun("daily", summary);
     if (summary.errors.length > 0) console.error("yard waste reminders: some emails failed", summary.errors);
     return NextResponse.json(
       { ok: summary.errors.length === 0, ...summary },
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("yard waste reminders failed", error);
+    await logJobRun("daily", { due: 0, sent: 0, errors: [`The reminder job failed: ${error instanceof Error ? error.message : String(error)}`] });
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "failed" },
       { status: 500, headers: { "cache-control": "no-store" } },

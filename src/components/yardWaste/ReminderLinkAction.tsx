@@ -68,13 +68,25 @@ export function ReminderLinkAction() {
         address?: string;
         zoneId?: string;
         daysBefore?: number;
+        first?: { kind: "sent-now" | "scheduled" | "none-left"; pickup?: string; date?: string };
         error?: string;
       } | null;
       if (body?.status === "confirmed" || body?.status === "already-confirmed") {
         setState({
           kind: "done",
           title: body.status === "confirmed" ? "You're signed up" : "Already confirmed",
-          text: `We'll email you ${dayText(body.daysBefore ?? 1)} each yard waste pickup at ${body.address} (zone ${body.zoneId}).`,
+          text: [
+            `We'll email you ${dayText(body.daysBefore ?? 1)} each yard waste pickup at ${body.address} (zone ${body.zoneId}).`,
+            body.first?.kind === "sent-now"
+              ? `Your next pickup is ${body.first.pickup}, so we just emailed you a reminder.`
+              : body.first?.kind === "scheduled"
+                ? `Your first reminder arrives ${body.first.date} in the morning, for the pickup on ${body.first.pickup}.`
+                : body.first?.kind === "none-left"
+                  ? "There are no more pickups left this season for your zone."
+                  : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
         });
       } else if (body?.status === "expired") {
         setState({ kind: "error", text: "This link has expired. Sign up again from the yard waste map." });

@@ -7,7 +7,11 @@
     },
     {
       "path": "/api/yard-waste/reminders/send",
-      "schedule": "13 21 * * *"
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/yard-waste/reminders/report",
+      "schedule": "0 17 * * *"
     }
   ]
 }
