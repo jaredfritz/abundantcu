@@ -171,7 +171,7 @@ export function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pic
   const where = `${street(row.address)} · Zone ${zone.id}`;
   const subject = `Yard waste pickup ${formatPickup(pickup)}`;
   const preview = `Your pickup is ${when}. Set yard waste out by 6 a.m.`;
-  const guidance = "Use paper yard waste bags and follow the city's placement guidelines.";
+  const guidance = "Paper yard waste bags within 10 feet of the curb, 5 feet from mailboxes and trees.";
   const disclaimer =
     "This independent reminder is for informational purposes only. Pickup details may change. Confirm the latest information with the City of Champaign.";
   const text = [
