@@ -5,7 +5,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEmailConfigured, sendEmail, sendEmailBatch, type OutgoingEmail } from "@/lib/email/resend";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
-  colorLabel,
   addDays,
   daysBetween,
   findYardWasteZone,
@@ -83,92 +82,118 @@ const escapeHtml = (text: string) =>
 
 const daysLabel = (days: number) => (days === 1 ? "the day before" : `${days} days before`);
 
-const zoneSummary = (zone: YardWasteZone) =>
-  `zone ${zone.id}, ${colorLabel(zone.color)}${zone.weekday ? `, ${zone.weekday}s` : ""}`;
 
 export function isValidEmail(email: string): boolean {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function emailShell(bodyHtml: string, footerHtml: string): string {
-  return `<!doctype html><html><body style="margin:0;padding:24px;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
-<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:4px;padding:24px">
-${bodyHtml}
-</div>
-<p style="max-width:560px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#64748b">${footerHtml}</p>
+// --- Emails ------------------------------------------------------------------------------------------------------
+// Minimal, email-safe layout matching the site: one sans-serif family (Public Sans where installed, then Arial),
+// white background, navy text and button, gray divider, small muted footer. Tables for Outlook; inline styles only.
+
+const NAVY = "#002147";
+const TEXT = "#0f172a";
+const MUTED = "#64748b";
+const FONT = "'Public Sans',Arial,Helvetica,sans-serif";
+
+/** "2004 Mayfair Road" from "2004 Mayfair Road, Champaign, IL, 61821" */
+const street = (address: string) => address.split(",")[0]?.trim() || address;
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+function emailShell({ preview, body, footer }: { preview: string; body: string; footer: string }): string {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preview)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center" style="padding:28px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;font-family:${FONT};color:${TEXT};">
+<tr><td style="padding:0 0 24px;font-size:14px;font-weight:700;color:${NAVY};">Abundant CU</td></tr>
+${body}
+<tr><td style="padding:24px 0 0;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.5;color:${MUTED};">${footer}</td></tr>
+</table>
+</td></tr>
+</table>
 </body></html>`;
 }
 
-/** "Dates come from the City of Champaign and are subject to change. Confirm here for the latest information." */
-const datesNotice = () =>
-  `Dates come from the City of Champaign and are subject to change. Confirm <a href="${escapeHtml(YARD_WASTE.meta.cityPageUrl)}" style="color:#64748b">here</a> for the latest information.`;
+const row_ = (html: string, padding = "0 0 8px") => `<tr><td style="padding:${padding};">${html}</td></tr>`;
 
 const button = (href: string, label: string) =>
-  `<a href="${escapeHtml(href)}" style="display:inline-block;background:#002147;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 18px;border-radius:4px">${escapeHtml(label)}</a>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:${NAVY};border-radius:4px;"><a href="${escapeHtml(href)}" style="display:inline-block;padding:11px 20px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${escapeHtml(label)}</a></td></tr></table>`;
 
-const RULES = [
-  "Within 10 feet of the curb of a public street, by 6 a.m.",
-  "In 30-gallon paper yard waste bags (other bags and containers aren't collected).",
-  "At least 5 feet from trees, mailboxes, poles, and hydrants.",
-  "Branches bundled with non-metal twine, no more than 2 inches thick and 3½ feet long.",
-];
+const footerLink = (href: string, label: string) =>
+  `<a href="${escapeHtml(href)}" style="color:${MUTED};text-decoration:underline;">${escapeHtml(label)}</a>`;
 
 export function confirmationEmail(row: ReminderRow, zone: YardWasteZone): OutgoingEmail {
   const url = confirmUrl(row);
+  const where = `${street(row.address)} · Zone ${zone.id}`;
+  const what = `Get an email ${daysLabel(row.days_before)} each remaining ${YARD_WASTE.meta.label} yard waste pickup.`;
   const text = [
-    `Confirm to get an email ${daysLabel(row.days_before)} each remaining ${YARD_WASTE.meta.label} City of Champaign yard waste pickup at:`,
+    "Confirm your yard waste reminders",
     "",
-    `${row.address}`,
-    `(${zoneSummary(zone)})`,
+    where,
+    what,
     "",
     `Confirm: ${url}`,
     "",
     `Sent by Abundant CU because a reminder was requested here: ${pageUrl()}`,
-    "",
     `Dates come from the City of Champaign and are subject to change. Confirm here for the latest information: ${YARD_WASTE.meta.cityPageUrl}`,
   ].join("\n");
-  const html = emailShell(
-    `<h1 style="margin:0 0 12px;font-size:20px">Confirm your yard waste reminders</h1>
-<p style="margin:0 0 12px;line-height:1.5">Confirm to get an email ${daysLabel(row.days_before)} each remaining ${escapeHtml(YARD_WASTE.meta.label)} City of Champaign yard waste pickup at:</p>
-<p style="margin:0 0 16px;line-height:1.5"><strong>${escapeHtml(row.address)}</strong><br><span style="color:#475569">${escapeHtml(zoneSummary(zone))}</span></p>
-<p style="margin:0">${button(url, "Confirm reminders")}</p>`,
-    `Sent by Abundant CU because a reminder was requested here: <a href="${escapeHtml(pageUrl())}" style="color:#64748b">${escapeHtml(pageUrl().replace(/^https?:\/\//, ""))}</a><br><br>${datesNotice()}`,
-  );
+  const html = emailShell({
+    preview: what,
+    body: [
+      row_(`<h1 style="margin:0;font-size:24px;line-height:1.25;font-weight:700;color:${NAVY};">Confirm your yard waste reminders</h1>`, "0 0 12px"),
+      row_(`<p style="margin:0;font-size:16px;line-height:1.5;">${escapeHtml(where)}</p>`, "0 0 4px"),
+      row_(`<p style="margin:0;font-size:15px;line-height:1.5;color:#334155;">${escapeHtml(what)}</p>`, "0 0 24px"),
+      row_(button(url, "Confirm reminders"), "0 0 28px"),
+    ].join("\n"),
+    footer: `Sent by Abundant CU because a reminder was requested here: ${footerLink(pageUrl(), pageUrl().replace(/^https?:\/\//, ""))}. Dates come from the City of Champaign and are subject to change. Confirm ${footerLink(YARD_WASTE.meta.cityPageUrl, "here")} for the latest information.`,
+  });
   return { to: row.email, subject: "Confirm your yard waste reminders", text, html };
 }
 
 export function reminderEmail(row: ReminderRow, zone: YardWasteZone, pickup: Pickup, today: string): OutgoingEmail {
   const days = daysBetween(today, pickup.start);
-  const when = formatPickupLong(pickup);
-  const later = upcomingPickups(zone, today).filter((next) => next.start > pickup.start);
-  const subject = `Yard waste pickup ${days === 1 ? "tomorrow" : formatPickup(pickup)}: zone ${zone.id}`;
-  const laterText = later.length > 0 ? `Later pickups this ${YARD_WASTE.meta.season}: ${later.map(formatPickup).join(", ")}.` : `This is the last pickup of the ${YARD_WASTE.meta.label} collection.`;
+  const when = relativeDays(days) === "tomorrow" ? "tomorrow" : `in ${days} days`;
+  const date = capitalize(formatPickupLong(pickup));
+  const next = upcomingPickups(zone, today).find((later) => later.start > pickup.start);
+  const where = `${street(row.address)} · Zone ${zone.id}`;
+  const subject = `Yard waste pickup ${formatPickup(pickup)}`;
+  const preview = `Your pickup is ${when}. Set yard waste out by 6 a.m.`;
+  const guidance = "Use paper yard waste bags and follow the city's placement guidelines.";
+  const disclaimer =
+    "This independent reminder is for informational purposes only. Pickup details may change. Confirm the latest information with the City of Champaign.";
   const text = [
-    `Your next City of Champaign yard waste pickup is ${when} (${relativeDays(days)}).`,
+    `Yard waste pickup ${when}`,
+    date,
+    where,
     "",
-    `${row.address}`,
-    `(${zoneSummary(zone)})`,
+    "Set yard waste out by 6 a.m.",
+    guidance,
+    ...(next ? ["", `Next pickup: ${capitalize(formatPickupLong(next))}`] : []),
     "",
-    "Put yard waste out:",
-    ...RULES.map((rule) => `- ${rule}`),
+    `View map and schedule: ${pageUrl()}`,
     "",
-    laterText,
-    "",
-    `Map and full schedule: ${pageUrl()}`,
-    "",
-    `Dates come from the City of Champaign and are subject to change. Confirm here for the latest information: ${YARD_WASTE.meta.cityPageUrl}`,
+    disclaimer,
+    `City of Champaign yard waste information: ${YARD_WASTE.meta.cityPageUrl}`,
     `Unsubscribe: ${manageUrl(row)}`,
   ].join("\n");
-  const html = emailShell(
-    `<p style="margin:0 0 4px;font-size:13px;color:#475569">Yard waste pickup ${escapeHtml(relativeDays(days))}</p>
-<h1 style="margin:0 0 12px;font-size:22px">${escapeHtml(when[0].toUpperCase() + when.slice(1))}</h1>
-<p style="margin:0 0 16px;line-height:1.5"><strong>${escapeHtml(row.address)}</strong><br><span style="color:#475569">${escapeHtml(zoneSummary(zone))}</span></p>
-<p style="margin:0 0 6px;font-weight:bold">Put yard waste out:</p>
-<ul style="margin:0 0 16px;padding-left:20px;line-height:1.5">${RULES.map((rule) => `<li>${escapeHtml(rule)}</li>`).join("")}</ul>
-<p style="margin:0 0 16px;line-height:1.5;color:#475569">${escapeHtml(laterText)}</p>
-<p style="margin:0">${button(pageUrl(), "See the map and schedule")}</p>`,
-    `${datesNotice()} <a href="${escapeHtml(manageUrl(row))}" style="color:#64748b">Unsubscribe</a>.`,
-  );
+  const html = emailShell({
+    preview,
+    body: [
+      row_(`<p style="margin:0;font-size:15px;line-height:1.4;color:#334155;">Yard waste pickup ${escapeHtml(when)}</p>`, "0 0 4px"),
+      row_(`<h1 style="margin:0;font-size:28px;line-height:1.2;font-weight:700;color:${NAVY};">${escapeHtml(date)}</h1>`, "0 0 8px"),
+      row_(`<p style="margin:0;font-size:15px;line-height:1.5;color:#334155;">${escapeHtml(where)}</p>`, "0 0 20px"),
+      row_(`<p style="margin:0;font-size:16px;line-height:1.5;font-weight:600;">Set yard waste out by 6 a.m.</p>`, "0 0 2px"),
+      row_(`<p style="margin:0;font-size:15px;line-height:1.5;color:#334155;">${escapeHtml(guidance)}</p>`, next ? "0 0 16px" : "0 0 24px"),
+      ...(next
+        ? [row_(`<p style="margin:0;font-size:15px;line-height:1.5;color:#334155;">Next pickup: ${escapeHtml(capitalize(formatPickupLong(next)))}</p>`, "0 0 24px")]
+        : []),
+      row_(button(pageUrl(), "View map and schedule"), "0 0 28px"),
+    ].join("\n"),
+    footer: `${escapeHtml(disclaimer).replace("City of Champaign.", `${footerLink(YARD_WASTE.meta.cityPageUrl, "City of Champaign")}.`)} · ${footerLink(manageUrl(row), "Unsubscribe")}`,
+  });
   return {
     to: row.email,
     subject,
