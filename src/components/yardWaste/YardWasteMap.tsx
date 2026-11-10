@@ -5,6 +5,7 @@ import Map, { Layer, Marker, NavigationControl, Popup, Source, type MapLayerMous
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronDown } from "lucide-react";
 import { BASEMAP_ATTRIBUTION, MAX_ZOOM, MIN_ZOOM, PARCEL_BASEMAP } from "@/lib/parcelMapStyles";
+import { trackYardWaste } from "@/lib/yardWasteTrack";
 import {
   colorLabel,
   formatPickup,
@@ -83,7 +84,10 @@ export function YardWasteMap({ point, highlightZoneId, today }: YardWasteMapProp
       return;
     }
     const zone = zoneById(String(event.features?.[0]?.properties?.id ?? ""));
-    if (zone) setPopup({ zone, lngLat: [event.lngLat.lng, event.lngLat.lat] });
+    if (zone) {
+      setPopup({ zone, lngLat: [event.lngLat.lng, event.lngLat.lat] });
+      trackYardWaste("map_zone_click", { zone: zone.id });
+    }
   };
 
   const highlightFilter = useMemo(() => ["==", ["get", "id"], highlightZoneId ?? ""], [highlightZoneId]);

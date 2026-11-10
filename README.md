@@ -254,6 +254,21 @@ can't silently go wrong in someone's calendar.
 When every pickup of the season has passed, the page says so, keeps the zones and dates for reference, and hides the
 calendar and reminder options until the next season's data is merged.
 
+### Page counts
+
+`/data/yard-waste` records anonymous counts of what people do there in Supabase (`yard_waste_events`; schema in
+`supabase/yard_waste_events_schema.sql`): `search_in_zone`, `search_outside`, `map_zone_click`, `calendar_open`,
+`calendar_add` (with the calendar: apple, google, outlook, office), `reminder_submit`, and `reminder_error`. Each row
+holds only the event, the zone, the detail, and the time: no address, email, IP, or cookie. The browser sends them with
+`src/lib/yardWasteTrack.ts` to `/api/yard-waste/events`, which drops unknown values and rate-limits. Daily totals:
+
+```sql
+select * from yard_waste_event_counts order by day desc, event;
+```
+
+Visits, referrers, and devices come from Vercel Web Analytics (the `/_vercel/insights/script.js` tag in the root
+layout; enable it in the project's Analytics tab). Sign-ups and confirmations are in `yard_waste_reminders`.
+
 ### Email reminders
 
 People can sign up on the page for an email a chosen number of days (1 to 7) before each of the **current season's**

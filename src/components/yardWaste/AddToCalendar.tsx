@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CalendarPlus } from "lucide-react";
+import { trackYardWaste } from "@/lib/yardWasteTrack";
 import { googleCalendarUrl, outlookCalendarUrl, type Pickup, type YardWasteZone } from "@/lib/yardWaste";
 
 type Platform = "apple" | "android" | "other";
@@ -82,7 +83,10 @@ export function AddToCalendar({
     <div ref={wrapper} className="relative">
       <button
         type="button"
-        onClick={() => onOpenChange(!open)}
+        onClick={() => {
+          if (!open) trackYardWaste("calendar_open", { zone: zone.id });
+          onOpenChange(!open);
+        }}
         aria-expanded={open}
         aria-haspopup="menu"
         className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-sm font-medium hover:bg-slate-50"
@@ -101,7 +105,10 @@ export function AddToCalendar({
               role="menuitem"
               href={option.href}
               {...(option.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                trackYardWaste("calendar_add", { zone: zone.id, detail: option.id });
+                onOpenChange(false);
+              }}
               className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
             >
               {option.label}
