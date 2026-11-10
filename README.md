@@ -283,8 +283,10 @@ Unsubscribing clears it. To turn reminders on:
 
 Sign-ups are double opt-in: the API (`/api/yard-waste/reminders`) checks Turnstile and rate limits, finds the zone from
 the geocoded address, and emails a confirmation link. Nothing else is sent until the person clicks Confirm on
-`/data/yard-waste/reminders`. Vercel Cron calls `/api/yard-waste/reminders/send` daily at 21:13 UTC (3 or 4 p.m. in
-Champaign); it sends each reminder whose next pickup is within its lead time and records it in
+`/data/yard-waste/reminders`. Vercel Cron calls `/api/yard-waste/reminders/send` daily at 15:00 UTC, which on the Hobby plan fires
+sometime in that hour: 9–10 a.m. in Champaign during standard time (the fall season), 10–11 a.m. during daylight
+saving time. To keep spring reminders at 9–10 a.m., change the schedule in `vercel.json` to `0 14 * * *` in March and
+back in November. It sends each reminder whose next pickup is within its lead time and records it in
 `yard_waste_reminder_sends`, so a pickup is reminded once even if the job runs again, and a missed day catches up.
 Zones are looked up from each sign-up's saved location at send time. Every reminder has an unsubscribe link and one-click `List-Unsubscribe` headers.
 

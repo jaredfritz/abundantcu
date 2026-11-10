@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/yard-waste/reminders/send",
-      "schedule": "13 21 * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }

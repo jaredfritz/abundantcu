@@ -183,7 +183,7 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
         </p>
         {remindersEnabled && (
         <p>
-          <strong>Email reminders</strong> are for the {meta.label} collection only. They go out in the afternoon, the
+          <strong>Email reminders</strong> are for the {meta.label} collection only. They go out in the morning, the
           number of days before each pickup that you choose, and stop after the season&apos;s last pickup. We store
           your email, the address you searched and its map location, and your reminder timing to send them. If you
           check &ldquo;Email me when reminders open for future seasons,&rdquo; we keep them to let you know when you can
