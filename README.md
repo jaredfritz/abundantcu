@@ -288,6 +288,11 @@ sometime in that hour: 9–10 a.m. in Champaign during standard time (the fall s
 saving time. To keep spring reminders at 9–10 a.m., change the schedule in `vercel.json` to `0 14 * * *` in March and
 back in November. It sends each reminder whose next pickup is within its lead time and records it in
 `yard_waste_reminder_sends`, so a pickup is reminded once even if the job runs again, and a missed day catches up.
+A sign-up confirmed after its reminder window has opened (say, the evening before a pickup, after that
+morning's run) is reminded right away at confirmation, and the confirmation page says when the first reminder comes.
+Every delivery attempt is logged in `yard_waste_job_log` (`supabase/yard_waste_job_log_schema.sql`). At 17:00 UTC
+(11 a.m.-noon CT in standard time) `/api/yard-waste/reminders/report` emails `YARD_WASTE_REPORT_EMAIL` a summary,
+only when reminders went out that day, a send failed, or the morning job didn't run.
 Zones are looked up from each sign-up's saved location at send time. Every reminder has an unsubscribe link and one-click `List-Unsubscribe` headers.
 
 ## Data dates on the maps

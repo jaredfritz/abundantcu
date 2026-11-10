@@ -6,6 +6,7 @@ import { isEmailConfigured, sendEmail, sendEmailBatch, type OutgoingEmail } from
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   colorLabel,
+  addDays,
   daysBetween,
   findYardWasteZone,
   formatPickup,
@@ -21,6 +22,7 @@ import {
 
 const REMINDERS = "yard_waste_reminders";
 const SENDS = "yard_waste_reminder_sends";
+const JOB_LOG = "yard_waste_job_log";
 /** A confirmation link works for a week. */
 const CONFIRM_TTL_DAYS = 7;
 /** Most active reminders one email address can have (one per address they care about). */
@@ -251,7 +253,14 @@ export async function createReminder(input: {
 }
 
 export type ConfirmResult =
-  | { status: "confirmed" | "already-confirmed"; address: string; zoneId: string; daysBefore: number }
+  | {
+      status: "confirmed" | "already-confirmed";
+      address: string;
+      zoneId: string;
+      daysBefore: number;
+      /** For a new confirmation: whether a reminder went out right away, or when the first one will. */
+      first?: FirstReminder;
+    }
   | { status: "expired" | "not-found" };
 
 export async function confirmReminder(confirmToken: string): Promise<ConfirmResult> {
@@ -278,7 +287,15 @@ export async function confirmReminder(confirmToken: string): Promise<ConfirmResu
     .eq("address", row.address)
     .neq("id", row.id)
     .is("unsubscribed_at", null);
-  return { status: "confirmed", ...details };
+  let first: FirstReminder | undefined;
+  try {
+    first = await firstReminder(row);
+  } catch (error) {
+    // The sign-up is confirmed either way; the daily job will pick it up.
+    console.error("yard waste first reminder failed", error);
+    await logJobRun("confirm", { due: 1, sent: 0, errors: [error instanceof Error ? error.message : String(error)] });
+  }
+  return { status: "confirmed", ...details, first };
 }
 
 /** Stops a reminder. Returns its address, or null when the link doesn't match one. */
@@ -335,9 +352,53 @@ export function dueReminder(row: Pick<ReminderRow, "lat" | "lng" | "days_before"
 export interface SendSummary {
   today: string;
   active: number;
+  /** Reminders that came due this run and hadn't been sent before */
   due: number;
   sent: number;
   errors: string[];
+}
+
+type Delivery = { row: ReminderRow; zone: YardWasteZone; pickup: Pickup };
+
+/**
+ * Claims and sends reminders. Each (reminder, pickup) is claimed in yard_waste_reminder_sends first, so one already
+ * sent (by the daily job or at confirmation) is skipped; claims for emails that fail are released so a later run
+ * retries them.
+ */
+async function deliver(items: Delivery[], today: string): Promise<{ due: number; sent: number; errors: string[] }> {
+  if (items.length === 0) return { due: 0, sent: 0, errors: [] };
+  const client = db();
+  const { data: claimed, error } = await client
+    .from(SENDS)
+    .upsert(
+      items.map(({ row, pickup }) => ({ reminder_id: row.id, pickup_date: pickup.start })),
+      { onConflict: "reminder_id,pickup_date", ignoreDuplicates: true },
+    )
+    .select("reminder_id, pickup_date");
+  if (error) throw new Error(`Couldn't record reminders: ${error.message}`);
+  const claimedKeys = new Set((claimed ?? []).map((row) => `${row.reminder_id}|${row.pickup_date}`));
+  const toSend = items.filter(({ row, pickup }) => claimedKeys.has(`${row.id}|${pickup.start}`));
+  if (toSend.length === 0) return { due: 0, sent: 0, errors: [] };
+
+  const { sent, errors } = await sendEmailBatch(toSend.map(({ row, zone, pickup }) => reminderEmail(row, zone, pickup, today)));
+  const sentSet = new Set(sent);
+  const failed = toSend.filter((_, index) => !sentSet.has(index));
+  for (const { row, pickup } of failed) {
+    await client.from(SENDS).delete().eq("reminder_id", row.id).eq("pickup_date", pickup.start);
+  }
+  if (failed.length > 0) {
+    errors.push(`${failed.length} reminder${failed.length === 1 ? "" : "s"} due today didn't send; the next run will retry.`);
+  }
+  return { due: toSend.length, sent: sent.length, errors };
+}
+
+/** Records a delivery attempt for the daily owner report. Never throws: logging must not break sending. */
+export async function logJobRun(kind: "daily" | "confirm", result: { due: number; sent: number; errors: string[] }) {
+  try {
+    await db().from(JOB_LOG).insert({ kind, due: result.due, sent: result.sent, errors: result.errors });
+  } catch (error) {
+    console.error("yard waste job log failed", error);
+  }
 }
 
 /**
@@ -352,31 +413,126 @@ export async function sendDueReminders(now: Date = new Date()): Promise<SendSumm
     const hit = dueReminder(row, today);
     return hit ? [{ row, ...hit }] : [];
   });
-  const summary: SendSummary = { today, active: rows.length, due: due.length, sent: 0, errors: [] };
-  if (due.length === 0) return summary;
+  const result = await deliver(due, today);
+  return { today, active: rows.length, ...result };
+}
 
-  // Claim each (reminder, pickup) first. Rows that already exist were sent earlier and come back filtered out.
-  const client = db();
-  const { data: claimed, error } = await client
-    .from(SENDS)
-    .upsert(
-      due.map(({ row, pickup }) => ({ reminder_id: row.id, pickup_date: pickup.start })),
-      { onConflict: "reminder_id,pickup_date", ignoreDuplicates: true },
-    )
-    .select("reminder_id, pickup_date");
-  if (error) throw new Error(`Couldn't record reminders: ${error.message}`);
-  const claimedKeys = new Set((claimed ?? []).map((row) => `${row.reminder_id}|${row.pickup_date}`));
-  const toSend = due.filter(({ row, pickup }) => claimedKeys.has(`${row.id}|${pickup.start}`));
-
-  const { sent, errors } = await sendEmailBatch(toSend.map(({ row, zone, pickup }) => reminderEmail(row, zone, pickup, today)));
-  summary.sent = sent.length;
-  summary.errors = errors;
-
-  // Release the claims for emails that didn't go out, so the next run retries them.
-  const sentSet = new Set(sent);
-  const failed = toSend.filter((_, index) => !sentSet.has(index));
-  for (const { row, pickup } of failed) {
-    await client.from(SENDS).delete().eq("reminder_id", row.id).eq("pickup_date", pickup.start);
+/**
+ * What a newly confirmed sign-up can expect. A sign-up whose reminder window has already opened (for example,
+ * confirmed the evening before a pickup, after that morning's daily run) gets its reminder right away instead of
+ * missing that pickup.
+ */
+async function firstReminder(row: ReminderRow): Promise<FirstReminder> {
+  const today = todayInChampaign();
+  const hit = dueReminder(row, today);
+  if (hit) {
+    const result = await deliver([{ row, ...hit }], today);
+    await logJobRun("confirm", result);
+    if (result.sent > 0) return { kind: "sent-now", pickup: formatPickupLong(hit.pickup) };
   }
+  const match = findYardWasteZone(row.lng, row.lat);
+  const next = match && upcomingPickups(match.zone, today).find((pickup) => pickup.start > today);
+  if (!next) return { kind: "none-left" };
+  if (hit) return { kind: "sent-now", pickup: formatPickupLong(next) };
+  return { kind: "scheduled", date: formatPickupLong({ start: addDays(next.start, -row.days_before), end: addDays(next.start, -row.days_before) }), pickup: formatPickupLong(next) };
+}
+
+export type FirstReminder =
+  | { kind: "sent-now"; pickup: string }
+  | { kind: "scheduled"; date: string; pickup: string }
+  | { kind: "none-left" };
+
+// --- Daily owner report --------------------------------------------------------------------------------------------
+
+/** Who gets the daily report: YARD_WASTE_REPORT_EMAIL (comma-separated), else the editor notification recipients. */
+function reportRecipients(): string[] {
+  const raw = process.env.YARD_WASTE_REPORT_EMAIL || process.env.EDITOR_NOTIFICATION_RECIPIENTS || "abundantcu@gmail.com";
+  return raw.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+/** UTC instant of midnight today in Champaign: 05:00 UTC during daylight saving time, 06:00 UTC otherwise. */
+export function startOfChampaignDay(now: Date): string {
+  const today = todayInChampaign(now);
+  for (const hour of [5, 6]) {
+    const candidate = new Date(`${today}T0${hour}:00:00Z`);
+    const isToday = todayInChampaign(candidate) === today;
+    const before = todayInChampaign(new Date(candidate.getTime() - 1)) !== today;
+    if (isToday && before) return candidate.toISOString();
+  }
+  return new Date(`${today}T06:00:00Z`).toISOString();
+}
+
+export interface ReportSummary {
+  today: string;
+  sent: number;
+  errors: string[];
+  dailyRan: boolean;
+  emailed: boolean;
+}
+
+/**
+ * Emails the owner a summary of today's reminders, only when there's something to report: reminders went out, a send
+ * failed, or the morning job didn't run at all.
+ */
+export async function sendOwnerReport(now: Date = new Date()): Promise<ReportSummary> {
+  const today = todayInChampaign(now);
+  const since = startOfChampaignDay(now);
+  const client = db();
+  const { data: runs, error } = await client
+    .from(JOB_LOG)
+    .select("kind, due, sent, errors, ran_at")
+    .gte("ran_at", since)
+    .order("ran_at");
+  if (error) throw new Error(`Couldn't read the job log: ${error.message}`);
+  const rows = (runs ?? []) as { kind: string; due: number; sent: number; errors: string[]; ran_at: string }[];
+  const sent = rows.reduce((sum, run) => sum + run.sent, 0);
+  const errors = rows.flatMap((run) => run.errors ?? []);
+  const dailyRan = rows.some((run) => run.kind === "daily");
+  if (!dailyRan) errors.unshift("The morning reminder job didn't run today. Check Cron Jobs in the Vercel project.");
+
+  const summary: ReportSummary = { today, sent, errors, dailyRan, emailed: false };
+  if (sent === 0 && errors.length === 0) return summary;
+
+  // Who got reminders today, by zone, from the sends recorded today.
+  const { data: sends } = await client
+    .from(SENDS)
+    .select("reminder_id, yard_waste_reminders(zone_id)")
+    .gte("sent_at", since);
+  const byZone = new Map<string, number>();
+  type Linked = { zone_id: string } | { zone_id: string }[] | null;
+  for (const send of (sends ?? []) as unknown as { yard_waste_reminders: Linked }[]) {
+    const linked = send.yard_waste_reminders;
+    const zone = (Array.isArray(linked) ? linked[0]?.zone_id : linked?.zone_id) ?? "unknown";
+    byZone.set(zone, (byZone.get(zone) ?? 0) + 1);
+  }
+  const { count: active } = await client
+    .from(REMINDERS)
+    .select("id", { count: "exact", head: true })
+    .not("confirmed_at", "is", null)
+    .is("unsubscribed_at", null)
+    .eq("season", SEASON_ID);
+
+  const dateLabel = formatPickupLong({ start: today, end: today });
+  const zones = [...byZone.entries()].sort().map(([zone, count]) => `${zone}: ${count}`).join(", ");
+  const subject = errors.length > 0
+    ? `Yard waste reminders: ${sent} sent, ${errors.length} issue${errors.length === 1 ? "" : "s"} (${dateLabel})`
+    : `Yard waste reminders: ${sent} sent (${dateLabel})`;
+  const lines = [
+    `Reminders sent today: ${sent}${zones ? ` (${zones})` : ""}`,
+    `Active sign-ups this season: ${active ?? "unknown"}`,
+    "",
+    errors.length > 0 ? "Look into:" : "No errors.",
+    ...errors.map((message) => `- ${message}`),
+  ];
+  const text = lines.join("\n");
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">
+<p style="margin:0 0 8px"><strong>Reminders sent today:</strong> ${sent}${zones ? ` (${escapeHtml(zones)})` : ""}</p>
+<p style="margin:0 0 16px"><strong>Active sign-ups this season:</strong> ${active ?? "unknown"}</p>
+${errors.length > 0
+    ? `<p style="margin:0 0 4px;color:#b91c1c"><strong>Look into:</strong></p><ul style="margin:0;padding-left:20px">${errors.map((message) => `<li>${escapeHtml(message)}</li>`).join("")}</ul>`
+    : `<p style="margin:0;color:#15803d">No errors.</p>`}
+</div>`;
+  for (const to of reportRecipients()) await sendEmail({ to, subject, text, html });
+  summary.emailed = true;
   return summary;
 }
