@@ -100,6 +100,16 @@ const FONT = "'Public Sans',Arial,Helvetica,sans-serif";
 const street = (address: string) => address.split(",")[0]?.trim() || address;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/**
+ * The site header's mark: the Abundant CU icon beside "ABUNDANT CU" (uppercase, letter-spaced, extra-bold "ABUNDANT",
+ * medium "CU"). The icon is hosted on the site and marked decorative; the wordmark is text, so the name still shows
+ * when images are blocked.
+ */
+const wordmark = () => `<a href="${escapeHtml(baseUrl())}" style="text-decoration:none;color:${NAVY};"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="vertical-align:middle;padding-right:8px;"><img src="${escapeHtml(baseUrl())}/logos/abundantcu-logo.png" width="32" height="28" alt="" style="display:block;border:0;width:32px;height:28px;"></td>
+<td style="vertical-align:middle;font-family:${FONT};font-size:14px;letter-spacing:0.12em;text-transform:uppercase;color:${NAVY};white-space:nowrap;"><span style="font-weight:800;">ABUNDANT</span><span style="font-weight:500;"> CU</span></td>
+</tr></table></a>`;
+
 function emailShell({ preview, body, footer }: { preview: string; body: string; footer: string }): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
@@ -108,7 +118,7 @@ function emailShell({ preview, body, footer }: { preview: string; body: string; 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
 <tr><td align="center" style="padding:28px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;font-family:${FONT};color:${TEXT};">
-<tr><td style="padding:0 0 24px;font-size:14px;font-weight:700;color:${NAVY};">Abundant CU</td></tr>
+<tr><td style="padding:0 0 24px;">${wordmark()}</td></tr>
 ${body}
 <tr><td style="padding:24px 0 0;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.5;color:${MUTED};">${footer}</td></tr>
 </table>
