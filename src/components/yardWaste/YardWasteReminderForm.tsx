@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { trackYardWaste } from "@/lib/yardWasteTrack";
 import { REMINDER_DAY_OPTIONS, YARD_WASTE, type YardWasteZone } from "@/lib/yardWaste";
 import { InfoTip } from "./InfoTip";
 
@@ -111,9 +112,11 @@ export function YardWasteReminderForm({ address, lat, lng, zone, enabled }: Yard
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) throw new Error(body?.error ?? "Couldn't sign you up. Please try again.");
       setStatus("sent");
+      trackYardWaste("reminder_submit", { zone: zone.id });
       setMessage(`Almost done: we sent a confirmation link to ${email}. Reminders start once you click it.`);
     } catch (error) {
       setStatus("error");
+      trackYardWaste("reminder_error", { zone: zone.id });
       setMessage(error instanceof Error ? error.message : "Couldn't sign you up. Please try again.");
     } finally {
       turnstileToken.current = "";

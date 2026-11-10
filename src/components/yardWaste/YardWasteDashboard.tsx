@@ -23,6 +23,7 @@ import {
   zoneTextColor,
   type ZoneMatch,
 } from "@/lib/yardWaste";
+import { trackYardWaste } from "@/lib/yardWasteTrack";
 import { AddToCalendar } from "./AddToCalendar";
 import { InfoTip } from "./InfoTip";
 import { YardWasteMap } from "./YardWasteMap";
@@ -43,7 +44,9 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
   useEffect(() => setToday(todayInChampaign()), []);
 
   const handleResult = (address: GeocodedAddress) => {
-    setResult({ address, match: findYardWasteZone(address.lng, address.lat) });
+    const match = findYardWasteZone(address.lng, address.lat);
+    setResult({ address, match });
+    trackYardWaste(match ? "search_in_zone" : "search_outside", { zone: match?.zone.id });
   };
 
   const seasonOver = today !== null && isSeasonOver(today);
@@ -166,6 +169,11 @@ export default function YardWasteDashboard({ remindersEnabled }: { remindersEnab
           </a>
           . We check them for updates and redraw this map when the city posts a new season. If anything here differs from
           the city&apos;s information, the city&apos;s is right.
+        </p>
+        <p>
+          <strong>Page counts:</strong> we count anonymous actions on this page (searches, calendar adds, reminder
+          sign-ups) with only the zone and the time, to see what&apos;s useful. No addresses, emails, or cookies are
+          involved.
         </p>
         <p>
           <strong>Finding your zone:</strong> your address is placed on the map by Google or OpenStreetMap, then matched to
