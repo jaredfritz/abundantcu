@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     description:
       "Find your City of Champaign yard waste collection zone and pickup dates by address, add them to your calendar, or get an email reminder before each pickup.",
     url: "https://abundantcu.com/data/yard-waste",
+    images: [{ url: "/og/yard-waste.png", width: 1731, height: 909 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/yard-waste.png"],
   },
 };
 
